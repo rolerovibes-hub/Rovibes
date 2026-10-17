@@ -7,6 +7,10 @@ import { MapaBase, PinMapa } from "@/components/MapaBase";
 import { reais } from "@/components/Formulario";
 import { abertoAgora, DIAS, hhmm, resumoHorario } from "@/lib/horarios";
 import { agruparCardapio, buscarLugar, nomesVibes, quando } from "./dados";
+import { useExigirLogin, useRelacao, useResumos } from "./presenca";
+import { FolhaCheckin } from "./Checkin";
+import { NotaCompacta, SecaoAvaliacoes } from "./Avaliacoes";
+import { MedidorMovimento } from "@/components/Marca";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
 
@@ -51,6 +55,12 @@ export function LugarPagina() {
   const navegar = useNavigate();
   const dados = useLugar(id);
   const [foto, setFoto] = useState(0);
+  const relacao = useRelacao(id);
+  const { resumos, recarregar } = useResumos([id]);
+  const exigirLogin = useExigirLogin();
+  const [checkinAberto, setCheckinAberto] = useState(false);
+  const [versao, setVersao] = useState(0);
+  const resumo = resumos.get(id);
 
   if (!dados) return <Carregando />;
   const { lugar, eventos, fotos, categorias, itens } = dados;
@@ -123,6 +133,17 @@ export function LugarPagina() {
           <p className="text-sm text-suave">
             {[lugar.categoria?.nome, lugar.faixa_preco ? "$".repeat(lugar.faixa_preco) : null].filter(Boolean).join(" · ")}
           </p>
+          <button
+            onClick={() => exigirLogin() && void relacao.alternarSeguir().then(recarregar)}
+            aria-pressed={relacao.seguindo}
+            className={clsx(
+              "mt-3 inline-flex h-8 items-center gap-1.5 rounded-full border px-4 text-[13px] font-medium",
+              relacao.seguindo ? "border-borda bg-elevado text-texto" : "border-marca text-destaque hover:bg-destaque-suave",
+            )}
+          >
+            {relacao.seguindo ? "Seguindo" : "Seguir"}
+            {resumo && resumo.seguidores > 0 && <span className="font-normal text-suave">· {resumo.seguidores}</span>}
+          </button>
         </div>
 
         <div className="cartao mt-4 px-4 py-3 text-center text-sm">
@@ -136,6 +157,17 @@ export function LugarPagina() {
               <span className="text-suave">Horário não informado</span>
             )}
           </p>
+          {resumo && (resumo.avaliacoes > 0 || resumo.movimento || resumo.pessoas_2h > 0) && (
+            <p className="mt-1 flex flex-wrap items-center justify-center gap-x-3 gap-y-1">
+              <NotaCompacta nota={resumo.nota} total={resumo.avaliacoes} />
+              {resumo.movimento && <MedidorMovimento nivel={resumo.movimento} />}
+              {resumo.pessoas_2h > 0 && (
+                <span className="text-[13px] text-suave">
+                  {resumo.pessoas_2h} {resumo.pessoas_2h === 1 ? "check-in" : "check-ins"} nas últimas 2 h
+                </span>
+              )}
+            </p>
+          )}
           {endereco && (
             <p className="mt-1 inline-flex items-center gap-1 text-suave">
               <MapPin className="h-3.5 w-3.5" />
@@ -156,11 +188,15 @@ export function LugarPagina() {
               <Navigation className="h-4 w-4" />
               Como chegar
             </a>
-            <button className="botao flex-col gap-1 py-2.5 text-[13px]" disabled title="Chega na fase 3">
-              <Bookmark className="h-4 w-4" />
-              Salvar
+            <button
+              onClick={() => exigirLogin() && void relacao.alternarSalvo()}
+              aria-pressed={relacao.salvo}
+              className={clsx("botao flex-col gap-1 py-2.5 text-[13px]", relacao.salvo && "border-marca text-destaque")}
+            >
+              <Bookmark className={clsx("h-4 w-4", relacao.salvo && "fill-current")} />
+              {relacao.salvo ? "Salvo" : "Salvar"}
             </button>
-            <button className="botao flex-col gap-1 py-2.5 text-[13px]" disabled title="Chega na fase 3">
+            <button onClick={() => exigirLogin() && setCheckinAberto(true)} className="botao flex-col gap-1 py-2.5 text-[13px]">
               <MapPinned className="h-4 w-4" />
               Check-in
             </button>
@@ -252,6 +288,8 @@ export function LugarPagina() {
           </section>
         )}
 
+        <SecaoAvaliacoes estabelecimentoId={lugar.id} versao={versao} aoMudar={() => void recarregar()} />
+
         {lugar.horarios.length > 0 && (
           <section className="px-4">
             <h2 className="mb-3 text-[17px] font-semibold">Horários</h2>
@@ -300,6 +338,18 @@ export function LugarPagina() {
           </ul>
         </section>
       </div>
+      {checkinAberto && (
+        <FolhaCheckin
+          estabelecimentoId={lugar.id}
+          nome={lugar.nome}
+          vibes={vibes}
+          fechar={() => setCheckinAberto(false)}
+          concluido={() => {
+            setVersao((v) => v + 1);
+            void recarregar();
+          }}
+        />
+      )}
     </article>
   );
 }

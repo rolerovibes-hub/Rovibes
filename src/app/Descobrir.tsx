@@ -3,6 +3,9 @@ import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { CalendarDays, MapPin, Search, Store } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
+import { MedidorMovimento } from "@/components/Marca";
+import { useResumos } from "./presenca";
+import { NotaCompacta } from "./Avaliacoes";
 import { abertoAgora, resumoHorario } from "@/lib/horarios";
 import { distanciaKm, ehHoje, km, Lugar, nomesVibes, pedirLocalizacao, quando, useVitrine } from "./dados";
 
@@ -14,6 +17,7 @@ const sem = (s: string) =>
 
 export function Descobrir() {
   const { lugares, eventos, carregando, erro } = useVitrine();
+  const { resumos } = useResumos(null);
   const [filtro, setFiltro] = useState("Tudo");
   const [busca, setBusca] = useState("");
   const [eu, setEu] = useState<[number, number] | null>(null);
@@ -164,6 +168,8 @@ export function Descobrir() {
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px]">
                             {horario && <span className={abertoAgora(l.horarios) ? "font-medium text-ok" : "text-suave"}>{horario}</span>}
+                            <NotaCompacta nota={resumos.get(l.id)?.nota ?? null} total={resumos.get(l.id)?.avaliacoes ?? 0} />
+                            {resumos.get(l.id)?.movimento && <MedidorMovimento nivel={resumos.get(l.id)!.movimento!} />}
                             {d != null && (
                               <span className="inline-flex items-center gap-1 text-suave">
                                 <MapPin className="h-3.5 w-3.5" />

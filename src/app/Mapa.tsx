@@ -5,10 +5,14 @@ import { CircleMarker } from "react-leaflet";
 import { LocateFixed, X } from "lucide-react";
 import { MapaBase, PinMapa, Recentralizar, TamanhoPin, UBERLANDIA, corDoTema } from "@/components/MapaBase";
 import { abertoAgora, resumoHorario } from "@/lib/horarios";
+import { MedidorMovimento } from "@/components/Marca";
+import { useResumos } from "./presenca";
+import { NotaCompacta } from "./Avaliacoes";
 import { atendeFiltro, FILTROS_FIXOS, nomesVibes, pedirLocalizacao, useVitrine } from "./dados";
 
 export function Mapa() {
   const { lugares, eventos } = useVitrine();
+  const { resumos } = useResumos(null);
   const [filtro, setFiltro] = useState("Tudo");
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [eu, setEu] = useState<[number, number] | null>(null);
@@ -97,6 +101,12 @@ export function Mapa() {
               {lugar.horarios.length > 0 && (
                 <p className={abertoAgora(lugar.horarios) ? "mt-0.5 text-[13px] font-medium text-ok" : "mt-0.5 text-[13px] text-suave"}>
                   {resumoHorario(lugar.horarios)}
+                </p>
+              )}
+              {resumos.get(lugar.id) && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <NotaCompacta nota={resumos.get(lugar.id)!.nota} total={resumos.get(lugar.id)!.avaliacoes} />
+                  {resumos.get(lugar.id)!.movimento && <MedidorMovimento nivel={resumos.get(lugar.id)!.movimento!} />}
                 </p>
               )}
             </div>

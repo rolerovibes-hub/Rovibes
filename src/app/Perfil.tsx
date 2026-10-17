@@ -1,14 +1,87 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/lib/supabase";
 import { Bookmark, ChevronRight, LogOut, MapPinned, Store, Wallet } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
 
-const ITENS = [
-  { nome: "Salvos", icone: Bookmark, fase: 3 },
-  { nome: "Meus check-ins", icone: MapPinned, fase: 3 },
-  { nome: "Carteira", icone: Wallet, fase: 4 },
-];
+interface ItemLista {
+  id: string;
+  nome: string;
+  detalhe: string;
+}
+
+function MinhasListas({ usuario }: { usuario: string }) {
+  const [salvos, setSalvos] = useState<ItemLista[]>([]);
+  const [checkins, setCheckins] = useState<ItemLista[]>([]);
+
+  useEffect(() => {
+    Promise.all([
+      supabase
+        .from("salvos")
+        .select("criado_em, estabelecimento:estabelecimentos(id, nome, bairro)")
+        .eq("usuario_id", usuario)
+        .order("criado_em", { ascending: false })
+        .limit(30),
+      supabase
+        .from("checkins")
+        .select("id, criado_em, estabelecimento:estabelecimentos(id, nome)")
+        .eq("usuario_id", usuario)
+        .order("criado_em", { ascending: false })
+        .limit(10),
+    ]).then(([a, b]) => {
+      type Linha = { id?: string; criado_em: string; estabelecimento: { id: string; nome: string; bairro?: string | null } | null };
+      setSalvos(
+        ((a.data ?? []) as unknown as Linha[])
+          .filter((x) => x.estabelecimento)
+          .map((x) => ({ id: x.estabelecimento!.id, nome: x.estabelecimento!.nome, detalhe: x.estabelecimento!.bairro ?? "" })),
+      );
+      setCheckins(
+        ((b.data ?? []) as unknown as Linha[])
+          .filter((x) => x.estabelecimento)
+          .map((x) => ({
+            id: x.estabelecimento!.id,
+            nome: x.estabelecimento!.nome,
+            detalhe: new Date(x.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" }),
+          })),
+      );
+    });
+  }, [usuario]);
+
+  const lista = (titulo: string, Icone: typeof Bookmark, itens: ItemLista[], vazio: string) => (
+    <section>
+      <h2 className="mb-2 flex items-center gap-2 font-semibold">
+        <Icone className="h-4 w-4 text-destaque" />
+        {titulo}
+      </h2>
+      {itens.length === 0 ? (
+        <p className="cartao px-4 py-4 text-sm text-suave">{vazio}</p>
+      ) : (
+        <ul className="cartao divide-y divide-borda">
+          {itens.map((i, n) => (
+            <li key={`${i.id}-${n}`}>
+              <Link to={`/lugar/${i.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-elevado">
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate font-medium">{i.nome}</span>
+                  {i.detalhe && <span className="block text-[13px] text-suave">{i.detalhe}</span>}
+                </span>
+                <ChevronRight className="h-4 w-4 text-suave" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+
+  return (
+    <>
+      {lista("Salvos", Bookmark, salvos, "Toque em Salvar na página de um lugar para guardá-lo aqui.")}
+      {lista("Meus check-ins", MapPinned, checkins, "Seus check-ins aparecem aqui.")}
+    </>
+  );
+}
 
 export function Perfil() {
   const { sessao, perfil, email, sair } = useSessao();
@@ -38,14 +111,14 @@ export function Perfil() {
         </div>
       )}
 
+      {sessao && <MinhasListas usuario={sessao.user.id} />}
+
       <ul className="cartao divide-y divide-borda">
-        {ITENS.map(({ nome, icone: Icone, fase }) => (
-          <li key={nome} className="flex items-center gap-3 px-4 py-3.5">
-            <Icone className="h-5 w-5 text-destaque" />
-            <span className="flex-1">{nome}</span>
-            <span className="text-xs text-suave">fase {fase}</span>
-          </li>
-        ))}
+        <li className="flex items-center gap-3 px-4 py-3.5">
+          <Wallet className="h-5 w-5 text-destaque" />
+          <span className="flex-1">Carteira</span>
+          <span className="text-xs text-suave">fase 4</span>
+        </li>
       </ul>
 
       <section className="space-y-2">
