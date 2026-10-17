@@ -166,3 +166,13 @@ export function agruparCardapio(categorias: { id: string; nome: string }[], iten
     },
   ].filter((g) => g.itens.length);
 }
+
+/** Filtros rápidos usados no Descobrir e no Mapa. */
+export const FILTROS_FIXOS = ["Tudo", "Aberto agora", "Eventos hoje"];
+
+export function atendeFiltro(l: Lugar, filtro: string, eventos: EventoResumo[], aberto: (l: Lugar) => boolean) {
+  if (filtro === "Tudo") return true;
+  if (filtro === "Aberto agora") return aberto(l);
+  if (filtro === "Eventos hoje") return eventos.some((e) => e.estabelecimento?.id === l.id && ehHoje(e.inicio));
+  return nomesVibes(l).includes(filtro);
+}

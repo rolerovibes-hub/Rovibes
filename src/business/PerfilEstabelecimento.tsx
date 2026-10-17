@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { CircleMarker } from "react-leaflet";
 import { ExternalLink, ImagePlus, LocateFixed, RotateCcw, Save, Star, Trash2 } from "lucide-react";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
-import { MapaBase, Recentralizar, UBERLANDIA } from "@/components/MapaBase";
+import { MapaBase, PinMapa, Recentralizar, UBERLANDIA } from "@/components/MapaBase";
 import { Carregando } from "@/components/Carregando";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { apagarFoto, caminhoDaUrl, enviarFoto } from "@/lib/imagens";
@@ -389,7 +388,7 @@ export function PerfilEstabelecimento() {
             aoClicar={(lat, lng) => setDados((d) => (d ? { ...d, latitude: lat, longitude: lng } : d))}
           >
             <Recentralizar centro={centro} zoom={16} />
-            {pin && <CircleMarker center={pin} radius={10} pathOptions={{ color: "#fff", weight: 3, fillColor: "#6D55E0", fillOpacity: 1 }} />}
+            {pin && <PinMapa posicao={pin} tamanho="grande" />}
           </MapaBase>
         </div>
       </Secao>

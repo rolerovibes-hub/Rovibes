@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { CircleMarker } from "react-leaflet";
 import { ArrowLeft, AtSign, Bookmark, CalendarDays, ChevronRight, MapPin, MapPinned, Navigation, Phone, Store, UtensilsCrossed } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
-import { MapaBase, corDaMarca } from "@/components/MapaBase";
+import { MapaBase, PinMapa } from "@/components/MapaBase";
 import { reais } from "@/components/Formulario";
 import { abertoAgora, DIAS, hhmm, resumoHorario } from "@/lib/horarios";
 import { agruparCardapio, buscarLugar, nomesVibes, quando } from "./dados";
@@ -276,7 +275,7 @@ export function LugarPagina() {
           {ponto && (
             <div className="mb-3 h-44 overflow-hidden rounded-cartao border border-borda">
               <MapaBase centro={ponto} zoom={16} className="h-full w-full">
-                <CircleMarker center={ponto} radius={9} pathOptions={{ color: "#fff", weight: 3, fillColor: corDaMarca(), fillOpacity: 1 }} />
+                <PinMapa posicao={ponto} tamanho="grande" titulo={lugar.nome} />
               </MapaBase>
             </div>
           )}
