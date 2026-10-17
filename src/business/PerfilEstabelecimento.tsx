@@ -8,7 +8,7 @@ import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { MapaBase, Recentralizar, UBERLANDIA } from "@/components/MapaBase";
 import { Carregando } from "@/components/Carregando";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { apagarFoto, enviarFoto } from "@/lib/imagens";
+import { apagarFoto, caminhoDaUrl, enviarFoto } from "@/lib/imagens";
 import { DIAS, hhmm } from "@/lib/horarios";
 import { useBusiness } from "@/lib/acessos";
 
@@ -24,6 +24,7 @@ interface Dados {
   latitude: number | null;
   longitude: number | null;
   capa_url: string | null;
+  logo_url: string | null;
 }
 
 interface DiaHorario {
@@ -55,13 +56,14 @@ export function PerfilEstabelecimento() {
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [centro, setCentro] = useState<[number, number] | null>(null);
   const seletorFoto = useRef<HTMLInputElement>(null);
+  const seletorLogo = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
     if (!id) return;
     const [e, c, v, mv, h, f] = await Promise.all([
       supabase
         .from("estabelecimentos")
-        .select("nome, categoria_id, descricao, telefone, instagram, endereco, bairro, faixa_preco, latitude, longitude, capa_url")
+        .select("nome, categoria_id, descricao, telefone, instagram, endereco, bairro, faixa_preco, latitude, longitude, capa_url, logo_url")
         .eq("id", id)
         .single(),
       supabase.from("categorias").select("id, nome").eq("ativa", true).order("nome"),
@@ -87,6 +89,7 @@ export function PerfilEstabelecimento() {
       latitude: (d.latitude as number) ?? null,
       longitude: (d.longitude as number) ?? null,
       capa_url: (d.capa_url as string) ?? null,
+      logo_url: (d.logo_url as string) ?? null,
     });
     setCategorias((c.data ?? []) as { id: number; nome: string }[]);
     setVibes((v.data ?? []) as { id: number; nome: string }[]);
@@ -209,6 +212,26 @@ export function PerfilEstabelecimento() {
     if (!error) setDados((d) => (d ? { ...d, capa_url: url } : d));
   };
 
+  const trocarLogo = async (arquivos: FileList | null) => {
+    const arquivo = arquivos?.[0];
+    if (!arquivo || !id) return;
+    setEnviando(true);
+    setAviso(null);
+    try {
+      const anterior = caminhoDaUrl(dados.logo_url);
+      const { url } = await enviarFoto(id, arquivo, "logo");
+      const { error } = await supabase.from("estabelecimentos").update({ logo_url: url }).eq("id", id);
+      if (error) throw error;
+      if (anterior) await apagarFoto(anterior);
+      setDados((d) => (d ? { ...d, logo_url: url } : d));
+    } catch (err) {
+      setAviso({ tipo: "erro", texto: mensagemDeErro(err) });
+    } finally {
+      setEnviando(false);
+      if (seletorLogo.current) seletorLogo.current.value = "";
+    }
+  };
+
   const removerFoto = async (foto: Foto) => {
     const { error } = await supabase.from("fotos").delete().eq("id", foto.id);
     if (error) {
@@ -248,6 +271,22 @@ export function PerfilEstabelecimento() {
       )}
 
       <Secao titulo="Dados">
+        <div className="mb-5 flex items-center gap-4">
+          <button
+            type="button"
+            onClick={() => seletorLogo.current?.click()}
+            disabled={enviando}
+            aria-label="Trocar a logo"
+            className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full border border-dashed border-borda bg-fundo text-suave hover:bg-elevado"
+          >
+            {dados.logo_url ? <img src={dados.logo_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-5 w-5" />}
+          </button>
+          <div>
+            <p className="text-sm font-medium">Logo</p>
+            <p className="text-[13px] text-suave">Aparece em círculo sobre a foto de capa. Use uma imagem quadrada.</p>
+          </div>
+          <input ref={seletorLogo} type="file" accept="image/*" className="hidden" onChange={(e) => void trocarLogo(e.target.files)} />
+        </div>
         <div className="grid gap-4 sm:grid-cols-2">
           <Campo rotulo="Nome">
             <input className="entrada" value={dados.nome} onChange={(e) => mudar("nome", e.target.value)} />

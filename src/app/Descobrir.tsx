@@ -118,7 +118,7 @@ export function Descobrir() {
                         </div>
                       )}
                       <div className="p-3.5">
-                        <p className="text-[13px] font-medium text-destaque">{quando(e.inicio)}</p>
+                        <p className={clsx("text-[13px] font-medium", ehHoje(e.inicio) ? "text-magenta" : "text-destaque")}>{quando(e.inicio)}</p>
                         <h3 className="mt-0.5 truncate font-semibold">{e.nome}</h3>
                         <p className="truncate text-[13px] text-suave">{e.estabelecimento?.nome}</p>
                       </div>

@@ -2,124 +2,237 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { CircleMarker } from "react-leaflet";
-import { ArrowLeft, AtSign, Bookmark, CalendarDays, MapPinned, Navigation, Phone, Store } from "lucide-react";
+import { ArrowLeft, AtSign, Bookmark, CalendarDays, ChevronRight, MapPin, MapPinned, Navigation, Phone, Store, UtensilsCrossed } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { MapaBase, corDaMarca } from "@/components/MapaBase";
 import { reais } from "@/components/Formulario";
 import { abertoAgora, DIAS, hhmm, resumoHorario } from "@/lib/horarios";
-import { buscarLugar, nomesVibes, quando } from "./dados";
+import { agruparCardapio, buscarLugar, nomesVibes, quando } from "./dados";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
+
+/** Cache simples por id, para a página do cardápio completo abrir sem recarregar. */
+const cache = new Map<string, Dados>();
+
+export function useLugar(id: string) {
+  const [dados, setDados] = useState<Dados | null>(() => cache.get(id) ?? null);
+  useEffect(() => {
+    let ativo = true;
+    if (!cache.has(id)) setDados(null);
+    buscarLugar(id).then((d) => {
+      cache.set(id, d);
+      if (ativo) setDados(d);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, [id]);
+  useEffect(() => {
+    if (dados?.lugar) document.title = `${dados.lugar.nome} · RoVibes`;
+  }, [dados]);
+  return dados;
+}
+
+export function LugarNaoEncontrado() {
+  return (
+    <div className="px-6 py-20 text-center">
+      <Store className="mx-auto h-8 w-8 text-suave" />
+      <p className="mt-3 font-medium">Lugar não encontrado</p>
+      <Link to="/" className="botao mt-5">
+        Voltar ao Descobrir
+      </Link>
+    </div>
+  );
+}
+
+const PREVIA = 4;
 
 export function LugarPagina() {
   const { id = "" } = useParams();
   const navegar = useNavigate();
-  const [dados, setDados] = useState<Dados | null>(null);
+  const dados = useLugar(id);
   const [foto, setFoto] = useState(0);
-
-  useEffect(() => {
-    setDados(null);
-    buscarLugar(id).then(setDados);
-  }, [id]);
-
-  useEffect(() => {
-    if (dados?.lugar) document.title = `${dados.lugar.nome} · RoVibes`;
-  }, [dados]);
 
   if (!dados) return <Carregando />;
   const { lugar, eventos, fotos, categorias, itens } = dados;
-  if (!lugar) {
-    return (
-      <div className="px-6 py-20 text-center">
-        <Store className="mx-auto h-8 w-8 text-suave" />
-        <p className="mt-3 font-medium">Lugar não encontrado</p>
-        <Link to="/" className="botao mt-5">
-          Voltar ao Descobrir
-        </Link>
-      </div>
-    );
-  }
+  if (!lugar) return <LugarNaoEncontrado />;
 
   const imagens = fotos.length ? fotos.map((f) => f.url) : lugar.capa_url ? [lugar.capa_url] : [];
+  const capa = imagens[foto] ?? null;
   const aberto = abertoAgora(lugar.horarios);
+  const vibes = nomesVibes(lugar);
   const ponto: [number, number] | null = lugar.latitude != null && lugar.longitude != null ? [lugar.latitude, lugar.longitude] : null;
   const rota = ponto
     ? `https://www.google.com/maps/dir/?api=1&destination=${ponto[0]},${ponto[1]}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lugar.endereco ?? lugar.nome}, Uberlândia`)}`;
-  const grupos = [
-    ...categorias.map((c) => ({ nome: c.nome, itens: itens.filter((i) => i.categoria_id === c.id) })),
-    { nome: categorias.length ? "Outros" : "Cardápio", itens: itens.filter((i) => !i.categoria_id || !categorias.some((c) => c.id === i.categoria_id)) },
-  ].filter((g) => g.itens.length);
+  const destaques = itens.filter((i) => i.destaque);
+  const grupos = agruparCardapio(categorias, itens);
+  const previa = grupos.flatMap((g) => g.itens.map((i) => ({ ...i, grupo: g.nome }))).slice(0, PREVIA);
+  const restantes = itens.length - previa.length;
+  const endereco = [lugar.endereco, lugar.bairro].filter(Boolean).join(" · ");
 
   return (
     <article className="pb-6">
+      {/* Capa com as vibes por cima */}
       <div className="relative">
-        {imagens.length ? (
-          <>
-            <img src={imagens[foto]} alt={`Foto de ${lugar.nome}`} className="aspect-[16/10] w-full object-cover" />
-            {imagens.length > 1 && (
-              <div className="absolute bottom-3 left-0 right-0 flex justify-center gap-1.5">
-                {imagens.map((_, i) => (
-                  <button
-                    key={i}
-                    onClick={() => setFoto(i)}
-                    aria-label={`Foto ${i + 1}`}
-                    className={clsx("h-1.5 rounded-full transition-all", i === foto ? "w-5 bg-white" : "w-1.5 bg-white/60")}
-                  />
-                ))}
-              </div>
-            )}
-          </>
+        {capa ? (
+          <img src={capa} alt={`Foto de ${lugar.nome}`} className="aspect-[16/10] w-full object-cover" />
         ) : (
           <div className="flex aspect-[16/10] w-full items-center justify-center bg-elevado text-suave">
             <Store className="h-8 w-8" />
           </div>
         )}
-        <button onClick={() => navegar(-1)} className="absolute left-3 top-3 rounded-full bg-superficie/90 p-2 shadow-sm" aria-label="Voltar">
-          <ArrowLeft className="h-5 w-5" />
-        </button>
-      </div>
-
-      <div className="space-y-6 px-4 pt-4">
-        <header>
-          <h1 className="text-[22px] font-semibold leading-tight">{lugar.nome}</h1>
-          <p className="mt-0.5 text-sm text-suave">
-            {[lugar.categoria?.nome, lugar.bairro, lugar.faixa_preco ? "$".repeat(lugar.faixa_preco) : null].filter(Boolean).join(" · ")}
-          </p>
-          {lugar.horarios.length > 0 && (
-            <p className={clsx("mt-1.5 text-sm", aberto ? "font-medium text-ok" : "text-suave")}>{resumoHorario(lugar.horarios)}</p>
-          )}
-          {nomesVibes(lugar).length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-1.5">
-              {nomesVibes(lugar).map((v) => (
-                <span key={v} className="rounded-md bg-destaque-suave px-2.5 py-1 text-[13px] font-medium text-destaque">
+        <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-3 p-3">
+          <button onClick={() => navegar(-1)} className="shrink-0 rounded-full bg-black/45 p-2 text-white backdrop-blur" aria-label="Voltar">
+            <ArrowLeft className="h-5 w-5" />
+          </button>
+          {vibes.length > 0 && (
+            <div className="flex flex-wrap justify-end gap-1.5">
+              {vibes.map((v) => (
+                <span key={v} className="rounded-full bg-black/45 px-2.5 py-1 text-[12px] font-medium text-white backdrop-blur">
                   {v}
                 </span>
               ))}
             </div>
           )}
-        </header>
+        </div>
+        {imagens.length > 1 && (
+          <div className="absolute bottom-9 left-0 right-0 flex justify-center gap-1.5">
+            {imagens.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => setFoto(i)}
+                aria-label={`Foto ${i + 1}`}
+                className={clsx("h-1.5 rounded-full transition-all", i === foto ? "w-5 bg-white" : "w-1.5 bg-white/60")}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <a href={rota} target="_blank" rel="noreferrer" className="botao-principal flex-col gap-1 py-2.5 text-[13px]">
-            <Navigation className="h-4 w-4" />
-            Como chegar
-          </a>
-          <button className="botao flex-col gap-1 py-2.5 text-[13px]" disabled title="Chega na fase 3">
-            <Bookmark className="h-4 w-4" />
-            Salvar
-          </button>
-          <button className="botao flex-col gap-1 py-2.5 text-[13px]" disabled title="Chega na fase 3">
-            <MapPinned className="h-4 w-4" />
-            Check-in
-          </button>
+      {/* Identidade: logo sobre a capa, nome e situação */}
+      <div className="relative -mt-6 rounded-t-[20px] bg-fundo px-4">
+        <div className="flex flex-col items-center text-center">
+          <div className="-mt-11 flex h-[88px] w-[88px] items-center justify-center overflow-hidden rounded-full border-4 border-fundo bg-superficie">
+            {lugar.logo_url ? (
+              <img src={lugar.logo_url} alt={`Logo de ${lugar.nome}`} className="h-full w-full object-cover" />
+            ) : (
+              <Store className="h-7 w-7 text-suave" />
+            )}
+          </div>
+          <h1 className="mt-2 text-[22px] font-semibold leading-tight">{lugar.nome}</h1>
+          <p className="text-sm text-suave">
+            {[lugar.categoria?.nome, lugar.faixa_preco ? "$".repeat(lugar.faixa_preco) : null].filter(Boolean).join(" · ")}
+          </p>
         </div>
 
-        {lugar.descricao && <p className="text-[15px] leading-relaxed">{lugar.descricao}</p>}
+        <div className="cartao mt-4 px-4 py-3 text-center text-sm">
+          <p>
+            {lugar.horarios.length > 0 ? (
+              <span className={clsx("inline-flex items-center gap-1.5", aberto ? "font-medium text-ok" : "text-suave")}>
+                <span className={clsx("h-2 w-2 rounded-full", aberto ? "bg-ok" : "bg-suave")} />
+                {resumoHorario(lugar.horarios)}
+              </span>
+            ) : (
+              <span className="text-suave">Horário não informado</span>
+            )}
+          </p>
+          {endereco && (
+            <p className="mt-1 inline-flex items-center gap-1 text-suave">
+              <MapPin className="h-3.5 w-3.5" />
+              {endereco}
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4 space-y-2">
+          {itens.length > 0 && (
+            <Link to={`/lugar/${lugar.id}/cardapio`} className="botao-principal h-11 w-full rounded-full text-[15px]">
+              <UtensilsCrossed className="h-4 w-4" />
+              Ver cardápio completo
+            </Link>
+          )}
+          <div className="grid grid-cols-3 gap-2">
+            <a href={rota} target="_blank" rel="noreferrer" className="botao flex-col gap-1 py-2.5 text-[13px]">
+              <Navigation className="h-4 w-4" />
+              Como chegar
+            </a>
+            <button className="botao flex-col gap-1 py-2.5 text-[13px]" disabled title="Chega na fase 3">
+              <Bookmark className="h-4 w-4" />
+              Salvar
+            </button>
+            <button className="botao flex-col gap-1 py-2.5 text-[13px]" disabled title="Chega na fase 3">
+              <MapPinned className="h-4 w-4" />
+              Check-in
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-7 space-y-7">
+        {lugar.descricao && <p className="px-4 text-[15px] leading-relaxed">{lugar.descricao}</p>}
+
+        {destaques.length > 0 && (
+          <section>
+            <h2 className="mb-3 px-4 text-[17px] font-semibold">Os mais pedidos</h2>
+            <ul className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+              {destaques.map((i) => (
+                <li key={i.id} className="cartao w-40 shrink-0 overflow-hidden">
+                  {i.foto_url ? (
+                    <img src={i.foto_url} alt="" className="aspect-square w-full object-cover" loading="lazy" />
+                  ) : (
+                    <div className="flex aspect-square w-full items-center justify-center bg-elevado text-suave">
+                      <UtensilsCrossed className="h-6 w-6" />
+                    </div>
+                  )}
+                  <div className="p-3">
+                    <p className="truncate text-sm font-medium">{i.nome}</p>
+                    {i.preco != null && <p className="codigo mt-0.5 text-sm text-destaque">{reais(i.preco)}</p>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {previa.length > 0 && (
+          <section className="px-4">
+            <h2 className="mb-3 text-[17px] font-semibold">Prévia do cardápio</h2>
+            <div className="cartao overflow-hidden">
+              <ul className="divide-y divide-borda">
+                {previa.map((i) => (
+                  <li key={i.id} className="flex items-center gap-3 px-4 py-3">
+                    {i.foto_url ? (
+                      <img src={i.foto_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" loading="lazy" />
+                    ) : (
+                      <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
+                        <UtensilsCrossed className="h-5 w-5" />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium">{i.nome}</p>
+                      <p className="truncate text-[13px] text-suave">{i.descricao || i.grupo}</p>
+                    </div>
+                    {i.preco != null && <span className="codigo shrink-0 text-sm">{reais(i.preco)}</span>}
+                  </li>
+                ))}
+              </ul>
+              {restantes > 0 && (
+                <Link
+                  to={`/lugar/${lugar.id}/cardapio`}
+                  className="flex items-center justify-center gap-1 border-t border-borda px-4 py-3 text-sm font-medium text-destaque hover:bg-elevado"
+                >
+                  Ver mais {restantes} {restantes === 1 ? "opção" : "opções"} no cardápio completo
+                  <ChevronRight className="h-4 w-4" />
+                </Link>
+              )}
+            </div>
+          </section>
+        )}
 
         {eventos.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 font-semibold">Próximos eventos</h2>
+          <section className="px-4">
+            <h2 className="mb-3 text-[17px] font-semibold">Próximos eventos</h2>
             <ul className="cartao divide-y divide-borda">
               {eventos.map((e) => (
                 <li key={e.id}>
@@ -132,6 +245,7 @@ export function LugarPagina() {
                         {e.entrada ? ` · ${e.entrada}` : ""}
                       </span>
                     </span>
+                    <ChevronRight className="h-4 w-4 text-suave" />
                   </Link>
                 </li>
               ))}
@@ -139,34 +253,9 @@ export function LugarPagina() {
           </section>
         )}
 
-        {grupos.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 font-semibold">Cardápio</h2>
-            <div className="space-y-4">
-              {grupos.map((g) => (
-                <div key={g.nome}>
-                  <h3 className="rotulo mb-1.5">{g.nome}</h3>
-                  <ul className="cartao divide-y divide-borda">
-                    {g.itens.map((i) => (
-                      <li key={i.id} className="flex gap-3 px-4 py-3">
-                        <div className="min-w-0 flex-1">
-                          <p className="font-medium">{i.nome}</p>
-                          {i.descricao && <p className="text-[13px] text-suave">{i.descricao}</p>}
-                        </div>
-                        {i.preco != null && <span className="codigo shrink-0 text-sm">{reais(i.preco)}</span>}
-                        {i.foto_url && <img src={i.foto_url} alt="" className="h-14 w-14 shrink-0 rounded-md object-cover" loading="lazy" />}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </div>
-          </section>
-        )}
-
         {lugar.horarios.length > 0 && (
-          <section>
-            <h2 className="mb-2.5 font-semibold">Horários</h2>
+          <section className="px-4">
+            <h2 className="mb-3 text-[17px] font-semibold">Horários</h2>
             <ul className="cartao divide-y divide-borda text-sm">
               {DIAS.map((dia, i) => {
                 const h = lugar.horarios.find((x) => x.dia_semana === i);
@@ -182,8 +271,8 @@ export function LugarPagina() {
           </section>
         )}
 
-        <section>
-          <h2 className="mb-2.5 font-semibold">Onde fica</h2>
+        <section className="px-4">
+          <h2 className="mb-3 text-[17px] font-semibold">Onde fica</h2>
           {ponto && (
             <div className="mb-3 h-44 overflow-hidden rounded-cartao border border-borda">
               <MapaBase centro={ponto} zoom={16} className="h-full w-full">

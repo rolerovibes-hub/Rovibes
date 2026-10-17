@@ -46,8 +46,10 @@ export function Recentralizar({ centro, zoom }: { centro: [number, number] | nul
   return null;
 }
 
-/** Cor da marca lida das variáveis do tema, para os marcadores. */
-export function corDaMarca() {
-  const v = getComputedStyle(document.documentElement).getPropertyValue("--marca").trim();
-  return v ? `rgb(${v.split(" ").join(",")})` : "#5A3DD8";
+/** Cor do tema lida das variáveis CSS, para os marcadores do mapa. */
+export function corDoTema(nome: "marca" | "azul" | "magenta" = "marca") {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(`--${nome}`).trim();
+  return v ? `rgb(${v.split(" ").join(",")})` : "#6D28D9";
 }
+
+export const corDaMarca = () => corDoTema("marca");

@@ -14,6 +14,10 @@ rm -rf android
 npx cap add android
 npx cap sync android
 
+RES=android/app/src/main/res
+rm -f $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml
+cp -r android-config/res/. $RES/
+
 sed -i "s/versionCode [0-9]*/versionCode ${NUM}/; s/versionName \"[^\"]*\"/versionName \"1.0.${NUM}\"/" android/app/build.gradle
 
 cd android

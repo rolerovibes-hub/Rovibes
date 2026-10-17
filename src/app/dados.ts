@@ -9,6 +9,7 @@ export interface Lugar {
   endereco: string | null;
   descricao: string | null;
   capa_url: string | null;
+  logo_url: string | null;
   latitude: number | null;
   longitude: number | null;
   faixa_preco: number | null;
@@ -17,6 +18,16 @@ export interface Lugar {
   categoria: { nome: string } | null;
   vibes: { vibe: { nome: string } | null }[];
   horarios: Horario[];
+}
+
+export interface ItemCardapio {
+  id: string;
+  categoria_id: string | null;
+  nome: string;
+  descricao: string | null;
+  preco: number | null;
+  foto_url: string | null;
+  destaque: boolean;
 }
 
 export interface EventoResumo {
@@ -32,7 +43,7 @@ export interface EventoResumo {
 }
 
 const CAMPOS_LUGAR =
-  "id, nome, bairro, endereco, descricao, capa_url, latitude, longitude, faixa_preco, telefone, instagram, categoria:categorias(nome), vibes:estabelecimento_vibes(vibe:vibes(nome)), horarios(dia_semana, abre, fecha)";
+  "id, nome, bairro, endereco, descricao, capa_url, logo_url, latitude, longitude, faixa_preco, telefone, instagram, categoria:categorias(nome), vibes:estabelecimento_vibes(vibe:vibes(nome)), horarios(dia_semana, abre, fecha)";
 
 const CAMPOS_EVENTO =
   "id, nome, inicio, fim, entrada, capa_url, situacao, descricao, estabelecimento:estabelecimentos(id, nome, bairro)";
@@ -88,7 +99,7 @@ export async function buscarLugar(id: string) {
     supabase.from("cardapio_categorias").select("id, nome").eq("estabelecimento_id", id).order("ordem"),
     supabase
       .from("cardapio_itens")
-      .select("id, categoria_id, nome, descricao, preco, foto_url")
+      .select("id, categoria_id, nome, descricao, preco, foto_url, destaque")
       .eq("estabelecimento_id", id)
       .eq("disponivel", true)
       .order("ordem"),
@@ -98,7 +109,7 @@ export async function buscarLugar(id: string) {
     eventos: (e.data ?? []) as unknown as EventoResumo[],
     fotos: (f.data ?? []) as { id: string; url: string }[],
     categorias: (c.data ?? []) as { id: string; nome: string }[],
-    itens: ((i.data ?? []) as { id: string; categoria_id: string | null; nome: string; descricao: string | null; preco: number | null; foto_url: string | null }[]).map(
+    itens: ((i.data ?? []) as ItemCardapio[]).map(
       (x) => ({ ...x, preco: x.preco == null ? null : Number(x.preco) }),
     ),
   };
@@ -143,3 +154,15 @@ export const quando = (iso: string) => {
   if (d.toDateString() === amanha.toDateString()) return `Amanhã, ${hora}`;
   return `${d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}, ${hora}`;
 };
+
+/** Itens agrupados por categoria, na ordem do cardápio; itens sem categoria vão para "Outros". */
+export function agruparCardapio(categorias: { id: string; nome: string }[], itens: ItemCardapio[]) {
+  return [
+    ...categorias.map((c) => ({ id: c.id, nome: c.nome, itens: itens.filter((i) => i.categoria_id === c.id) })),
+    {
+      id: "outros",
+      nome: categorias.length ? "Outros" : "Cardápio",
+      itens: itens.filter((i) => !i.categoria_id || !categorias.some((c) => c.id === i.categoria_id)),
+    },
+  ].filter((g) => g.itens.length);
+}

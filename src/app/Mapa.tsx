@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { CircleMarker } from "react-leaflet";
 import { LocateFixed, X } from "lucide-react";
-import { MapaBase, Recentralizar, UBERLANDIA, corDaMarca } from "@/components/MapaBase";
+import { MapaBase, Recentralizar, UBERLANDIA, corDaMarca, corDoTema } from "@/components/MapaBase";
 import { abertoAgora, resumoHorario } from "@/lib/horarios";
 import { useTema } from "@/lib/tema";
 import { nomesVibes, pedirLocalizacao, useVitrine } from "./dados";
@@ -41,7 +41,7 @@ export function Mapa() {
             eventHandlers={{ click: () => setSelecionado(l.id) }}
           />
         ))}
-        {eu && <CircleMarker center={eu} radius={7} pathOptions={{ color: "#fff", weight: 3, fillColor: "#2F80ED", fillOpacity: 1 }} />}
+        {eu && <CircleMarker center={eu} radius={7} pathOptions={{ color: "#fff", weight: 3, fillColor: corDoTema("azul"), fillOpacity: 1 }} />}
       </MapaBase>
 
       <button onClick={() => void localizar()} className="botao absolute right-4 top-4 z-[500] h-10 w-10 px-0 shadow-sm" aria-label="Mostrar minha localização">

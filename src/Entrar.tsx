@@ -74,7 +74,7 @@ export function Entrar() {
       <div className="w-full max-w-sm">
         <div className="mb-8 flex justify-center">
           <Link to="/" aria-label="RoVibes, início">
-            <Marca />
+            <Marca className="h-12" />
           </Link>
         </div>
 

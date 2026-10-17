@@ -1,27 +1,23 @@
 import clsx from "clsx";
 
-/** Símbolo RoVibes: três barras, como um medidor de movimento. */
+/** Pin da marca (ícone). */
 export function Simbolo({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 32 32" className={clsx("h-7 w-7 shrink-0", className)} aria-hidden="true">
-      <rect width="32" height="32" rx="8" className="fill-marca" />
-      <rect x="8" y="17" width="4" height="7" rx="2" fill="#fff" />
-      <rect x="14" y="11" width="4" height="13" rx="2" fill="#fff" />
-      <rect x="20" y="14" width="4" height="10" rx="2" fill="#fff" opacity=".7" />
-    </svg>
-  );
+  return <img src="/marca/rovibes-pin.webp" alt="" aria-hidden="true" className={clsx("h-7 w-auto shrink-0", className)} />;
 }
 
-export function Marca({ complemento }: { complemento?: string }) {
-  return (
-    <span className="inline-flex items-center gap-2.5">
-      <Simbolo />
-      <span className="text-[17px] font-semibold tracking-tight">
-        RoVibes
-        {complemento && <span className="ml-1.5 font-normal text-suave">{complemento}</span>}
+/** Nome "RoVibes" da logo. Com complemento (ex.: Business), usa o pin + texto, mais discreto. */
+export function Marca({ complemento, className }: { complemento?: string; className?: string }) {
+  if (complemento) {
+    return (
+      <span className="inline-flex items-center gap-2">
+        <Simbolo className="h-7" />
+        <span className="text-[17px] font-semibold tracking-tight">
+          RoVibes<span className="ml-1.5 font-normal text-suave">{complemento}</span>
+        </span>
       </span>
-    </span>
-  );
+    );
+  }
+  return <img src="/marca/rovibes-nome.webp" alt="RoVibes" className={clsx("h-8 w-auto", className)} />;
 }
 
 export type Movimento = "tranquilo" | "moderado" | "cheio";

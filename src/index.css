@@ -3,9 +3,10 @@
 @tailwind utilities;
 
 /*
-  Paleta RoVibes
+  Paleta oficial RoVibes (derivada da logo)
+  - Violeta: cor principal. Magenta: destaque pontual. Azul: localização.
+  - O degradê da logo fica só na marca (logo, ícone, abertura); a interface usa cores sólidas.
   - Escuro confortável: grafite azulado, nunca preto puro.
-  - Uma única cor de destaque (roxo da marca, tom sóbrio), sem brilho nem degradê.
   Valores em "R G B" para permitir transparência no Tailwind.
 */
 :root {
@@ -15,9 +16,11 @@
   --borda: 220 224 232;
   --texto: 27 33 48;
   --suave: 93 102 122;
-  --marca: 90 61 216;
+  --marca: 109 40 217;
   --marca-texto: 255 255 255;
-  --destaque: 90 61 216;
+  --destaque: 109 40 217;
+  --magenta: 214 31 127;
+  --azul: 37 99 235;
   --ok: 31 132 84;
   --alerta: 176 108 12;
   --perigo: 196 56 52;
@@ -31,9 +34,11 @@
   --borda: 56 66 85;
   --texto: 230 233 240;
   --suave: 158 167 185;
-  --marca: 109 85 224;
+  --marca: 124 58 237;
   --marca-texto: 255 255 255;
-  --destaque: 172 157 246;
+  --destaque: 196 181 253;
+  --magenta: 244 114 182;
+  --azul: 96 150 250;
   --ok: 92 191 140;
   --alerta: 230 170 74;
   --perigo: 236 112 108;
@@ -109,6 +114,9 @@
 }
 .bg-destaque-suave {
   background-color: rgb(var(--marca) / 0.14);
+}
+.dark .bg-destaque-suave {
+  background-color: rgb(var(--marca) / 0.24);
 }
 .pb-seguro {
   padding-bottom: env(safe-area-inset-bottom);

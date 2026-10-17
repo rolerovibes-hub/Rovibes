@@ -1,6 +1,6 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Eye, EyeOff, FolderPlus, ImagePlus, Pencil, Plus, Trash2, UtensilsCrossed, X } from "lucide-react";
+import { Eye, EyeOff, FolderPlus, ImagePlus, Pencil, Plus, Star, Trash2, UtensilsCrossed, X } from "lucide-react";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, reais, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -21,12 +21,13 @@ interface Item {
   preco: number | null;
   foto_url: string | null;
   disponivel: boolean;
+  destaque: boolean;
   ordem: number;
 }
 
 type Rascunho = Omit<Item, "id" | "ordem"> & { id?: string };
 
-const VAZIO: Rascunho = { categoria_id: null, nome: "", descricao: "", preco: null, foto_url: null, disponivel: true };
+const VAZIO: Rascunho = { categoria_id: null, nome: "", descricao: "", preco: null, foto_url: null, disponivel: true, destaque: false };
 
 export function Cardapio() {
   const { atual } = useBusiness();
@@ -47,7 +48,7 @@ export function Cardapio() {
       supabase.from("cardapio_categorias").select("id, nome, ordem").eq("estabelecimento_id", id).order("ordem"),
       supabase
         .from("cardapio_itens")
-        .select("id, categoria_id, nome, descricao, preco, foto_url, disponivel, ordem")
+        .select("id, categoria_id, nome, descricao, preco, foto_url, disponivel, destaque, ordem")
         .eq("estabelecimento_id", id)
         .order("ordem"),
     ]);
@@ -89,6 +90,7 @@ export function Cardapio() {
         preco: rascunho.preco,
         foto_url: rascunho.foto_url,
         disponivel: rascunho.disponivel,
+        destaque: rascunho.destaque,
       };
       const { error } = rascunho.id
         ? await supabase.from("cardapio_itens").update(valores).eq("id", rascunho.id)
@@ -129,6 +131,14 @@ export function Cardapio() {
       await carregar();
     });
 
+  const alternarDestaque = () =>
+    item &&
+    void executar(async () => {
+      const { error } = await supabase.from("cardapio_itens").update({ destaque: !item.destaque }).eq("id", item.id);
+      if (error) throw error;
+      await carregar();
+    });
+
   const excluirItem = () =>
     item &&
     void executar(async () => {
@@ -162,6 +172,10 @@ export function Cardapio() {
           <button className="botao" disabled={!item} onClick={() => item && setRascunho({ ...item })}>
             <Pencil className="h-4 w-4" />
             Editar
+          </button>
+          <button className="botao" disabled={!item || ocupado} onClick={alternarDestaque}>
+            <Star className="h-4 w-4" />
+            {item?.destaque ? "Tirar destaque" : "Destacar"}
           </button>
           <button className="botao" disabled={!item || ocupado} onClick={alternarDisponivel}>
             {item && !item.disponivel ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -247,6 +261,15 @@ export function Cardapio() {
                   onChange={(e) => setRascunho({ ...rascunho, disponivel: e.target.checked })}
                 />
                 Disponível para pedir
+              </label>
+              <label className="flex items-center gap-2.5 text-sm sm:col-span-2">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 accent-[rgb(var(--marca))]"
+                  checked={rascunho.destaque}
+                  onChange={(e) => setRascunho({ ...rascunho, destaque: e.target.checked })}
+                />
+                Mostrar em "Os mais pedidos"
               </label>
             </div>
             <div>
@@ -337,6 +360,7 @@ export function Cardapio() {
                           <span className="h-9 w-9 rounded-md bg-elevado" />
                         )}
                         <span className="font-medium">{x.nome}</span>
+                        {x.destaque && <Star className="h-3.5 w-3.5 fill-current text-destaque" aria-label="Em destaque" />}
                       </div>
                     </td>
                     <td className="px-4 py-2.5 text-suave">{nomeCategoria(x.categoria_id)}</td>

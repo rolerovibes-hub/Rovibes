@@ -14,6 +14,8 @@ export default {
         texto: cor("texto"),
         suave: cor("suave"),
         marca: cor("marca"),
+        magenta: cor("magenta"),
+        azul: cor("azul"),
         "marca-texto": cor("marca-texto"),
         ok: cor("ok"),
         alerta: cor("alerta"),

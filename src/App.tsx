@@ -11,6 +11,7 @@ import { Perfil } from "./app/Perfil";
 import { Entrar } from "./Entrar";
 import { LugarPagina } from "./app/LugarPagina";
 import { EventoPagina } from "./app/EventoPagina";
+import { CardapioPagina } from "./app/CardapioPagina";
 import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
 
 export default function App() {
@@ -29,6 +30,7 @@ export default function App() {
         <Route path="chats" element={<Chats />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="lugar/:id" element={<LugarPagina />} />
+        <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />
         <Route path="evento/:id" element={<EventoPagina />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
