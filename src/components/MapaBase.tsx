@@ -1,11 +1,10 @@
 import { ReactNode, useEffect } from "react";
 import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import { useTema } from "@/lib/tema";
 
 export const UBERLANDIA: [number, number] = [-18.9186, -48.2772];
 
-/** Mapa OpenStreetMap com o fundo claro ou escuro da CARTO, conforme o tema. */
+/** Mapa OpenStreetMap; no tema escuro o mapa é escurecido por filtro (sem precisar de chave). */
 export function MapaBase({
   centro = UBERLANDIA,
   zoom = 13,
@@ -19,15 +18,13 @@ export function MapaBase({
   aoClicar?: (lat: number, lng: number) => void;
   className?: string;
 }) {
-  const { escuro } = useTema();
   return (
     <MapContainer center={centro} zoom={zoom} className={className} zoomControl={false} attributionControl>
       <TileLayer
-        key={escuro ? "escuro" : "claro"}
-        url={`https://{s}.basemaps.cartocdn.com/${escuro ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`}
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'
-        subdomains="abcd"
-        maxZoom={20}
+        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        className="mapa-ladrilhos"
+        maxZoom={19}
       />
       {aoClicar && <Clique aoClicar={aoClicar} />}
       {children}
