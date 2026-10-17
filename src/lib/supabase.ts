@@ -19,5 +19,7 @@ export function mensagemDeErro(erro: unknown): string {
   if (/maiores de 18/i.test(msg) || /Database error saving new user/i.test(msg)) return "O RoVibes é para maiores de 18 anos.";
   if (/rate limit/i.test(msg)) return "Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.";
   if (/Failed to fetch|sem-banco/i.test(msg)) return "Sem conexão com o banco de dados.";
+  if (/row-level security|permission denied/i.test(msg)) return "Você não tem permissão para fazer isso.";
+  if (/violates check constraint/i.test(msg)) return "Confira os campos: algum valor está fora do permitido.";
   return msg;
 }

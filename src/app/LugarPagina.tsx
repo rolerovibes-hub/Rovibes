@@ -15,6 +15,7 @@ import { useSessao } from "@/lib/sessao";
 import { supabase } from "@/lib/supabase";
 import { NotaCompacta, SecaoAvaliacoes } from "./Avaliacoes";
 import { MedidorMovimento } from "@/components/Marca";
+import { BeneficiosLugar } from "./BeneficiosLugar";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
 
@@ -228,6 +229,8 @@ export function LugarPagina() {
 
       <div className="mt-7 space-y-7">
         {lugar.descricao && <p className="px-4 text-[15px] leading-relaxed">{lugar.descricao}</p>}
+
+        <BeneficiosLugar estabelecimentoId={lugar.id} versao={versao} />
 
         {destaques.length > 0 && (
           <section>

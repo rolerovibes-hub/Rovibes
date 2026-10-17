@@ -13,6 +13,7 @@ import { LugarPagina } from "./app/LugarPagina";
 import { EventoPagina } from "./app/EventoPagina";
 import { CardapioPagina } from "./app/CardapioPagina";
 import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
+import { Carteira } from "./app/Carteira";
 
 export default function App() {
   return (
@@ -32,6 +33,7 @@ export default function App() {
         <Route path="lugar/:id" element={<LugarPagina />} />
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />
         <Route path="evento/:id" element={<EventoPagina />} />
+        <Route path="carteira" element={<Carteira />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

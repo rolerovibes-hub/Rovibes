@@ -14,6 +14,9 @@ import { StatusAoVivo } from "./StatusAoVivo";
 import { Publicacoes } from "./Publicacoes";
 import { Stories } from "./Stories";
 import { Indicadores } from "./Indicadores";
+import { Promocoes } from "./Promocoes";
+import { Ingressos } from "./Ingressos";
+import { ProgramaPontos } from "./ProgramaPontos";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Avatar } from "@/components/Avatar";
 
@@ -85,6 +88,9 @@ export function TelaAplicativo() {
   if (app.codigo === "G6001") return <Publicacoes />;
   if (app.codigo === "G6002") return <Stories />;
   if (app.codigo === "C8001") return <Indicadores />;
+  if (app.codigo === "G5003") return <Promocoes />;
+  if (app.codigo === "G5004") return <Ingressos />;
+  if (app.codigo === "G9001") return <ProgramaPontos />;
 
   return (
     <TelaUniversal

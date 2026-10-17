@@ -113,13 +113,14 @@ export function Perfil() {
 
       {sessao && <MinhasListas usuario={sessao.user.id} />}
 
-      <ul className="cartao divide-y divide-borda">
-        <li className="flex items-center gap-3 px-4 py-3.5">
-          <Wallet className="h-5 w-5 text-destaque" />
-          <span className="flex-1">Carteira</span>
-          <span className="text-xs text-suave">fase 4</span>
-        </li>
-      </ul>
+      <Link to="/carteira" className="cartao flex items-center gap-3 px-4 py-3.5 hover:bg-elevado">
+        <Wallet className="h-5 w-5 text-destaque" />
+        <span className="flex-1">
+          <span className="block">Carteira</span>
+          <span className="block text-[13px] text-suave">Cupons, ingressos e pontos</span>
+        </span>
+        <ChevronRight className="h-4 w-4 text-suave" />
+      </Link>
 
       <section className="space-y-2">
         <h2 className="rotulo">Tema</h2>

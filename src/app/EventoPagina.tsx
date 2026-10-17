@@ -1,6 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Clock, Store, Ticket, UserCheck } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Store, Ticket } from "lucide-react";
+import { mensagemDeErro, supabase } from "@/lib/supabase";
+import { QrCode } from "@/components/Qr";
+import { codigoLegivel, fimDoEvento, qrDoIngresso, ResumoIngresso, resumoIngressos } from "./carteira";
 import { Carregando } from "@/components/Carregando";
 import { buscarEvento, EventoResumo, quando } from "./dados";
 
@@ -78,13 +81,88 @@ export function EventoPagina() {
           )}
         </ul>
 
-        <button className="botao-principal h-11 w-full" disabled title="Chega na fase 3">
-          <UserCheck className="h-4 w-4" />
-          Confirmar presença
-        </button>
+        {!cancelado && <IngressoDoEvento eventoId={evento.id} encerrado={fimDoEvento(evento) <= Date.now()} />}
 
         {evento.descricao && <p className="whitespace-pre-line text-[15px] leading-relaxed">{evento.descricao}</p>}
       </div>
     </article>
+  );
+}
+
+/** Ingresso gratuito pelo App: pegar, mostrar o QR na entrada e devolver. */
+function IngressoDoEvento({ eventoId, encerrado }: { eventoId: string; encerrado: boolean }) {
+  const [resumo, setResumo] = useState<ResumoIngresso | null>(null);
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const carregar = useCallback(async () => {
+    const r = (await resumoIngressos([eventoId])).get(eventoId) ?? null;
+    setResumo(r);
+    if (r?.meu_ingresso) {
+      const { data } = await supabase.from("ingressos").select("codigo").eq("id", r.meu_ingresso).maybeSingle();
+      setCodigo((data as { codigo: string } | null)?.codigo ?? null);
+    } else setCodigo(null);
+  }, [eventoId]);
+
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
+  if (!resumo || resumo.vagas == null) return null;
+
+  const chamar = async (rpc: "pegar_ingresso" | "devolver_ingresso", args: Record<string, string>) => {
+    setOcupado(true);
+    setErro("");
+    const { error } = await supabase.rpc(rpc, args);
+    setOcupado(false);
+    if (error) setErro(mensagemDeErro(error));
+    await carregar();
+  };
+
+  if (resumo.meu_ingresso && codigo) {
+    const usado = resumo.meu_situacao === "usado";
+    return (
+      <section className="cartao p-5 text-center">
+        <p className="flex items-center justify-center gap-2 font-semibold">
+          <Ticket className="h-4 w-4 text-destaque" />
+          {usado ? "Entrada confirmada" : "Seu ingresso"}
+        </p>
+        {usado ? (
+          <p className="mt-1 text-sm text-suave">Este ingresso já foi usado na entrada.</p>
+        ) : (
+          <>
+            <p className="mt-1 text-sm text-suave">Mostre este QR code na entrada.</p>
+            <div className="mt-4">
+              <QrCode texto={qrDoIngresso(codigo)} />
+            </div>
+            <p className="codigo mt-3 text-base tracking-widest">{codigoLegivel(codigo)}</p>
+            {!encerrado && (
+              <button
+                className="mt-4 text-[13px] text-suave underline underline-offset-2"
+                disabled={ocupado}
+                onClick={() => window.confirm("Devolver o ingresso? A vaga fica livre para outra pessoa.") && void chamar("devolver_ingresso", { p_ingresso: resumo.meu_ingresso! })}
+              >
+                Não vou mais, devolver ingresso
+              </button>
+            )}
+          </>
+        )}
+        {erro && <p className="mt-3 text-sm text-perigo">{erro}</p>}
+      </section>
+    );
+  }
+
+  if (encerrado) return null;
+  const restam = resumo.vagas - resumo.pegos;
+  return (
+    <div>
+      <button className="botao-principal h-11 w-full" disabled={restam <= 0 || ocupado} onClick={() => void chamar("pegar_ingresso", { p_evento: eventoId })}>
+        <Ticket className="h-4 w-4" />
+        {restam <= 0 ? "Ingressos esgotados" : ocupado ? "Gerando ingresso..." : "Pegar ingresso grátis"}
+      </button>
+      {restam > 0 && restam <= 30 && <p className="mt-2 text-center text-[13px] text-suave">Restam {restam} {restam === 1 ? "ingresso" : "ingressos"}</p>}
+      {erro && <p className="mt-2 text-center text-sm text-perigo">{erro}</p>}
+    </div>
   );
 }
