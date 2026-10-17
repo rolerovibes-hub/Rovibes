@@ -81,6 +81,19 @@
   .codigo {
     @apply font-mono text-xs tabular-nums;
   }
+  .entrada {
+    @apply h-10 w-full rounded-lg border border-borda bg-fundo px-3 text-sm placeholder:text-suave focus:border-marca focus:outline-none disabled:opacity-60;
+  }
+  textarea.entrada {
+    @apply h-auto py-2;
+  }
+}
+
+.leaflet-container {
+  isolation: isolate;
+  z-index: 0;
+  font-family: inherit;
+  background: rgb(var(--elevado));
 }
 
 .text-destaque {

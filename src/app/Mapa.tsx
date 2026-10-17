@@ -1,52 +1,88 @@
 import { useState } from "react";
-import clsx from "clsx";
-import { MedidorMovimento } from "@/components/Marca";
-import { LUGARES } from "./exemplos";
+import { Link } from "react-router-dom";
+import { CircleMarker } from "react-leaflet";
+import { LocateFixed, X } from "lucide-react";
+import { MapaBase, Recentralizar, UBERLANDIA, corDaMarca } from "@/components/MapaBase";
+import { abertoAgora, resumoHorario } from "@/lib/horarios";
+import { useTema } from "@/lib/tema";
+import { nomesVibes, pedirLocalizacao, useVitrine } from "./dados";
 
-// Mapa ilustrativo. O mapa real de Uberlândia entra na fase 2.
 export function Mapa() {
-  const [selecionado, setSelecionado] = useState(LUGARES[0].id);
-  const lugar = LUGARES.find((l) => l.id === selecionado) ?? LUGARES[0];
+  const { lugares } = useVitrine();
+  const { escuro } = useTema();
+  const [selecionado, setSelecionado] = useState<string | null>(null);
+  const [eu, setEu] = useState<[number, number] | null>(null);
+  const [aviso, setAviso] = useState("");
+  const comLocal = lugares.filter((l) => l.latitude != null && l.longitude != null);
+  const lugar = comLocal.find((l) => l.id === selecionado) ?? null;
+  const cor = corDaMarca();
+  const contorno = escuro ? "#1A1F2B" : "#FFFFFF";
+
+  const localizar = async () => {
+    setAviso("");
+    try {
+      setEu(await pedirLocalizacao());
+    } catch (e) {
+      setAviso((e as Error).message);
+    }
+  };
 
   return (
-    <div className="relative h-[calc(100vh-56px-72px)] min-h-[420px] overflow-hidden">
-      <div
-        className="absolute inset-0 bg-elevado"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgb(var(--borda)) 1px, transparent 1px), linear-gradient(90deg, rgb(var(--borda)) 1px, transparent 1px)",
-          backgroundSize: "48px 48px",
-        }}
-        aria-hidden="true"
-      />
-      {LUGARES.map((l) => (
-        <button
-          key={l.id}
-          onClick={() => setSelecionado(l.id)}
-          style={{ left: `${l.x}%`, top: `${l.y}%` }}
-          className={clsx(
-            "absolute -translate-x-1/2 -translate-y-full rounded-full border-2 px-2.5 py-1 text-[12px] font-semibold shadow-sm transition-colors",
-            l.id === selecionado ? "border-marca bg-marca text-marca-texto" : "border-borda bg-superficie text-texto",
-          )}
-          aria-pressed={l.id === selecionado}
-        >
-          {l.nome}
-        </button>
-      ))}
+    <div className="relative h-[calc(100dvh-56px-64px)] min-h-[420px]">
+      <MapaBase centro={UBERLANDIA} zoom={13} className="h-full w-full" aoClicar={() => setSelecionado(null)}>
+        <Recentralizar centro={eu} zoom={15} />
+        {comLocal.map((l) => (
+          <CircleMarker
+            key={l.id}
+            center={[l.latitude!, l.longitude!]}
+            radius={l.id === selecionado ? 11 : 8}
+            bubblingMouseEvents={false}
+            pathOptions={{ color: contorno, weight: 3, fillColor: cor, fillOpacity: abertoAgora(l.horarios) ? 1 : 0.55 }}
+            eventHandlers={{ click: () => setSelecionado(l.id) }}
+          />
+        ))}
+        {eu && <CircleMarker center={eu} radius={7} pathOptions={{ color: "#fff", weight: 3, fillColor: "#2F80ED", fillOpacity: 1 }} />}
+      </MapaBase>
 
-      <div className="cartao absolute inset-x-4 bottom-4 p-4">
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2 className="font-semibold">{lugar.nome}</h2>
-            <p className="text-[13px] text-suave">
-              {lugar.categoria} · {lugar.bairro} · {lugar.distancia}
-            </p>
+      <button onClick={() => void localizar()} className="botao absolute right-4 top-4 z-[500] h-10 w-10 px-0 shadow-sm" aria-label="Mostrar minha localização">
+        <LocateFixed className="h-[18px] w-[18px]" />
+      </button>
+      {aviso && <p className="cartao absolute left-4 right-16 top-4 z-[500] px-3 py-2 text-sm text-alerta">{aviso}</p>}
+
+      {lugar ? (
+        <div className="cartao absolute inset-x-4 bottom-4 z-[500] p-4 shadow-sm">
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <h2 className="truncate font-semibold">{lugar.nome}</h2>
+              <p className="truncate text-[13px] text-suave">{[lugar.categoria?.nome, lugar.bairro].filter(Boolean).join(" · ")}</p>
+              <p className={abertoAgora(lugar.horarios) ? "mt-1 text-[13px] font-medium text-ok" : "mt-1 text-[13px] text-suave"}>
+                {resumoHorario(lugar.horarios)}
+              </p>
+            </div>
+            <button onClick={() => setSelecionado(null)} className="rounded p-1 text-suave hover:text-texto" aria-label="Fechar">
+              <X className="h-4 w-4" />
+            </button>
           </div>
-          <MedidorMovimento nivel={lugar.movimento} />
+          {nomesVibes(lugar).length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {nomesVibes(lugar).map((v) => (
+                <span key={v} className="rounded-md bg-destaque-suave px-2 py-0.5 text-[12px] font-medium text-destaque">
+                  {v}
+                </span>
+              ))}
+            </div>
+          )}
+          <Link to={`/lugar/${lugar.id}`} className="botao-principal mt-3 w-full">
+            Ver lugar
+          </Link>
         </div>
-        <button className="botao-principal mt-3 w-full">Ver lugar</button>
-      </div>
-      <p className="absolute left-4 top-3 rounded-md bg-superficie/90 px-2 py-1 text-xs text-suave">Mapa ilustrativo</p>
+      ) : (
+        comLocal.length === 0 && (
+          <p className="cartao absolute inset-x-4 bottom-4 z-[500] p-4 text-center text-sm text-suave">
+            Os lugares aprovados aparecem aqui assim que marcarem a localização.
+          </p>
+        )
+      )}
     </div>
   );
 }

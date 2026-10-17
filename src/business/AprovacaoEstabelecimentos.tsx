@@ -33,8 +33,8 @@ const COR: Record<Situacao, string> = {
   suspenso: "text-perigo",
 };
 
-export function AprovacaoEstabelecimentos() {
-  const [filtro, setFiltro] = useState<Situacao | "todas">("pendente");
+export function AprovacaoEstabelecimentos({ filtroInicial = "pendente" }: { filtroInicial?: Situacao | "todas" }) {
+  const [filtro, setFiltro] = useState<Situacao | "todas">(filtroInicial);
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [responsaveis, setResponsaveis] = useState<Record<string, string>>({});
   const [selecionada, setSelecionada] = useState<string | null>(null);

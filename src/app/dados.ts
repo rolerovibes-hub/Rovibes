@@ -1,0 +1,145 @@
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { Horario } from "@/lib/horarios";
+
+export interface Lugar {
+  id: string;
+  nome: string;
+  bairro: string | null;
+  endereco: string | null;
+  descricao: string | null;
+  capa_url: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  faixa_preco: number | null;
+  telefone: string | null;
+  instagram: string | null;
+  categoria: { nome: string } | null;
+  vibes: { vibe: { nome: string } | null }[];
+  horarios: Horario[];
+}
+
+export interface EventoResumo {
+  id: string;
+  nome: string;
+  inicio: string;
+  fim: string | null;
+  entrada: string | null;
+  capa_url: string | null;
+  situacao: string;
+  descricao: string | null;
+  estabelecimento: { id: string; nome: string; bairro: string | null } | null;
+}
+
+const CAMPOS_LUGAR =
+  "id, nome, bairro, endereco, descricao, capa_url, latitude, longitude, faixa_preco, telefone, instagram, categoria:categorias(nome), vibes:estabelecimento_vibes(vibe:vibes(nome)), horarios(dia_semana, abre, fecha)";
+
+const CAMPOS_EVENTO =
+  "id, nome, inicio, fim, entrada, capa_url, situacao, descricao, estabelecimento:estabelecimentos(id, nome, bairro)";
+
+export const nomesVibes = (l: Lugar) => l.vibes.map((v) => v.vibe?.nome).filter((n): n is string => !!n);
+
+/** Lugares aprovados e eventos publicados a partir de agora (com folga de 6 h para os que já começaram). */
+export function useVitrine() {
+  const [lugares, setLugares] = useState<Lugar[]>([]);
+  const [eventos, setEventos] = useState<EventoResumo[]>([]);
+  const [carregando, setCarregando] = useState(true);
+  const [erro, setErro] = useState(false);
+
+  useEffect(() => {
+    let ativo = true;
+    const desde = new Date(Date.now() - 6 * 3600 * 1000).toISOString();
+    Promise.all([
+      supabase.from("estabelecimentos").select(CAMPOS_LUGAR).eq("situacao", "aprovado").order("nome").limit(300),
+      supabase
+        .from("eventos")
+        .select(CAMPOS_EVENTO)
+        .eq("situacao", "publicado")
+        .gte("inicio", desde)
+        .order("inicio")
+        .limit(60),
+    ]).then(([l, e]) => {
+      if (!ativo) return;
+      setErro(!!(l.error || e.error));
+      setLugares((l.data ?? []) as unknown as Lugar[]);
+      setEventos(((e.data ?? []) as unknown as EventoResumo[]).filter((x) => x.estabelecimento));
+      setCarregando(false);
+    });
+    return () => {
+      ativo = false;
+    };
+  }, []);
+
+  return { lugares, eventos, carregando, erro };
+}
+
+export async function buscarLugar(id: string) {
+  const [l, e, f, c, i] = await Promise.all([
+    supabase.from("estabelecimentos").select(CAMPOS_LUGAR).eq("id", id).maybeSingle(),
+    supabase
+      .from("eventos")
+      .select(CAMPOS_EVENTO)
+      .eq("estabelecimento_id", id)
+      .eq("situacao", "publicado")
+      .gte("inicio", new Date(Date.now() - 6 * 3600 * 1000).toISOString())
+      .order("inicio")
+      .limit(10),
+    supabase.from("fotos").select("id, url").eq("estabelecimento_id", id).order("ordem"),
+    supabase.from("cardapio_categorias").select("id, nome").eq("estabelecimento_id", id).order("ordem"),
+    supabase
+      .from("cardapio_itens")
+      .select("id, categoria_id, nome, descricao, preco, foto_url")
+      .eq("estabelecimento_id", id)
+      .eq("disponivel", true)
+      .order("ordem"),
+  ]);
+  return {
+    lugar: (l.data as unknown as Lugar | null) ?? null,
+    eventos: (e.data ?? []) as unknown as EventoResumo[],
+    fotos: (f.data ?? []) as { id: string; url: string }[],
+    categorias: (c.data ?? []) as { id: string; nome: string }[],
+    itens: ((i.data ?? []) as { id: string; categoria_id: string | null; nome: string; descricao: string | null; preco: number | null; foto_url: string | null }[]).map(
+      (x) => ({ ...x, preco: x.preco == null ? null : Number(x.preco) }),
+    ),
+  };
+}
+
+export async function buscarEvento(id: string) {
+  const { data } = await supabase.from("eventos").select(CAMPOS_EVENTO).eq("id", id).maybeSingle();
+  return (data as unknown as EventoResumo | null) ?? null;
+}
+
+/** Distância em km entre dois pontos. */
+export function distanciaKm(a: [number, number], b: [number, number]) {
+  const r = (g: number) => (g * Math.PI) / 180;
+  const dLat = r(b[0] - a[0]);
+  const dLng = r(b[1] - a[1]);
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(r(a[0])) * Math.cos(r(b[0])) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(h));
+}
+
+export const km = (d: number) => (d < 1 ? `${Math.round(d * 1000)} m` : `${d.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`);
+
+/** Localização do aparelho, pedida só quando a pessoa toca em "Perto de mim". */
+export function pedirLocalizacao(): Promise<[number, number]> {
+  return new Promise((ok, falha) => {
+    if (!navigator.geolocation) return falha(new Error("Localização indisponível neste aparelho."));
+    navigator.geolocation.getCurrentPosition(
+      (p) => ok([p.coords.latitude, p.coords.longitude]),
+      () => falha(new Error("Permita o acesso à localização para ver o que está perto.")),
+      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+    );
+  });
+}
+
+export const ehHoje = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
+
+export const quando = (iso: string) => {
+  const d = new Date(iso);
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (ehHoje(iso)) return `Hoje, ${hora}`;
+  const amanha = new Date();
+  amanha.setDate(amanha.getDate() + 1);
+  if (d.toDateString() === amanha.toDateString()) return `Amanhã, ${hora}`;
+  return `${d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "short" })}, ${hora}`;
+};

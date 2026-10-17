@@ -6,6 +6,10 @@ import { porCodigo, Aplicativo } from "@/lib/catalogo";
 import { NOME_PAPEL, useBusiness } from "@/lib/acessos";
 import { useSessao } from "@/lib/sessao";
 import { AprovacaoEstabelecimentos } from "./AprovacaoEstabelecimentos";
+import { PerfilEstabelecimento } from "./PerfilEstabelecimento";
+import { Cardapio } from "./Cardapio";
+import { Eventos } from "./Eventos";
+import { VibesCategorias } from "./VibesCategorias";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Avatar } from "@/components/Avatar";
 
@@ -67,7 +71,12 @@ export function TelaAplicativo() {
   }
 
   if (app.codigo === "G1002") return <MeuPerfil />;
-  if (app.codigo === "A1001") return <AprovacaoEstabelecimentos />;
+  if (app.codigo === "A1001") return <AprovacaoEstabelecimentos key="pendente" />;
+  if (app.codigo === "A1002") return <AprovacaoEstabelecimentos key="todas" filtroInicial="todas" />;
+  if (app.codigo === "A1004") return <VibesCategorias />;
+  if (app.codigo === "G1001") return <PerfilEstabelecimento />;
+  if (app.codigo === "G4001") return <Cardapio />;
+  if (app.codigo === "G5001") return <Eventos />;
 
   return (
     <TelaUniversal
