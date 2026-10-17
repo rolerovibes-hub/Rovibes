@@ -1,8 +1,11 @@
-import { ReactNode, useEffect } from "react";
+import { useEffect } from "react";
+import { TelaUniversal } from "./TelaUniversal";
 import { Navigate, useParams } from "react-router-dom";
 import { Download, FilePlus2, FolderOpen, Lock, Pencil, Printer, Search, Trash2 } from "lucide-react";
 import { porCodigo, Aplicativo } from "@/lib/catalogo";
-import { temAcesso, useAcessos, USUARIO_DEMO } from "@/lib/acessos";
+import { NOME_PAPEL, useBusiness } from "@/lib/acessos";
+import { useSessao } from "@/lib/sessao";
+import { AprovacaoEstabelecimentos } from "./AprovacaoEstabelecimentos";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Avatar } from "@/components/Avatar";
 
@@ -32,8 +35,8 @@ const COLUNAS: Record<string, string[]> = {
 export function TelaAplicativo() {
   const { codigo = "" } = useParams();
   const app = porCodigo(codigo);
-  const acessos = useAcessos();
-  const liberado = app ? temAcesso(app) : false;
+  const acessos = useBusiness();
+  const liberado = app ? acessos.temAcesso(app) : false;
 
   useEffect(() => {
     if (app && liberado) acessos.registrarUso(app.codigo);
@@ -64,6 +67,7 @@ export function TelaAplicativo() {
   }
 
   if (app.codigo === "G1002") return <MeuPerfil />;
+  if (app.codigo === "A1001") return <AprovacaoEstabelecimentos />;
 
   return (
     <TelaUniversal
@@ -101,20 +105,6 @@ export function TelaAplicativo() {
     >
       <Consulta app={app} />
     </TelaUniversal>
-  );
-}
-
-/** Esqueleto de toda tela do Business: área de trabalho à esquerda, ações à direita. */
-export function TelaUniversal({ acoes, rodape, children }: { acoes: ReactNode; rodape?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_240px]">
-      <div className="min-w-0 space-y-4">{children}</div>
-      <aside aria-label="Ações" className="cartao order-first p-3 xl:sticky xl:top-24 xl:order-none">
-        <h2 className="rotulo mb-2 px-1">Ações</h2>
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5 xl:grid-cols-1">{acoes}</div>
-        {rodape && <div className="mt-3 border-t border-borda pt-3">{rodape}</div>}
-      </aside>
-    </div>
   );
 }
 
@@ -165,16 +155,19 @@ function Consulta({ app }: { app: Aplicativo }) {
 }
 
 function MeuPerfil() {
+  const { perfil, email, ehAdmin } = useSessao();
+  const { vinculos } = useBusiness();
+  const nascimento = perfil?.data_nascimento ? perfil.data_nascimento.split("-").reverse().join("/") : "";
   const campos: [string, string][] = [
-    ["Nome", USUARIO_DEMO.nome],
-    ["E-mail", USUARIO_DEMO.email],
-    ["Cargo", USUARIO_DEMO.cargo],
-    ["Estabelecimentos", USUARIO_DEMO.estabelecimentos.join(", ")],
+    ["Nome", perfil?.nome ?? ""],
+    ["E-mail", email ?? ""],
+    ["Data de nascimento", nascimento],
+    ["Estabelecimentos", vinculos.map((v) => `${v.estabelecimento.nome} (${v.cargo || NOME_PAPEL[v.papel]})`).join(", ") || "Nenhum"],
   ];
   return (
     <TelaUniversal
       acoes={
-        <button className="botao-principal col-span-2 sm:col-span-1" disabled title="Edição disponível com o login">
+        <button className="botao-principal col-span-2 sm:col-span-1" disabled title="Edição na próxima etapa">
           <Pencil className="h-4 w-4" />
           Editar dados
         </button>
@@ -182,10 +175,10 @@ function MeuPerfil() {
     >
       <section className="cartao p-5">
         <div className="flex items-center gap-4">
-          <Avatar nome={USUARIO_DEMO.nome} tamanho="lg" />
+          <Avatar nome={perfil?.nome || "?"} tamanho="lg" />
           <div>
-            <p className="text-lg font-semibold">{USUARIO_DEMO.nome}</p>
-            <p className="text-sm text-suave">{USUARIO_DEMO.cargo}</p>
+            <p className="text-lg font-semibold">{perfil?.nome}</p>
+            {ehAdmin && <p className="text-sm text-suave">Administração RoVibes</p>}
           </div>
         </div>
         <dl className="mt-6 grid gap-x-6 gap-y-4 sm:grid-cols-2">

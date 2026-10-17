@@ -8,6 +8,8 @@ import { Mapa } from "./app/Mapa";
 import { Feed } from "./app/Feed";
 import { Chats } from "./app/Chats";
 import { Perfil } from "./app/Perfil";
+import { Entrar } from "./Entrar";
+import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
 
 export default function App() {
   return (
@@ -15,7 +17,9 @@ export default function App() {
       <Route path="/business" element={<BusinessLayout />}>
         <Route index element={<AreaDeTrabalho />} />
         <Route path="app/:codigo" element={<TelaAplicativo />} />
+        <Route path="novo" element={<CadastroEstabelecimento />} />
       </Route>
+      <Route path="/entrar" element={<Entrar />} />
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Descobrir />} />
         <Route path="mapa" element={<Mapa />} />

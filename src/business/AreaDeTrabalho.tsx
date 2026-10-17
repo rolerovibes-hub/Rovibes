@@ -3,18 +3,21 @@ import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
 import { ChevronLeft, ChevronRight, Lock, Search, Star, X } from "lucide-react";
 import { AREAS, Aplicativo, buscar, CATALOGO } from "@/lib/catalogo";
-import { tempoRelativo, temAcesso, useAcessos, USUARIO_DEMO } from "@/lib/acessos";
+import { NOME_PAPEL, NOME_SITUACAO, tempoRelativo, useBusiness } from "@/lib/acessos";
+import { useSessao } from "@/lib/sessao";
 import { Avatar } from "@/components/Avatar";
-import { ler } from "@/lib/armazenamento";
 
 export function AreaDeTrabalho() {
-  const acessos = useAcessos();
+  const acessos = useBusiness();
+  const { temAcesso, atual } = acessos;
+  const { perfil, ehAdmin } = useSessao();
   const navegar = useNavigate();
   const [termo, setTermo] = useState("");
   const [organizando, setOrganizando] = useState(false);
   const campo = useRef<HTMLInputElement>(null);
   const resultados = useMemo(() => buscar(CATALOGO, termo), [termo]);
-  const estab = ler("estabelecimento", USUARIO_DEMO.estabelecimento);
+  const cargo = atual ? atual.cargo || NOME_PAPEL[atual.papel] : ehAdmin ? "Administração RoVibes" : "";
+  const situacao = atual?.estabelecimento.situacao;
 
   // "/" leva à busca, como no Expedição.
   useEffect(() => {
@@ -37,32 +40,49 @@ export function AreaDeTrabalho() {
       <aside className="space-y-4">
         <section className="cartao p-5">
           <div className="flex items-center gap-3.5">
-            <Avatar nome={USUARIO_DEMO.nome} tamanho="lg" />
+            <Avatar nome={perfil?.nome || "?"} tamanho="lg" />
             <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold leading-tight">{USUARIO_DEMO.nome}</h2>
-              <p className="text-sm text-suave">{USUARIO_DEMO.cargo}</p>
+              <h2 className="truncate text-lg font-semibold leading-tight">{perfil?.nome}</h2>
+              <p className="text-sm text-suave">{cargo}</p>
             </div>
           </div>
           <dl className="mt-5 space-y-3 border-t border-borda pt-4 text-sm">
-            <div className="flex justify-between gap-3">
-              <dt className="text-suave">Estabelecimento</dt>
-              <dd className="truncate font-medium">{estab}</dd>
-            </div>
+            {atual && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-suave">Estabelecimento</dt>
+                <dd className="truncate font-medium">{atual.estabelecimento.nome}</dd>
+              </div>
+            )}
             <div className="flex justify-between gap-3">
               <dt className="text-suave">Aplicativos liberados</dt>
               <dd className="codigo text-sm font-medium">{CATALOGO.filter(temAcesso).length}</dd>
             </div>
-            <div className="flex justify-between gap-3">
-              <dt className="text-suave">Situação</dt>
-              <dd className="inline-flex items-center gap-1.5 font-medium text-alerta">
-                <span className="h-2 w-2 rounded-full bg-alerta" />
-                Aguardando aprovação
-              </dd>
-            </div>
+            {situacao && (
+              <div className="flex justify-between gap-3">
+                <dt className="text-suave">Situação</dt>
+                <dd
+                  className={clsx(
+                    "inline-flex items-center gap-1.5 font-medium",
+                    situacao === "aprovado" ? "text-ok" : situacao === "pendente" ? "text-alerta" : "text-perigo",
+                  )}
+                >
+                  <span className="h-2 w-2 rounded-full bg-current" />
+                  {NOME_SITUACAO[situacao]}
+                </dd>
+              </div>
+            )}
           </dl>
-          <Link to="/business/app/G1002" className="botao mt-5 w-full">
-            Meu perfil
-          </Link>
+          {atual?.estabelecimento.motivo_situacao && situacao !== "aprovado" && (
+            <p className="mt-3 rounded-lg bg-elevado px-3 py-2 text-[13px]">{atual.estabelecimento.motivo_situacao}</p>
+          )}
+          <div className="mt-5 grid gap-2">
+            <Link to="/business/app/G1002" className="botao w-full">
+              Meu perfil
+            </Link>
+            <Link to="/business/novo" className="botao w-full">
+              Cadastrar estabelecimento
+            </Link>
+          </div>
         </section>
 
         <section className="cartao hidden p-5 lg:block">

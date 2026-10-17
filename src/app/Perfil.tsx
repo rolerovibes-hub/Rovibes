@@ -1,7 +1,8 @@
 import { Link } from "react-router-dom";
-import { Bookmark, ChevronRight, MapPinned, Store, Wallet } from "lucide-react";
+import { Bookmark, ChevronRight, LogOut, MapPinned, Store, Wallet } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SeletorTema } from "@/components/SeletorTema";
+import { useSessao } from "@/lib/sessao";
 
 const ITENS = [
   { nome: "Salvos", icone: Bookmark, fase: 3 },
@@ -10,15 +11,32 @@ const ITENS = [
 ];
 
 export function Perfil() {
+  const { sessao, perfil, email, sair } = useSessao();
+
   return (
     <div className="space-y-6 px-4 py-6">
-      <div className="flex items-center gap-4">
-        <Avatar nome="Visitante" tamanho="lg" />
-        <div>
-          <h1 className="text-lg font-semibold">Visitante</h1>
-          <p className="text-sm text-suave">Entrar e criar conta chega na próxima etapa</p>
+      {sessao ? (
+        <div className="flex items-center gap-4">
+          <Avatar nome={perfil?.nome || "?"} tamanho="lg" />
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold">{perfil?.nome}</h1>
+            <p className="truncate text-sm text-suave">{email}</p>
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="cartao space-y-4 p-5 text-center">
+          <h1 className="text-lg font-semibold">Entre no RoVibes</h1>
+          <p className="text-sm text-suave">Salve lugares, confirme presença em eventos e converse com quem vai.</p>
+          <div className="grid grid-cols-2 gap-2">
+            <Link to="/entrar?voltar=/perfil" className="botao">
+              Entrar
+            </Link>
+            <Link to="/entrar?voltar=/perfil&modo=criar" className="botao-principal">
+              Criar conta
+            </Link>
+          </div>
+        </div>
+      )}
 
       <ul className="cartao divide-y divide-borda">
         {ITENS.map(({ nome, icone: Icone, fase }) => (
@@ -43,6 +61,13 @@ export function Perfil() {
         </span>
         <ChevronRight className="h-4 w-4 text-suave" />
       </Link>
+
+      {sessao && (
+        <button onClick={() => void sair()} className="botao w-full text-perigo">
+          <LogOut className="h-4 w-4" />
+          Sair
+        </button>
+      )}
     </div>
   );
 }

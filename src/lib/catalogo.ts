@@ -53,7 +53,7 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "T7002", nome: "Fila de pedidos", area: "Operação", icone: ListOrdered, fase: 5 },
   { codigo: "C8001", nome: "Indicadores", area: "Estabelecimento", icone: TrendingUp, fase: 3 },
   { codigo: "G9001", nome: "Programa de pontos", area: "Vitrine", icone: Award, fase: 4 },
-  { codigo: "A1001", nome: "Aprovação de estabelecimentos", area: "Administração", icone: ShieldCheck, fase: 2 },
+  { codigo: "A1001", nome: "Aprovação de estabelecimentos", area: "Administração", icone: ShieldCheck, fase: 1 },
   { codigo: "A1002", nome: "Estabelecimentos", area: "Administração", icone: Building2, fase: 2 },
   { codigo: "A1003", nome: "Denúncias", area: "Administração", icone: Flag, fase: 6 },
   { codigo: "A1004", nome: "Vibes e categorias", area: "Administração", icone: Tags, fase: 2 },

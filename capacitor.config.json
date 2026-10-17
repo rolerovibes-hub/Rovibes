@@ -1,0 +1,11 @@
+{
+  "appId": "br.com.rovibes.app",
+  "appName": "RoVibes",
+  "webDir": "dist",
+  "backgroundColor": "#1A1F2B",
+  "server": {
+    "url": "https://rovibes.vercel.app",
+    "androidScheme": "https"
+  },
+  "android": { "allowMixedContent": false }
+}
