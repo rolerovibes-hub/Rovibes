@@ -1,11 +1,16 @@
-import { ReactNode, useEffect } from "react";
-import * as L from "leaflet";
+import { ReactNode, useEffect, useState } from "react";
+import L from "leaflet";
+import "maplibre-gl";
+import "@maplibre/maplibre-gl-leaflet";
 import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
+import { useTema } from "@/lib/tema";
+import { ATRIBUICAO, estiloMapa } from "@/lib/estiloMapa";
 
 export const UBERLANDIA: [number, number] = [-18.9186, -48.2772];
 
-/** Mapa OpenStreetMap; no tema escuro o mapa é escurecido por filtro (sem precisar de chave). */
+/** Mapa urbano minimalista do RoVibes (vetorial, com o estilo da marca). */
 export function MapaBase({
   centro = UBERLANDIA,
   zoom = 13,
@@ -21,15 +26,50 @@ export function MapaBase({
 }) {
   return (
     <MapContainer center={centro} zoom={zoom} className={className} zoomControl={false} attributionControl>
-      <TileLayer
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        className="mapa-ladrilhos"
-        maxZoom={19}
-      />
+      <CamadaCidade />
       {aoClicar && <Clique aoClicar={aoClicar} />}
       {children}
     </MapContainer>
+  );
+}
+
+const temWebGL = (() => {
+  try {
+    const c = document.createElement("canvas");
+    return !!(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch {
+    return false;
+  }
+})();
+
+/** Camada da cidade: vetorial com o estilo RoVibes; sem WebGL, cai para o OpenStreetMap comum. */
+function CamadaCidade() {
+  const mapa = useMap();
+  const { escuro } = useTema();
+  const [reserva, setReserva] = useState(!temWebGL);
+
+  useEffect(() => {
+    if (reserva) return;
+    let camada: L.Layer | null = null;
+    try {
+      camada = L.maplibreGL({ style: estiloMapa(escuro), attribution: ATRIBUICAO } as L.LeafletMaplibreGLOptions);
+      camada.addTo(mapa);
+    } catch {
+      setReserva(true);
+    }
+    return () => {
+      if (camada) mapa.removeLayer(camada);
+    };
+  }, [mapa, escuro, reserva]);
+
+  if (!reserva) return null;
+  return (
+    <TileLayer
+      url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      className="mapa-ladrilhos"
+      maxZoom={19}
+    />
   );
 }
 
