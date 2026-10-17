@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+  Paleta RoVibes
+  - Escuro confortável: grafite azulado, nunca preto puro.
+  - Uma única cor de destaque (roxo da marca, tom sóbrio), sem brilho nem degradê.
+  Valores em "R G B" para permitir transparência no Tailwind.
+*/
+:root {
+  --fundo: 244 245 248;
+  --superficie: 255 255 255;
+  --elevado: 238 240 245;
+  --borda: 220 224 232;
+  --texto: 27 33 48;
+  --suave: 93 102 122;
+  --marca: 90 61 216;
+  --marca-texto: 255 255 255;
+  --destaque: 90 61 216;
+  --ok: 31 132 84;
+  --alerta: 176 108 12;
+  --perigo: 196 56 52;
+  color-scheme: light;
+}
+
+.dark {
+  --fundo: 26 31 43;
+  --superficie: 34 41 55;
+  --elevado: 43 51 67;
+  --borda: 56 66 85;
+  --texto: 230 233 240;
+  --suave: 158 167 185;
+  --marca: 109 85 224;
+  --marca-texto: 255 255 255;
+  --destaque: 172 157 246;
+  --ok: 92 191 140;
+  --alerta: 230 170 74;
+  --perigo: 236 112 108;
+  color-scheme: dark;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    min-height: 100%;
+  }
+  body {
+    @apply bg-fundo text-texto font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  :focus-visible {
+    outline: 2px solid rgb(var(--destaque));
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+}
+
+@layer components {
+  .cartao {
+    @apply rounded-cartao border border-borda bg-superficie;
+  }
+  .botao {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg border border-borda bg-superficie px-3.5 py-2 text-sm font-medium text-texto transition-colors hover:bg-elevado disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .botao-principal {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg bg-marca px-3.5 py-2 text-sm font-semibold text-marca-texto transition-colors hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+  .rotulo {
+    @apply text-[13px] font-semibold text-suave;
+  }
+  .codigo {
+    @apply font-mono text-xs tabular-nums;
+  }
+}
+
+.text-destaque {
+  color: rgb(var(--destaque));
+}
+.bg-destaque-suave {
+  background-color: rgb(var(--marca) / 0.14);
+}
+.pb-seguro {
+  padding-bottom: env(safe-area-inset-bottom);
+}

@@ -1,0 +1,29 @@
+import { Navigate, Route, Routes } from "react-router-dom";
+import { BusinessLayout } from "./business/BusinessLayout";
+import { AreaDeTrabalho } from "./business/AreaDeTrabalho";
+import { TelaAplicativo } from "./business/TelaAplicativo";
+import { AppLayout } from "./app/AppLayout";
+import { Descobrir } from "./app/Descobrir";
+import { Mapa } from "./app/Mapa";
+import { Feed } from "./app/Feed";
+import { Chats } from "./app/Chats";
+import { Perfil } from "./app/Perfil";
+
+export default function App() {
+  return (
+    <Routes>
+      <Route path="/business" element={<BusinessLayout />}>
+        <Route index element={<AreaDeTrabalho />} />
+        <Route path="app/:codigo" element={<TelaAplicativo />} />
+      </Route>
+      <Route path="/" element={<AppLayout />}>
+        <Route index element={<Descobrir />} />
+        <Route path="mapa" element={<Mapa />} />
+        <Route path="feed" element={<Feed />} />
+        <Route path="chats" element={<Chats />} />
+        <Route path="perfil" element={<Perfil />} />
+      </Route>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+}
