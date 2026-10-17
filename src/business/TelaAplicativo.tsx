@@ -11,6 +11,9 @@ import { Cardapio } from "./Cardapio";
 import { Eventos } from "./Eventos";
 import { VibesCategorias } from "./VibesCategorias";
 import { StatusAoVivo } from "./StatusAoVivo";
+import { Publicacoes } from "./Publicacoes";
+import { Stories } from "./Stories";
+import { Indicadores } from "./Indicadores";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Avatar } from "@/components/Avatar";
 
@@ -79,6 +82,9 @@ export function TelaAplicativo() {
   if (app.codigo === "G4001") return <Cardapio />;
   if (app.codigo === "G5001") return <Eventos />;
   if (app.codigo === "T5002") return <StatusAoVivo />;
+  if (app.codigo === "G6001") return <Publicacoes />;
+  if (app.codigo === "G6002") return <Stories />;
+  if (app.codigo === "C8001") return <Indicadores />;
 
   return (
     <TelaUniversal

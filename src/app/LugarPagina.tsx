@@ -9,6 +9,10 @@ import { abertoAgora, DIAS, hhmm, resumoHorario } from "@/lib/horarios";
 import { agruparCardapio, buscarLugar, nomesVibes, quando } from "./dados";
 import { useExigirLogin, useRelacao, useResumos } from "./presenca";
 import { FolhaCheckin } from "./Checkin";
+import { buscarStories, GrupoStories } from "./conteudo";
+import { VisorStories } from "./VisorStories";
+import { useSessao } from "@/lib/sessao";
+import { supabase } from "@/lib/supabase";
 import { NotaCompacta, SecaoAvaliacoes } from "./Avaliacoes";
 import { MedidorMovimento } from "@/components/Marca";
 
@@ -61,6 +65,16 @@ export function LugarPagina() {
   const [checkinAberto, setCheckinAberto] = useState(false);
   const [versao, setVersao] = useState(0);
   const resumo = resumos.get(id);
+  const { sessao } = useSessao();
+  const usuario = sessao?.user.id ?? "";
+  const [stories, setStories] = useState<GrupoStories[]>([]);
+  const [visorAberto, setVisorAberto] = useState(false);
+
+  useEffect(() => {
+    if (!usuario) return;
+    void supabase.rpc("registrar_visita", { p_estab: id });
+    buscarStories(usuario, id).then(setStories);
+  }, [id, usuario]);
 
   if (!dados) return <Carregando />;
   const { lugar, eventos, fotos, categorias, itens } = dados;
@@ -122,13 +136,21 @@ export function LugarPagina() {
       {/* Identidade: logo sobre a capa, nome e situação */}
       <div className="relative -mt-6 rounded-t-[20px] bg-fundo px-4">
         <div className="flex flex-col items-center text-center">
-          <div className="-mt-11 flex h-[88px] w-[88px] items-center justify-center overflow-hidden rounded-full border-4 border-fundo bg-superficie">
-            {lugar.logo_url ? (
-              <img src={lugar.logo_url} alt={`Logo de ${lugar.nome}`} className="h-full w-full object-cover" />
-            ) : (
-              <Store className="h-7 w-7 text-suave" />
-            )}
-          </div>
+          <button
+            type="button"
+            onClick={() => stories.length > 0 && setVisorAberto(true)}
+            disabled={stories.length === 0}
+            aria-label={stories.length ? `Ver stories de ${lugar.nome}` : undefined}
+            className={clsx("-mt-11 rounded-full p-[3px]", stories.length ? (stories[0].vistos ? "bg-borda" : "bg-magenta") : "bg-fundo")}
+          >
+            <span className="flex h-[84px] w-[84px] items-center justify-center overflow-hidden rounded-full border-[3px] border-fundo bg-superficie">
+              {lugar.logo_url ? (
+                <img src={lugar.logo_url} alt={`Logo de ${lugar.nome}`} className="h-full w-full object-cover" />
+              ) : (
+                <Store className="h-7 w-7 text-suave" />
+              )}
+            </span>
+          </button>
           <h1 className="mt-2 text-[22px] font-semibold leading-tight">{lugar.nome}</h1>
           <p className="text-sm text-suave">
             {[lugar.categoria?.nome, lugar.faixa_preco ? "$".repeat(lugar.faixa_preco) : null].filter(Boolean).join(" · ")}
@@ -347,6 +369,17 @@ export function LugarPagina() {
           concluido={() => {
             setVersao((v) => v + 1);
             void recarregar();
+          }}
+        />
+      )}
+      {visorAberto && stories.length > 0 && (
+        <VisorStories
+          grupos={stories}
+          inicio={0}
+          usuario={usuario}
+          fechar={() => {
+            setVisorAberto(false);
+            buscarStories(usuario, id).then(setStories);
           }}
         />
       )}

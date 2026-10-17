@@ -141,3 +141,12 @@
 .pb-seguro {
   padding-bottom: env(safe-area-inset-bottom);
 }
+
+@keyframes progresso-story {
+  from {
+    width: 0%;
+  }
+  to {
+    width: 100%;
+  }
+}
