@@ -1,8 +1,10 @@
 import { useEffect } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { Navigate, NavLink, Outlet, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { Bell, Compass, Map, MessageCircle, Newspaper, UserRound } from "lucide-react";
 import { Marca } from "@/components/Marca";
+import { Carregando } from "@/components/Carregando";
+import { useSessao } from "@/lib/sessao";
 
 const ABAS = [
   { para: "/", nome: "Descobrir", icone: Compass, fim: true },
@@ -13,9 +15,15 @@ const ABAS = [
 ];
 
 export function AppLayout() {
+  const { carregando, sessao } = useSessao();
+  const local = useLocation();
   useEffect(() => {
     document.title = "RoVibes";
   }, []);
+
+  // O App é só para quem tem conta: sem login, vai para a tela de entrar e volta depois.
+  if (carregando) return <Carregando />;
+  if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(local.pathname)}`} replace />;
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col border-borda sm:border-x">

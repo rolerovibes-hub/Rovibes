@@ -38,7 +38,7 @@ export function FolhaCheckin({
     setErro("");
     setEnviando(true);
     try {
-      const [lat, lng] = await pedirLocalizacao();
+      const [lat, lng] = await pedirLocalizacao(true);
       const { error } = await supabase.rpc("fazer_checkin", {
         p_estab: estabelecimentoId,
         p_lat: lat,

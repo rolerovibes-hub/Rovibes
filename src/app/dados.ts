@@ -132,13 +132,20 @@ export function distanciaKm(a: [number, number], b: [number, number]) {
 export const km = (d: number) => (d < 1 ? `${Math.round(d * 1000)} m` : `${d.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} km`);
 
 /** Localização do aparelho, pedida só quando a pessoa toca em "Perto de mim". */
-export function pedirLocalizacao(): Promise<[number, number]> {
+export function pedirLocalizacao(precisa = false): Promise<[number, number]> {
   return new Promise((ok, falha) => {
-    if (!navigator.geolocation) return falha(new Error("Localização indisponível neste aparelho."));
+    if (!navigator.geolocation) return falha(new Error("Este aparelho não informa a localização."));
     navigator.geolocation.getCurrentPosition(
       (p) => ok([p.coords.latitude, p.coords.longitude]),
-      () => falha(new Error("Permita o acesso à localização para ver o que está perto.")),
-      { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 },
+      (e) => {
+        if (e.code === e.PERMISSION_DENIED)
+          return falha(
+            new Error("A localização está bloqueada para o RoVibes. Libere nas configurações do celular (Apps → RoVibes → Permissões → Localização) ou do navegador."),
+          );
+        if (e.code === e.TIMEOUT) return falha(new Error("A localização demorou para responder. Verifique se o GPS está ligado e tente de novo."));
+        falha(new Error("Não foi possível obter sua localização. Verifique se o GPS está ligado."));
+      },
+      precisa ? { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 } : { enableHighAccuracy: false, timeout: 15000, maximumAge: 300000 },
     );
   });
 }

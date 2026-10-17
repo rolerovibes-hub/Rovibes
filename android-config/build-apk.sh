@@ -18,6 +18,11 @@ RES=android/app/src/main/res
 rm -f $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml
 cp -r android-config/res/. $RES/
 
+# Localização: check-in e "perto de mim".
+MANIFESTO=android/app/src/main/AndroidManifest.xml
+sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />#' $MANIFESTO
+grep -q ACCESS_FINE_LOCATION $MANIFESTO
+
 sed -i "s/versionCode [0-9]*/versionCode ${NUM}/; s/versionName \"[^\"]*\"/versionName \"1.0.${NUM}\"/" android/app/build.gradle
 
 cd android
