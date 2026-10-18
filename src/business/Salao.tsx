@@ -1,13 +1,14 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
 import QRCode from "qrcode";
-import { Armchair, Ban, ChefHat, CircleDollarSign, Martini, Pencil, Plus, Printer, ReceiptText, Send, Trash2, Users, X } from "lucide-react";
+import { Armchair, Ban, CircleDollarSign, Pencil, Plus, Printer, ReceiptText, Send, Trash2, Users, X } from "lucide-react";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, reais, Secao } from "@/components/Formulario";
-import { Carrinho, carrinhoParaBanco, carregarItensParaPedido, ItemParaPedido, MontarPedido, qtdNoCarrinho, totalDoCarrinho } from "@/components/MontarPedido";
+import { DetalheComanda, Desconto, resumoDaComanda } from "@/job/DetalheComanda";
+import { FormularioPedido } from "@/job/FormularioPedido";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useBusiness } from "@/lib/acessos";
-import { CAMPOS_PEDIDO, COR_SITUACAO_PEDIDO, linkDaMesa, minutosDesde, NOME_SITUACAO_PEDIDO, normalizarPedidos, Pedido, totalDoPedido, useAoVivo } from "@/lib/salao";
+import { CAMPOS_PEDIDO, linkDaMesa, minutosDesde, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
 
 interface Mesa {
   id: string;
@@ -29,11 +30,6 @@ interface Comanda {
   pessoas: { usuario_id: string }[];
 }
 
-interface Desconto {
-  comanda_id: string;
-  titulo: string;
-  valor: number;
-}
 
 type Aba = "salao" | "mesas" | "fechadas";
 
@@ -92,15 +88,12 @@ export function Salao() {
     void carregar();
   }, [carregar]);
 
-  useAoVivo("salao", { pedidos: `estabelecimento_id=eq.${id}`, comandas: `estabelecimento_id=eq.${id}` }, () => void carregar(), !!id);
+  useAoVivo("salao", { pedidos: `estabelecimento_id=eq.${id}`, itens: `estabelecimento_id=eq.${id}`, comandas: `estabelecimento_id=eq.${id}` }, () => void carregar(), !!id);
 
   const resumo = useMemo(() => {
-    const r = new Map<string, { subtotal: number; desconto: number; total: number; pendentes: number }>();
+    const r = new Map<string, ReturnType<typeof resumoDaComanda>>();
     for (const c of comandas) {
-      const ps = pedidos.filter((p) => p.comanda_id === c.id && p.situacao !== "cancelado");
-      const subtotal = ps.reduce((s, p) => s + totalDoPedido(p), 0);
-      const desconto = Math.min(subtotal, descontos.filter((d) => d.comanda_id === c.id).reduce((s, d) => s + d.valor, 0));
-      r.set(c.id, { subtotal, desconto, total: subtotal - desconto, pendentes: ps.filter((p) => p.situacao !== "entregue").length });
+      r.set(c.id, resumoDaComanda(pedidos.filter((p) => p.comanda_id === c.id), descontos.filter((d) => d.comanda_id === c.id)));
     }
     return r;
   }, [comandas, pedidos, descontos]);
@@ -425,7 +418,7 @@ export function Salao() {
                   comanda={comanda}
                   pedidos={pedidos.filter((p) => p.comanda_id === comanda.id)}
                   descontos={descontos.filter((d) => d.comanda_id === comanda.id)}
-                  resumo={resumo.get(comanda.id)}
+                  podeEntregar
                   aoMudar={() => void carregar()}
                   aoErro={(t) => setAviso({ tipo: "erro", texto: t })}
                 />
@@ -438,6 +431,7 @@ export function Salao() {
               estab={id}
               comanda={comanda.id}
               titulo={titulo(comanda, mesaSel)}
+              comMesa={!!comanda.mesa_id}
               fechar={() => setLancando(false)}
               enviado={() => {
                 setLancando(false);
@@ -575,123 +569,7 @@ export function Salao() {
   );
 }
 
-function DetalheComanda({
-  comanda,
-  pedidos,
-  descontos,
-  resumo,
-  aoMudar,
-  aoErro,
-}: {
-  comanda: Comanda;
-  pedidos: Pedido[];
-  descontos: Desconto[];
-  resumo?: { subtotal: number; desconto: number; total: number };
-  aoMudar: () => void;
-  aoErro: (t: string) => void;
-}) {
-  const entregar = async (p: Pedido) => {
-    const { error } = await supabase.rpc("mudar_pedido", { p_pedido: p.id, p_situacao: "entregue", p_motivo: null });
-    if (error) aoErro(mensagemDeErro(error));
-    aoMudar();
-  };
-  const cancelar = async (p: Pedido) => {
-    const motivo = window.prompt(`Motivo do cancelamento do pedido #${p.numero}:`);
-    if (!motivo?.trim()) return;
-    const { error } = await supabase.rpc("mudar_pedido", { p_pedido: p.id, p_situacao: "cancelado", p_motivo: motivo });
-    if (error) aoErro(mensagemDeErro(error));
-    aoMudar();
-  };
-
-  return (
-    <div className="space-y-4">
-      <p className="flex items-center gap-2 text-sm text-suave">
-        <Users className="h-4 w-4" />
-        {comanda.pessoas.length ? `${comanda.pessoas.length} ${comanda.pessoas.length === 1 ? "pessoa" : "pessoas"} pelo App` : "Ninguém pelo App"} · aberta há {minutosDesde(comanda.aberta_em)} min
-      </p>
-      {pedidos.length === 0 ? (
-        <p className="text-sm text-suave">Nenhum pedido ainda.</p>
-      ) : (
-        <ul className="divide-y divide-borda rounded-lg border border-borda">
-          {[...pedidos].reverse().map((p) => (
-            <li key={p.id} className={clsx("flex flex-wrap items-start gap-3 px-3 py-2.5", p.situacao === "cancelado" && "opacity-60")}>
-              <span className="mt-0.5 text-suave">{p.setor === "bar" ? <Martini className="h-4 w-4" /> : <ChefHat className="h-4 w-4" />}</span>
-              <div className="min-w-0 flex-1 text-sm">
-                <p className="flex flex-wrap items-center gap-x-2">
-                  <span className="codigo font-semibold">#{p.numero}</span>
-                  <span className={clsx("text-[12px] font-semibold", COR_SITUACAO_PEDIDO[p.situacao])}>{NOME_SITUACAO_PEDIDO[p.situacao]}</span>
-                  <span className="text-[12px] text-suave">
-                    {p.usuario_id ? "pelo App" : "lançado pela equipe"} · {new Date(p.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                </p>
-                <ul className={clsx(p.situacao === "cancelado" && "line-through")}>
-                  {p.itens.map((i) => (
-                    <li key={i.id}>
-                      {i.quantidade}× {i.nome}
-                      {i.observacao && <span className="text-suave"> · {i.observacao}</span>}
-                    </li>
-                  ))}
-                </ul>
-                {p.motivo_cancelamento && <p className="text-[12px] text-perigo">{p.motivo_cancelamento}</p>}
-              </div>
-              <span className="codigo text-sm">{reais(totalDoPedido(p))}</span>
-              {p.situacao !== "cancelado" && p.situacao !== "entregue" && (
-                <span className="flex w-full justify-end gap-2 sm:w-auto">
-                  <button className="botao h-7 px-2.5 text-[12px]" onClick={() => void entregar(p)}>
-                    Entregue
-                  </button>
-                  <button className="botao h-7 px-2.5 text-[12px] text-perigo" onClick={() => void cancelar(p)}>
-                    Cancelar
-                  </button>
-                </span>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-      {resumo && (
-        <div className="ml-auto max-w-xs space-y-1 text-sm">
-          <p className="flex justify-between">
-            <span className="text-suave">Itens</span>
-            <span className="codigo">{reais(resumo.subtotal)}</span>
-          </p>
-          {descontos.map((d, i) => (
-            <p key={i} className="flex justify-between text-ok">
-              <span>Cupom: {d.titulo}</span>
-              <span className="codigo">−{reais(d.valor)}</span>
-            </p>
-          ))}
-          <p className="flex justify-between border-t border-borda pt-1 text-base font-semibold">
-            <span>Total</span>
-            <span className="codigo">{reais(resumo.total)}</span>
-          </p>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function LancarPedido({ estab, comanda, titulo, fechar, enviado }: { estab: string; comanda: string; titulo: string; fechar: () => void; enviado: () => void }) {
-  const [itens, setItens] = useState<ItemParaPedido[]>([]);
-  const [carrinho, setCarrinho] = useState<Carrinho>({});
-  const [obs, setObs] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [erro, setErro] = useState("");
-
-  useEffect(() => {
-    carregarItensParaPedido(estab).then(setItens);
-  }, [estab]);
-
-  const qtd = qtdNoCarrinho(carrinho);
-  const enviar = async () => {
-    setEnviando(true);
-    setErro("");
-    const { error } = await supabase.rpc("fazer_pedido", { p_comanda: comanda, p_itens: carrinhoParaBanco(carrinho), p_observacao: obs.trim() || null, p_cupom: null });
-    setEnviando(false);
-    if (error) return setErro(mensagemDeErro(error));
-    enviado();
-  };
-
+function LancarPedido({ estab, comanda, titulo, comMesa, fechar, enviado }: { estab: string; comanda: string; titulo: string; comMesa: boolean; fechar: () => void; enviado: () => void }) {
   return (
     <Secao
       titulo={`Lançar pedido · ${titulo}`}
@@ -701,26 +579,7 @@ function LancarPedido({ estab, comanda, titulo, fechar, enviado }: { estab: stri
         </button>
       }
     >
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-        <div className="max-h-[560px] overflow-y-auto pr-1">
-          <MontarPedido itens={itens} carrinho={carrinho} mudar={setCarrinho} compacto />
-        </div>
-        <div className="space-y-3">
-          <Campo rotulo="Observação">
-            <textarea rows={2} maxLength={300} className="entrada" value={obs} onChange={(e) => setObs(e.target.value)} />
-          </Campo>
-          <p className="flex justify-between text-sm font-semibold">
-            <span>{qtd} {qtd === 1 ? "item" : "itens"}</span>
-            <span className="codigo">{reais(totalDoCarrinho(carrinho, itens))}</span>
-          </p>
-          {erro && <p className="text-sm text-perigo">{erro}</p>}
-          <button className="botao-principal w-full" disabled={!qtd || enviando} onClick={() => void enviar()}>
-            <Send className="h-4 w-4" />
-            {enviando ? "Enviando..." : "Enviar para a fila"}
-          </button>
-          <p className="text-[12px] text-suave">Cupons só valem quando o próprio cliente pede pelo App.</p>
-        </div>
-      </div>
+      <FormularioPedido estab={estab} comanda={comanda} comMesa={comMesa} enviado={enviado} />
     </Secao>
   );
 }

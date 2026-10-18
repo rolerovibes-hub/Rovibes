@@ -136,6 +136,9 @@ function PainelPerfil({ fechar }: { fechar: () => void }) {
           <Link to="/business/app/G1002" onClick={fechar} className="botao w-full">
             Ver meu perfil
           </Link>
+          <Link to="/job" onClick={fechar} className="botao w-full">
+            Abrir o RoVibes Job
+          </Link>
           <Link to="/" onClick={fechar} className="botao w-full">
             Abrir o RoVibes App
           </Link>

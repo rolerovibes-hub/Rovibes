@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { Armchair, Bell, ChevronRight, Compass, Map, MessageCircle, Newspaper, ScanLine, UserRound, X } from "lucide-react";
 import { LeitorQr } from "@/components/Qr";
 import { supabase } from "@/lib/supabase";
-import { codigoDaMesa } from "@/lib/salao";
+import { codigoDaMesa, useAoVivo } from "@/lib/salao";
 import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { useSessao } from "@/lib/sessao";
@@ -22,7 +22,9 @@ export function AppLayout() {
   const local = useLocation();
   const navegar = useNavigate();
   const [lendo, setLendo] = useState(false);
-  const [mesaAberta, setMesaAberta] = useState<{ id: string; rotulo: string; lugar: string } | null>(null);
+  const [mesaAberta, setMesaAberta] = useState<{ id: string; rotulo: string; lugar: string; aviso: string | null } | null>(null);
+  const [versao, setVersao] = useState(0);
+  useAoVivo("barra-mesa", { pedidos: mesaAberta ? `comanda_id=eq.${mesaAberta.id}` : undefined }, () => setVersao((v) => v + 1), !!mesaAberta);
   const usuario = sessao?.user.id;
   useEffect(() => {
     document.title = "RoVibes";
@@ -33,16 +35,37 @@ export function AppLayout() {
     if (!usuario) return;
     supabase
       .from("comanda_pessoas")
-      .select("entrou_em, comanda:comandas(id, situacao, nome, mesa:mesas(numero), estabelecimento:estabelecimentos(nome))")
+      .select("entrou_em, comanda:comandas(id, situacao, nome, mesa:mesas(numero), estabelecimento:estabelecimentos(nome), pedidos(modalidade, usuario_id, itens:pedido_itens(situacao)))")
       .eq("usuario_id", usuario)
       .order("entrou_em", { ascending: false })
       .limit(5)
       .then(({ data }) => {
-        type Linha = { comanda: { id: string; situacao: string; nome: string | null; mesa: { numero: string } | null; estabelecimento: { nome: string } | null } | null };
+        type Linha = {
+          comanda: {
+            id: string;
+            situacao: string;
+            nome: string | null;
+            mesa: { numero: string } | null;
+            estabelecimento: { nome: string } | null;
+            pedidos: { modalidade: string; usuario_id: string | null; itens: { situacao: string }[] }[];
+          } | null;
+        };
         const c = ((data ?? []) as unknown as Linha[]).map((x) => x.comanda).find((x) => x?.situacao === "aberta");
-        setMesaAberta(c ? { id: c.id, rotulo: c.mesa ? `Mesa ${c.mesa.numero}` : c.nome ?? "comanda", lugar: c.estabelecimento?.nome ?? "" } : null);
+        const meus = (c?.pedidos ?? []).filter((p) => p.usuario_id === usuario);
+        const aCaminho = meus.some((p) => p.itens.some((i) => i.situacao === "saiu"));
+        const retirar = meus.some((p) => p.modalidade === "retirada" && p.itens.some((i) => i.situacao === "pronto"));
+        setMesaAberta(
+          c
+            ? {
+                id: c.id,
+                rotulo: c.mesa ? `Mesa ${c.mesa.numero}` : c.nome ?? "comanda",
+                lugar: c.estabelecimento?.nome ?? "",
+                aviso: aCaminho ? "Seu pedido saiu para entrega" : retirar ? "Seu pedido está pronto para retirar" : null,
+              }
+            : null,
+        );
       });
-  }, [usuario, local.pathname]);
+  }, [usuario, local.pathname, versao]);
 
   // O App é só para quem tem conta: sem login, vai para a tela de entrar e volta depois.
   if (carregando) return <Carregando />;
@@ -63,10 +86,19 @@ export function AppLayout() {
       </header>
 
       {mesaAberta && !local.pathname.startsWith("/comanda") && (
-        <Link to={`/comanda/${mesaAberta.id}`} className="flex items-center gap-3 border-b border-borda bg-destaque-suave px-4 py-2.5 text-sm">
+        <Link
+          to={`/comanda/${mesaAberta.id}`}
+          className={clsx("flex items-center gap-3 border-b px-4 py-2.5 text-sm", mesaAberta.aviso ? "border-magenta/40 bg-magenta/10" : "border-borda bg-destaque-suave")}
+        >
           <Armchair className="h-4 w-4 text-destaque" />
           <span className="min-w-0 flex-1 truncate">
-            Você está na <strong>{mesaAberta.rotulo}</strong> · {mesaAberta.lugar}
+            {mesaAberta.aviso ? (
+              <strong>{mesaAberta.aviso}</strong>
+            ) : (
+              <>
+                Você está na <strong>{mesaAberta.rotulo}</strong> · {mesaAberta.lugar}
+              </>
+            )}
           </span>
           <span className="font-semibold text-destaque">Comanda</span>
           <ChevronRight className="h-4 w-4 text-destaque" />

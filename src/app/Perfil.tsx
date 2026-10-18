@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Bookmark, ChevronRight, LogOut, MapPinned, Store, Wallet } from "lucide-react";
+import { Bookmark, Briefcase, ChevronRight, LogOut, MapPinned, Store, Wallet } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
@@ -85,6 +85,17 @@ function MinhasListas({ usuario }: { usuario: string }) {
 
 export function Perfil() {
   const { sessao, perfil, email, sair } = useSessao();
+  const [equipe, setEquipe] = useState(false);
+  useEffect(() => {
+    if (!sessao) return;
+    supabase
+      .from("membros")
+      .select("estabelecimento_id")
+      .eq("usuario_id", sessao.user.id)
+      .eq("ativo", true)
+      .limit(1)
+      .then(({ data }) => setEquipe(!!data?.length));
+  }, [sessao]);
 
   return (
     <div className="space-y-6 px-4 py-6">
@@ -112,6 +123,17 @@ export function Perfil() {
       )}
 
       {sessao && <MinhasListas usuario={sessao.user.id} />}
+
+      {equipe && (
+        <Link to="/job" className="cartao flex items-center gap-3 border-marca px-4 py-3.5 hover:bg-elevado">
+          <Briefcase className="h-5 w-5 text-destaque" />
+          <span className="flex-1">
+            <span className="block font-medium">Modo trabalho</span>
+            <span className="block text-[13px] text-suave">RoVibes Job: mesas, preparo e entregas</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-suave" />
+        </Link>
+      )}
 
       <Link to="/carteira" className="cartao flex items-center gap-3 px-4 py-3.5 hover:bg-elevado">
         <Wallet className="h-5 w-5 text-destaque" />

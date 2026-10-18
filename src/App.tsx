@@ -15,6 +15,7 @@ import { CardapioPagina } from "./app/CardapioPagina";
 import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
 import { Carteira } from "./app/Carteira";
 import { MesaPagina } from "./app/MesaPagina";
+import { JobLayout } from "./job/JobLayout";
 import { ComandaPagina } from "./app/ComandaPagina";
 
 export default function App() {
@@ -26,6 +27,8 @@ export default function App() {
         <Route path="novo" element={<CadastroEstabelecimento />} />
       </Route>
       <Route path="/entrar" element={<Entrar />} />
+      <Route path="/job" element={<JobLayout />} />
+      <Route path="/job/:modulo" element={<JobLayout />} />
       <Route path="/" element={<AppLayout />}>
         <Route index element={<Descobrir />} />
         <Route path="mapa" element={<Mapa />} />

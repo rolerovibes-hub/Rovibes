@@ -19,7 +19,9 @@ import { Ingressos } from "./Ingressos";
 import { ProgramaPontos } from "./ProgramaPontos";
 import { Equipe } from "./Equipe";
 import { Salao } from "./Salao";
-import { FilaPedidos } from "./FilaPedidos";
+import { FilaPreparo } from "@/job/Preparo";
+import { FilaEntregas } from "@/job/Entregas";
+import { Link } from "react-router-dom";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Avatar } from "@/components/Avatar";
 
@@ -96,7 +98,21 @@ export function TelaAplicativo() {
   if (app.codigo === "G9001") return <ProgramaPontos />;
   if (app.codigo === "G3001") return <Equipe />;
   if (app.codigo === "T7001") return <Salao />;
-  if (app.codigo === "T7002") return <FilaPedidos />;
+  if (app.codigo === "T7002" || app.codigo === "T7003") {
+    const estab = acessos.atual?.estabelecimento_id;
+    if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
+    return (
+      <div className="mx-auto max-w-6xl space-y-4">
+        <p className="cartao flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm text-suave">
+          No dia a dia, a equipe usa esta tela pelo RoVibes Job, no celular ou num tablet.
+          <Link to={app.codigo === "T7002" ? "/job/preparo" : "/job/entregas"} className="font-semibold text-destaque">
+            Abrir no Job
+          </Link>
+        </p>
+        {app.codigo === "T7002" ? <FilaPreparo estab={estab} /> : <FilaEntregas estab={estab} />}
+      </div>
+    );
+  }
 
   return (
     <TelaUniversal

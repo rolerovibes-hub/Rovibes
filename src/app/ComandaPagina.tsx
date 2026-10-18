@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, BadgePercent, ChefHat, Martini, Plus, ReceiptText, Store, Users, X } from "lucide-react";
+import { ArrowLeft, BadgePercent, Plus, QrCode as IconeQr, ReceiptText, Store, Truck, Users, X } from "lucide-react";
+import { QrCode } from "@/components/Qr";
 import { Carregando } from "@/components/Carregando";
 import { reais } from "@/components/Formulario";
 import { Carrinho, carrinhoParaBanco, carregarItensParaPedido, ItemParaPedido, MontarPedido, qtdNoCarrinho, totalDoCarrinho } from "@/components/MontarPedido";
@@ -11,8 +12,10 @@ import { descreverBeneficio, descreverRegras } from "@/lib/beneficio";
 import {
   buscarTotais,
   CAMPOS_PEDIDO,
-  COR_SITUACAO_PEDIDO,
-  NOME_SITUACAO_PEDIDO,
+  COR_SITUACAO_ITEM,
+  Modalidade,
+  NOME_MODALIDADE,
+  NOME_SITUACAO_ITEM,
   normalizarPedidos,
   Pedido,
   Totais,
@@ -61,6 +64,9 @@ export function ComandaPagina() {
   const [descontos, setDescontos] = useState<{ id: string; titulo: string; valor: number; usuario_id: string }[]>([]);
   const [pedindo, setPedindo] = useState(false);
   const [erro, setErro] = useState("");
+  const [qrAberto, setQrAberto] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const situacoes = useRef<Map<string, string> | null>(null);
 
   const carregar = useCallback(async () => {
     const [c, p, g, d, t] = await Promise.all([
@@ -75,7 +81,22 @@ export function ComandaPagina() {
       buscarTotais(id),
     ]);
     setComanda((c.data as unknown as Comanda | null) ?? null);
-    setPedidos(normalizarPedidos(p.data));
+    const lista = normalizarPedidos(p.data);
+    // Avisa quando algum item da pessoa sai para entrega ou fica pronto para retirar.
+    const antes = situacoes.current;
+    const agora = new Map(lista.flatMap((x) => x.itens.map((i) => [i.id, `${i.situacao}|${x.modalidade}|${x.usuario_id ?? ""}`] as [string, string])));
+    if (antes) {
+      for (const [idItem, v] of agora) {
+        const [sit, mod, dono] = v.split("|");
+        if (dono !== eu || antes.get(idItem)?.split("|")[0] === sit) continue;
+        if (sit === "saiu") setAviso("Seu pedido saiu para entrega. Tenha o QR de entrega à mão.");
+        else if (sit === "pronto" && mod === "retirada") setAviso("Seu pedido está pronto. Retire no balcão mostrando o QR de entrega.");
+        else continue;
+        navigator.vibrate?.([120, 80, 120]);
+      }
+    }
+    situacoes.current = agora;
+    setPedidos(lista);
     setDescontos(((d.data ?? []) as { id: string; titulo: string; valor: number; usuario_id: string }[]).map((x) => ({ ...x, valor: Number(x.valor) })));
     setTotais(t);
     const ids = ((g.data ?? []) as { usuario_id: string }[]).map((x) => x.usuario_id);
@@ -84,7 +105,7 @@ export function ComandaPagina() {
       const nomes = new Map(((data ?? []) as { id: string; nome: string }[]).map((x) => [x.id, x.nome]));
       setPessoas(ids.map((i) => ({ id: i, nome: nomes.get(i) ?? "Alguém" })));
     } else setPessoas([]);
-  }, [id]);
+  }, [id, eu]);
 
   useEffect(() => {
     void carregar();
@@ -120,6 +141,7 @@ export function ComandaPagina() {
   }
 
   const aberta = comanda.situacao === "aberta";
+  const prontosParaEntrega = pedidos.flatMap((p) => p.itens).filter((i) => i.situacao === "pronto" || i.situacao === "saiu").length;
   const nomeDe = (u: string | null) => (u ? (u === eu ? "Você" : pessoas.find((p) => p.id === u)?.nome ?? "Alguém da mesa") : "Equipe");
 
   const cancelarEnvio = async (envio: string) => {
@@ -173,6 +195,22 @@ export function ComandaPagina() {
 
       {erro && <p className="mx-4 mt-3 rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
 
+      {aviso && (
+        <button onClick={() => { setAviso(""); setQrAberto(true); }} className="mx-4 mt-3 flex w-[calc(100%-2rem)] items-center gap-3 rounded-cartao border border-magenta/40 bg-magenta/10 px-4 py-3 text-left text-sm">
+          <Truck className="h-5 w-5 shrink-0 text-magenta" />
+          <span className="flex-1 font-medium">{aviso}</span>
+        </button>
+      )}
+
+      {aberta && prontosParaEntrega > 0 && (
+        <div className="mx-4 mt-3">
+          <button className="botao h-11 w-full border-marca text-destaque" onClick={() => setQrAberto(true)}>
+            <IconeQr className="h-4 w-4" />
+            Mostrar QR de entrega · {prontosParaEntrega} {prontosParaEntrega === 1 ? "item pronto" : "itens prontos"}
+          </button>
+        </div>
+      )}
+
       <div className="space-y-3 px-4 pt-4">
         {envios.length === 0 ? (
           <div className="cartao px-6 py-12 text-center">
@@ -182,35 +220,38 @@ export function ComandaPagina() {
           </div>
         ) : (
           envios.map((e) => {
-            const cancelavel = aberta && e.usuario_id === eu && e.pedidos.every((p) => p.situacao === "novo");
+            const itensEnvio = e.pedidos.flatMap((p) => p.itens);
+            const cancelavel =
+              aberta &&
+              e.usuario_id === eu &&
+              itensEnvio.every((i) => i.situacao === "recebido" || i.situacao === "cancelado" || (i.situacao === "pronto" && i.destino === "sem_preparo")) &&
+              itensEnvio.some((i) => i.situacao !== "cancelado");
             return (
               <article key={e.id} className="cartao overflow-hidden">
                 <header className="flex items-center justify-between gap-2 border-b border-borda px-4 py-2.5 text-[13px]">
                   <span className="font-semibold">
                     #{e.pedidos[0].numero} · {nomeDe(e.usuario_id)}
+                    <span className="ml-1.5 font-normal text-suave">· {e.pedidos[0].modalidade === "retirada" ? "retirada no balcão" : "na mesa"}</span>
                   </span>
                   <span className="text-suave">{hora(e.criado_em)}</span>
                 </header>
-                {e.pedidos.map((p) => (
-                  <div key={p.id} className="px-4 py-2.5">
-                    <p className={clsx("mb-1 flex items-center gap-1.5 text-[12px] font-semibold", COR_SITUACAO_PEDIDO[p.situacao])}>
-                      {p.setor === "bar" ? <Martini className="h-3.5 w-3.5" /> : <ChefHat className="h-3.5 w-3.5" />}
-                      {NOME_SITUACAO_PEDIDO[p.situacao]}
-                      {p.situacao === "cancelado" && p.motivo_cancelamento ? ` · ${p.motivo_cancelamento}` : ""}
-                    </p>
-                    <ul className={clsx("space-y-0.5 text-sm", p.situacao === "cancelado" && "text-suave line-through")}>
-                      {p.itens.map((i) => (
-                        <li key={i.id} className="flex justify-between gap-3">
-                          <span>
-                            {i.quantidade}× {i.nome}
-                            {i.observacao && <span className="block text-[12px] text-suave">{i.observacao}</span>}
-                          </span>
-                          <span className="codigo shrink-0">{reais(i.preco * i.quantidade)}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ))}
+                <ul className="divide-y divide-borda">
+                  {itensEnvio.map((i) => (
+                    <li key={i.id} className="flex items-start justify-between gap-3 px-4 py-2.5 text-sm">
+                      <span className={clsx(i.situacao === "cancelado" && "text-suave line-through")}>
+                        {i.quantidade}× {i.nome}
+                        {i.observacao && <span className="block text-[12px] text-suave">{i.observacao}</span>}
+                      </span>
+                      <span className="shrink-0 text-right">
+                        <span className="codigo block">{reais(i.preco * i.quantidade)}</span>
+                        <span className={clsx("block text-[12px] font-semibold", COR_SITUACAO_ITEM[i.situacao])}>
+                          {i.situacao === "pronto" && e.pedidos[0].modalidade === "retirada" ? "Pronto para retirar" : NOME_SITUACAO_ITEM[i.situacao]}
+                        </span>
+                        {i.situacao === "cancelado" && i.motivo_cancelamento && <span className="block text-[11px] text-suave">{i.motivo_cancelamento}</span>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
                 {e.pedidos[0].observacao && <p className="border-t border-borda px-4 py-2 text-[12px] text-suave">Obs.: {e.pedidos[0].observacao}</p>}
                 {cancelavel && (
                   <button onClick={() => void cancelarEnvio(e.id)} className="w-full border-t border-borda px-4 py-2 text-[13px] text-suave hover:bg-elevado">
@@ -265,8 +306,11 @@ export function ComandaPagina() {
         </div>
       )}
 
+      {qrAberto && <QrEntrega comanda={comanda.id} fechar={() => setQrAberto(false)} />}
+
       {pedindo && (
         <FolhaPedido
+          comMesa={!!comanda.mesa}
           comanda={comanda.id}
           estab={comanda.estabelecimento.id}
           usuario={eu}
@@ -281,7 +325,8 @@ export function ComandaPagina() {
   );
 }
 
-function FolhaPedido({ comanda, estab, usuario, fechar, enviado }: { comanda: string; estab: string; usuario: string; fechar: () => void; enviado: () => void }) {
+function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { comanda: string; estab: string; usuario: string; comMesa: boolean; fechar: () => void; enviado: () => void }) {
+  const [modalidade, setModalidade] = useState<Modalidade>(comMesa ? "mesa" : "retirada");
   const [itens, setItens] = useState<ItemParaPedido[] | null>(null);
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [carrinho, setCarrinho] = useState<Carrinho>({});
@@ -312,6 +357,7 @@ function FolhaPedido({ comanda, estab, usuario, fechar, enviado }: { comanda: st
       p_itens: carrinhoParaBanco(carrinho),
       p_observacao: observacao.trim() || null,
       p_cupom: cupom || null,
+      p_modalidade: modalidade,
     });
     setEnviando(false);
     if (error) return setErro(mensagemDeErro(error));
@@ -349,6 +395,19 @@ function FolhaPedido({ comanda, estab, usuario, fechar, enviado }: { comanda: st
                 );
               })}
             </ul>
+            {comMesa && (
+              <fieldset>
+                <legend className="rotulo mb-1.5">Como você quer receber</legend>
+                <div className="grid grid-cols-2 gap-2">
+                  {(["mesa", "retirada"] as Modalidade[]).map((m) => (
+                    <label key={m} className={clsx("cartao flex cursor-pointer items-center gap-2 px-3 py-2.5 text-sm", modalidade === m && "border-marca")}>
+                      <input type="radio" name="modalidade" className="accent-[rgb(var(--marca))]" checked={modalidade === m} onChange={() => setModalidade(m)} />
+                      {NOME_MODALIDADE[m]}
+                    </label>
+                  ))}
+                </div>
+              </fieldset>
+            )}
             <label className="block">
               <span className="rotulo mb-1 block">Observação para a equipe (opcional)</span>
               <textarea rows={2} maxLength={300} className="entrada" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
@@ -410,6 +469,48 @@ function FolhaPedido({ comanda, estab, usuario, fechar, enviado }: { comanda: st
           </button>
         )}
       </footer>
+    </div>
+  );
+}
+
+/** QR dinâmico de entrega: renova sozinho e vale uma leitura. */
+function QrEntrega({ comanda, fechar }: { comanda: string; fechar: () => void }) {
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    let ativo = true;
+    const gerar = async () => {
+      const { data, error } = await supabase.rpc("gerar_codigo_entrega", { p_comanda: comanda });
+      if (!ativo) return;
+      if (error) setErro(mensagemDeErro(error));
+      else {
+        setErro("");
+        setCodigo(data as string);
+      }
+    };
+    void gerar();
+    const t = window.setInterval(() => void gerar(), 30000);
+    return () => {
+      ativo = false;
+      window.clearInterval(t);
+    };
+  }, [comanda]);
+
+  return (
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="QR de entrega" onClick={fechar}>
+      <div className="w-full max-w-sm rounded-t-2xl bg-superficie p-6 text-center sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+        <div className="flex justify-end">
+          <button onClick={fechar} className="-mr-2 -mt-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+        <p className="font-semibold">QR de entrega</p>
+        <p className="text-sm text-suave">Mostre para quem trouxer o pedido.</p>
+        <div className="mt-5 min-h-[264px]">{codigo ? <QrCode texto={codigo} tamanho={240} /> : <p className="py-24 text-sm text-suave">Gerando...</p>}</div>
+        {erro && <p className="mt-2 text-sm text-perigo">{erro}</p>}
+        <p className="mt-3 text-[12px] text-suave">O código muda a cada 30 segundos. Print não funciona.</p>
+      </div>
     </div>
   );
 }

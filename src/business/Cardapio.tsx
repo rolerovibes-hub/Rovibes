@@ -11,7 +11,7 @@ interface Categoria {
   id: string;
   nome: string;
   ordem: number;
-  setor: "cozinha" | "bar";
+  setor: "cozinha" | "bar" | "sem_preparo";
 }
 
 interface Item {
@@ -39,7 +39,7 @@ export function Cardapio() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [novaCategoria, setNovaCategoria] = useState<string | null>(null);
-  const [novoSetor, setNovoSetor] = useState<"cozinha" | "bar">("cozinha");
+  const [novoSetor, setNovoSetor] = useState<"cozinha" | "bar" | "sem_preparo">("cozinha");
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const seletorFoto = useRef<HTMLInputElement>(null);
@@ -118,11 +118,11 @@ export function Cardapio() {
 
   const trocarSetor = (c: Categoria) =>
     void executar(async () => {
-      const setor = c.setor === "bar" ? "cozinha" : "bar";
+      const setor = c.setor === "cozinha" ? "bar" : c.setor === "bar" ? "sem_preparo" : "cozinha";
       const { error } = await supabase.from("cardapio_categorias").update({ setor }).eq("id", c.id);
       if (error) throw error;
       await carregar();
-    }, `Os pedidos de "${c.nome}" agora vão para ${c.setor === "bar" ? "a Cozinha" : "o Bar"}.`);
+    }, `Os pedidos de "${c.nome}" agora ${c.setor === "cozinha" ? "vão para o Bar" : c.setor === "bar" ? "vão direto para a entrega (sem preparo)" : "vão para a Cozinha"}.`);
 
   const excluirCategoria = (c: Categoria) =>
     void executar(async () => {
@@ -212,10 +212,11 @@ export function Cardapio() {
           <Campo rotulo="Nome da categoria" className="min-w-[220px] flex-1">
             <input autoFocus className="entrada" placeholder="Ex.: Drinks, Petiscos" value={novaCategoria} onChange={(e) => setNovaCategoria(e.target.value)} />
           </Campo>
-          <Campo rotulo="Pedidos vão para" className="w-40">
-            <select className="entrada" value={novoSetor} onChange={(e) => setNovoSetor(e.target.value as "cozinha" | "bar")}>
+          <Campo rotulo="Pedidos vão para" className="w-52">
+            <select className="entrada" value={novoSetor} onChange={(e) => setNovoSetor(e.target.value as "cozinha" | "bar" | "sem_preparo")}>
               <option value="cozinha">Cozinha</option>
               <option value="bar">Bar</option>
+              <option value="sem_preparo">Sem preparo (lata, água...)</option>
             </select>
           </Campo>
           <button type="submit" className="botao-principal h-10" disabled={ocupado || !novaCategoria.trim()}>
@@ -333,7 +334,7 @@ export function Cardapio() {
                 className="rounded px-1.5 py-0.5 text-[12px] text-suave hover:bg-elevado hover:text-texto"
                 title="Trocar o setor que recebe os pedidos desta categoria"
               >
-                {categorias.find((x) => x.id === c.id)?.setor === "bar" ? "→ Bar" : "→ Cozinha"}
+                {{ cozinha: "→ Cozinha", bar: "→ Bar", sem_preparo: "→ Sem preparo" }[categorias.find((x) => x.id === c.id)?.setor ?? "cozinha"]}
               </button>
             )}
             {filtro === c.id && c.id !== "todas" && c.id !== "sem" && (
