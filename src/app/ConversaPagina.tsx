@@ -7,9 +7,9 @@ import { CorpoConversa, FaixaPedido, IconeConversa } from "@/components/Conversa
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { bloquearPessoa } from "@/lib/pessoas";
-import { DadosConversa, faltaBanco, MembroConversa, useAoVivoChat } from "@/lib/chat";
-import { PainelRole } from "./PainelRole";
-import { EscolherPessoas, FormularioRole } from "./NovoRole";
+import { DadosConversa, faltaBanco, MembroConversa, useAoVivoChat, usePlanos } from "@/lib/chat";
+import { FolhaPlano, PlanoFixado, useLocalizacao } from "./PlanoRole";
+import { EscolherPessoas } from "./NovoRole";
 
 /** Uma conversa do App: /chat/:id (direta, com lugar ou grupo do rolê). */
 export function ConversaPagina() {
@@ -22,6 +22,10 @@ export function ConversaPagina() {
   const [menu, setMenu] = useState(false);
   const [detalhes, setDetalhes] = useState(false);
   const [erro, setErro] = useState("");
+  const [planoAberto, setPlanoAberto] = useState<string | null>(null);
+  const { planos, fixado, recarregar: recarregarPlanos } = usePlanos(id);
+  const temPlano = planos.some((p) => p.situacao !== "cancelado");
+  const localizacao = useLocalizacao(id, eu, temPlano);
 
   const carregar = useCallback(async () => {
     const [d, m] = await Promise.all([supabase.rpc("dados_conversa", { p_conversa: id }), supabase.rpc("membros_conversa", { p_conversa: id })]);
@@ -56,7 +60,7 @@ export function ConversaPagina() {
 
   const sair = async () => {
     setMenu(false);
-    const pergunta = dados.tipo === "role" ? "Sair deste rolê?" : "Apagar esta conversa da sua lista? Se a outra parte escrever de novo, ela volta.";
+    const pergunta = dados.tipo === "role" ? "Sair deste grupo?" : "Apagar esta conversa da sua lista? Se a outra parte escrever de novo, ela volta.";
     if (!window.confirm(pergunta)) return;
     const { error } = await supabase.rpc("sair_da_conversa", { p_conversa: dados.id });
     if (error) return setErro(mensagemDeErro(error));
@@ -81,7 +85,7 @@ export function ConversaPagina() {
         <span className="block truncate font-semibold">{dados.titulo}</span>
         <span className="block truncate text-[12px] text-suave">
           {dados.tipo === "role"
-            ? `${membros.filter((m) => m.situacao === "ativo").length} no rolê`
+            ? `${membros.filter((m) => m.situacao === "ativo").length} pessoas`
             : dados.tipo === "estabelecimento"
               ? "Fale com o estabelecimento"
               : outro
@@ -93,8 +97,8 @@ export function ConversaPagina() {
   );
 
   return (
-    <div className="fixed inset-0 z-40 mx-auto flex max-w-xl flex-col bg-fundo sm:border-x sm:border-borda">
-      <header className="flex h-14 shrink-0 items-center gap-2 border-b border-borda bg-fundo/95 px-2 pt-[env(safe-area-inset-top)] backdrop-blur">
+    <div className="fixed inset-x-0 top-0 z-40 mx-auto flex h-[100dvh] max-w-xl flex-col bg-fundo sm:border-x sm:border-borda">
+      <header className="flex h-14 shrink-0 items-center gap-2 bg-fundo px-2 pt-[env(safe-area-inset-top)]">
         <button onClick={() => (window.history.length > 1 ? navegar(-1) : navegar("/chats"))} className="rounded-full p-2 hover:bg-elevado" aria-label="Voltar">
           <ArrowLeft className="h-5 w-5" />
         </button>
@@ -122,7 +126,7 @@ export function ConversaPagina() {
                   className="flex w-full items-center gap-2 px-3 py-2.5 hover:bg-elevado"
                 >
                   <Settings2 className="h-4 w-4" />
-                  Detalhes do rolê
+                  Informações do grupo
                 </button>
               )}
               {outro && (
@@ -139,7 +143,7 @@ export function ConversaPagina() {
               )}
               <button onClick={() => void sair()} className="flex w-full items-center gap-2 px-3 py-2.5 text-perigo hover:bg-elevado">
                 {dados.tipo === "role" ? <LogOut className="h-4 w-4" /> : <Trash2 className="h-4 w-4" />}
-                {dados.tipo === "role" ? "Sair do rolê" : "Apagar conversa"}
+                {dados.tipo === "role" ? "Sair do grupo" : "Apagar conversa"}
               </button>
             </div>
           )}
@@ -147,10 +151,29 @@ export function ConversaPagina() {
       </header>
 
       {dados.situacao === "pedido" && <FaixaPedido dados={dados} aoResponder={() => void carregar()} bloquear={outro ? () => void bloquear() : undefined} />}
-      {dados.tipo === "role" && dados.situacao === "ativo" && <PainelRole dados={dados} membros={membros} eu={eu} aoMudar={() => void carregar()} />}
+      {fixado && dados.situacao === "ativo" && <PlanoFixado plano={fixado} compartilhando={!!localizacao.meu} abrir={() => setPlanoAberto(fixado.id)} />}
       {erro && <p className="px-4 py-2 text-sm text-perigo">{erro}</p>}
 
-      <CorpoConversa dados={dados} eu={eu} membros={membros} nomeEstab={dados.tipo === "estabelecimento" ? dados.titulo ?? undefined : undefined} />
+      <CorpoConversa
+        dados={dados}
+        eu={eu}
+        membros={membros}
+        nomeEstab={dados.tipo === "estabelecimento" ? dados.titulo ?? undefined : undefined}
+        planos={planos}
+        abrirPlano={(pid) => {
+          void recarregarPlanos();
+          setPlanoAberto(pid);
+        }}
+      />
+      {planoAberto && planos.find((p) => p.id === planoAberto) && (
+        <FolhaPlano
+          plano={planos.find((p) => p.id === planoAberto)!}
+          eu={eu}
+          localizacao={localizacao}
+          fechar={() => setPlanoAberto(null)}
+          aoMudar={() => void recarregarPlanos()}
+        />
+      )}
 
       {detalhes && <DetalhesRole dados={dados} membros={membros} eu={eu} fechar={() => setDetalhes(false)} aoMudar={() => void carregar()} />}
     </div>
@@ -174,20 +197,20 @@ function DetalhesRole({
   const [erro, setErro] = useState("");
 
   const remover = async (m: MembroConversa) => {
-    if (!window.confirm(`Remover ${m.nome} do rolê?`)) return;
+    if (!window.confirm(`Remover ${m.nome} do grupo?`)) return;
     const { error } = await supabase.rpc("remover_do_role", { p_conversa: dados.id, p_pessoa: m.id });
     if (error) setErro(mensagemDeErro(error));
     aoMudar();
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Detalhes do rolê" onClick={fechar}>
+    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Informações do grupo" onClick={fechar}>
       <div className="max-h-[90vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-superficie p-5 pb-[max(20px,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         {modo === "editar" ? (
-          <FormularioRole
-            inicial={{ titulo: dados.titulo ?? "", local: dados.local_id, quando: dados.quando }}
-            salvar={async (f) => {
-              const { error } = await supabase.rpc("editar_role", { p_conversa: dados.id, p_titulo: f.titulo, p_local: f.local, p_quando: f.quando });
+          <EditarNome
+            inicial={dados.titulo ?? ""}
+            salvar={async (titulo) => {
+              const { error } = await supabase.rpc("editar_role", { p_conversa: dados.id, p_titulo: titulo, p_local: dados.local_id, p_quando: dados.quando });
               if (error) throw error;
               aoMudar();
               setModo("ver");
@@ -211,14 +234,14 @@ function DetalhesRole({
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">{dados.titulo}</h2>
               <button className="botao h-8 px-3 text-[13px]" onClick={() => setModo("editar")}>
-                Editar
+                Mudar nome
               </button>
             </div>
             <button className="botao mt-4 w-full" onClick={() => setModo("convidar")}>
               <UserPlus className="h-4 w-4" />
               Convidar pessoas
             </button>
-            <h3 className="rotulo mb-1 mt-5">No rolê</h3>
+            <h3 className="rotulo mb-1 mt-5">Participantes</h3>
             <ul className="divide-y divide-borda">
               {membros.map((m) => (
                 <li key={m.id} className="flex items-center gap-3 py-2.5">
@@ -229,7 +252,7 @@ function DetalhesRole({
                         {m.id === eu ? "Você" : m.nome}
                         {m.papel === "admin" && <span className="ml-1.5 text-[11px] font-medium text-destaque">organiza</span>}
                       </span>
-                      <span className="block text-[12px] text-suave">{m.situacao === "pedido" ? "Convidado" : m.bora ? "Topou! 🎉" : "Ainda não confirmou"}</span>
+                      <span className="block text-[12px] text-suave">{m.situacao === "pedido" ? "Convidado" : `@${m.usuario}`}</span>
                     </span>
                   </Link>
                   {dados.eu_admin && m.id !== eu && (
@@ -248,5 +271,33 @@ function DetalhesRole({
         )}
       </div>
     </div>
+  );
+}
+
+function EditarNome({ inicial, salvar, cancelar }: { inicial: string; salvar: (t: string) => Promise<void>; cancelar: () => void }) {
+  const [titulo, setTitulo] = useState(inicial);
+  const [erro, setErro] = useState("");
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        salvar(titulo.trim()).catch((er) => setErro(mensagemDeErro(er)));
+      }}
+      className="space-y-3"
+    >
+      <label className="block">
+        <span className="rotulo mb-1 block">Nome do grupo</span>
+        <input value={titulo} onChange={(e) => setTitulo(e.target.value.slice(0, 60))} className="h-11 w-full rounded-lg bg-elevado px-3 text-sm focus:outline-none focus:ring-2 focus:ring-marca" />
+      </label>
+      {erro && <p className="text-sm text-perigo">{erro}</p>}
+      <div className="flex gap-2">
+        <button type="submit" className="botao-principal h-11 flex-1" disabled={!titulo.trim()}>
+          Salvar
+        </button>
+        <button type="button" className="botao h-11" onClick={cancelar}>
+          Cancelar
+        </button>
+      </div>
+    </form>
   );
 }

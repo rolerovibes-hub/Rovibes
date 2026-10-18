@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
 
@@ -17,6 +17,32 @@ export interface ConversaResumo {
   membros: number;
   quando: string | null;
   local_nome: string | null;
+  tem_plano?: boolean;
+  plano_situacao?: "aberto" | "confirmado" | null;
+}
+
+export type RespostaPlano = "interesse" | "vou" | "nao_vou";
+
+export interface Plano {
+  id: string;
+  situacao: "aberto" | "confirmado" | "cancelado";
+  quando: string | null;
+  criado_por: string | null;
+  criado_em: string;
+  mensagem_id: string | null;
+  pode_editar: boolean;
+  local_id: string | null;
+  local_nome: string | null;
+  local_bairro: string | null;
+  local_foto: string | null;
+  local_lat: number | null;
+  local_lng: number | null;
+  minha: RespostaPlano | null;
+  vao: number;
+  interessados: number;
+  nao_vao: number;
+  respostas: { id: string; nome: string; foto: string | null; resposta: RespostaPlano }[];
+  sugestoes: { quando: string; nome: string; meu: boolean }[];
 }
 
 export interface DadosConversa {
@@ -41,9 +67,11 @@ export interface Mensagem {
   id: string;
   conversa_id: string;
   autor_id: string | null;
-  tipo: "texto" | "foto" | "sistema";
+  tipo: "texto" | "foto" | "sistema" | "lugar" | "plano";
   texto: string | null;
   foto: string | null;
+  estabelecimento_id: string | null;
+  plano_id: string | null;
   como_estab: boolean;
   apagada: boolean;
   criado_em: string;
@@ -60,7 +88,7 @@ export interface MembroConversa {
   lida_em: string;
 }
 
-const CAMPOS = "id, conversa_id, autor_id, tipo, texto, foto, como_estab, apagada, criado_em";
+const CAMPOS = "id, conversa_id, autor_id, tipo, texto, foto, estabelecimento_id, plano_id, como_estab, apagada, criado_em";
 const PAGINA = 60;
 
 export const faltaBanco = (msg: string) => /function|schema cache|does not exist|relation/i.test(msg);
@@ -161,7 +189,7 @@ export async function linksDasFotos(caminhos: string[]): Promise<Record<string, 
   return Object.fromEntries(caminhos.map((c) => [c, linksFotos.get(c)?.url ?? ""]));
 }
 
-export async function enviarMensagem(conversa: string, texto: string, arquivo?: File | null) {
+export async function enviarMensagem(conversa: string, texto: string, arquivo?: File | null, lugar?: string | null) {
   let foto: string | null = null;
   if (arquivo) {
     const blob = await reduzirImagem(arquivo, 1600);
@@ -169,7 +197,7 @@ export async function enviarMensagem(conversa: string, texto: string, arquivo?: 
     const { error } = await supabase.storage.from("chat").upload(foto, blob, { contentType: "image/jpeg" });
     if (error) throw error;
   }
-  const { error } = await supabase.rpc("enviar_mensagem", { p_conversa: conversa, p_texto: texto, p_foto: foto });
+  const { error } = await supabase.rpc("enviar_mensagem", { p_conversa: conversa, p_texto: texto, p_foto: foto, p_lugar: lugar ?? null });
   if (error) {
     if (foto) await supabase.storage.from("chat").remove([foto]);
     throw error;
@@ -217,4 +245,59 @@ export function quandoRole(iso: string | null) {
   if (!iso) return null;
   const d = new Date(iso);
   return d.toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+/** Planos de rolê de uma conversa, com tempo real. */
+export function usePlanos(conversa: string, ativo = true) {
+  const [planos, setPlanos] = useState<Plano[]>([]);
+  const carregar = useCallback(async () => {
+    const { data } = await supabase.rpc("planos_da_conversa", { p_conversa: conversa });
+    setPlanos((data ?? []) as Plano[]);
+  }, [conversa]);
+  const cb = useRef(carregar);
+  cb.current = carregar;
+  useEffect(() => {
+    if (!ativo) return;
+    void cb.current();
+    let espera: number | undefined;
+    const avisar = () => {
+      window.clearTimeout(espera);
+      espera = window.setTimeout(() => void cb.current(), 200);
+    };
+    const f = `conversa_id=eq.${conversa}`;
+    const canal = supabase
+      .channel(`planos-${conversa}-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "planos", filter: f }, avisar)
+      .on("postgres_changes", { event: "*", schema: "public", table: "plano_respostas", filter: f }, avisar)
+      .subscribe();
+    return () => {
+      window.clearTimeout(espera);
+      void supabase.removeChannel(canal);
+    };
+  }, [conversa, ativo]);
+  // O plano que fica fixado no topo: confirmado e futuro; senão o aberto mais recente.
+  const fixado = useMemo(() => {
+    const vivos = planos.filter((p) => p.situacao !== "cancelado" && (!p.quando || Date.parse(p.quando) > Date.now() - 12 * 3600000));
+    return vivos.find((p) => p.situacao === "confirmado") ?? vivos[0] ?? null;
+  }, [planos]);
+  return { planos, fixado, recarregar: carregar };
+}
+
+export async function rpcPlano(nome: string, args: Record<string, unknown>) {
+  const { data, error } = await supabase.rpc(nome, args);
+  if (error) throw error;
+  return data;
+}
+
+export const NOME_RESPOSTA: Record<RespostaPlano, string> = { interesse: "Tenho interesse", vou: "Vou", nao_vou: "Não vou" };
+
+export function quandoPlano(iso: string | null) {
+  if (!iso) return "A combinar";
+  const d = new Date(iso);
+  const hoje = new Date();
+  const amanha = new Date(Date.now() + 86400000);
+  const hora = d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+  if (d.toDateString() === hoje.toDateString()) return `Hoje às ${hora}`;
+  if (d.toDateString() === amanha.toDateString()) return `Amanhã às ${hora}`;
+  return `${d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} às ${hora}`;
 }
