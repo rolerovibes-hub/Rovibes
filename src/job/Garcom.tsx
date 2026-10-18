@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { ArrowLeft, Armchair, CircleDollarSign, Plus, ReceiptText, Store, Users, X } from "lucide-react";
+import { ArrowLeft, Armchair, ArrowRightLeft, CircleDollarSign, Hand, Plus, ReceiptText, Store, UserRound, Users, X } from "lucide-react";
+import { usePermissoesJob } from "./permissoes";
+import { useNomesEquipe } from "./fila";
 import { reais } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { CAMPOS_PEDIDO, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
@@ -18,6 +20,7 @@ interface Comanda {
   mesa_id: string | null;
   nome: string | null;
   aberta_em: string;
+  responsavel_id: string | null;
   pessoas: { usuario_id: string }[];
 }
 
@@ -35,11 +38,16 @@ export function Garcom({ estab }: { estab: string }) {
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState("");
   const [ocupado, setOcupado] = useState(false);
+  const { eu, supervisor } = usePermissoesJob();
+  const nomes = useNomesEquipe(estab);
+  const [filtro, setFiltro] = useState<"minhas" | "todas">("todas");
+  const [mover, setMover] = useState<"transferir" | "trocar" | null>(null);
+  const [garcons, setGarcons] = useState<{ usuario_id: string; nome: string }[]>([]);
 
   const carregar = useCallback(async () => {
     const [m, c] = await Promise.all([
       supabase.from("mesas").select("id, numero, area").eq("estabelecimento_id", estab).eq("ativa", true),
-      supabase.from("comandas").select("id, mesa_id, nome, aberta_em, pessoas:comanda_pessoas(usuario_id)").eq("estabelecimento_id", estab).eq("situacao", "aberta").order("aberta_em"),
+      supabase.from("comandas").select("id, mesa_id, nome, aberta_em, responsavel_id, pessoas:comanda_pessoas(usuario_id)").eq("estabelecimento_id", estab).eq("situacao", "aberta").order("aberta_em"),
     ]);
     setMesas(((m.data ?? []) as Mesa[]).sort((a, b) => a.numero.localeCompare(b.numero, "pt-BR", { numeric: true })));
     const abertas = (c.data ?? []) as unknown as Comanda[];
@@ -76,6 +84,28 @@ export function Garcom({ estab }: { estab: string }) {
   const titulo = mesa ? `Mesa ${mesa.numero}` : comanda?.nome ?? "Comanda";
   const avulsas = comandas.filter((c) => !c.mesa_id);
   const pendentes = comandas.filter((c) => (resumo.get(c.id)?.prontos ?? 0) > 0);
+  const minhas = comandas.filter((c) => c.responsavel_id === eu);
+  const visivel = (c: Comanda | null) => filtro === "todas" || !c || c.responsavel_id === eu || !c.responsavel_id;
+  const primeiroNome = (u: string | null) => (u ? (u === eu ? "Você" : nomes.get(u) ?? "Outro") : null);
+
+  const executarRpc = async (fn: string, args: Record<string, unknown>, texto: string) => {
+    setOcupado(true);
+    setErro("");
+    const { error } = await supabase.rpc(fn, args);
+    setOcupado(false);
+    setMover(null);
+    if (error) return setErro(mensagemDeErro(error));
+    setOk(texto);
+    void carregar();
+  };
+
+  const abrirMover = async (tipo: "transferir" | "trocar") => {
+    setMover(tipo);
+    if (tipo === "transferir") {
+      const { data } = await supabase.rpc("garcons", { p_estab: estab });
+      setGarcons(((data ?? []) as { usuario_id: string; nome: string }[]).filter((g) => g.usuario_id !== comanda?.responsavel_id));
+    }
+  };
 
   const abrir = async (mesaId: string | null, nome: string | null) => {
     setOcupado(true);
@@ -138,8 +168,22 @@ export function Garcom({ estab }: { estab: string }) {
         </form>
       )}
 
-      {erro && <p role="alert" className="rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
-      {ok && <p role="status" className="rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{ok}</p>}
+      {erro && !sel && <p role="alert" className="rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
+      {ok && !sel && <p role="status" className="rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{ok}</p>}
+
+      <div className="grid grid-cols-2 gap-1 rounded-lg border border-borda bg-superficie p-1" role="tablist" aria-label="Mesas">
+        {(["minhas", "todas"] as const).map((f) => (
+          <button
+            key={f}
+            role="tab"
+            aria-selected={filtro === f}
+            onClick={() => setFiltro(f)}
+            className={clsx("rounded-md py-2 text-sm", filtro === f ? "bg-destaque-suave font-semibold text-destaque" : "text-suave")}
+          >
+            {f === "minhas" ? `Minhas mesas · ${minhas.length}` : "Todas"}
+          </button>
+        ))}
+      </div>
 
       {mesas.length === 0 && avulsas.length === 0 ? (
         <div className="cartao px-6 py-12 text-center">
@@ -152,6 +196,8 @@ export function Garcom({ estab }: { estab: string }) {
           {mesas.map((m) => {
             const c = daMesa(m.id);
             const r = c ? resumo.get(c.id) : null;
+            if (!visivel(c)) return null;
+            const resp = primeiroNome(c?.responsavel_id ?? null);
             return (
               <li key={m.id}>
                 <button
@@ -162,7 +208,10 @@ export function Garcom({ estab }: { estab: string }) {
                   }}
                   className={clsx("cartao w-full p-3 text-left", c && "border-l-4 border-l-marca", r?.prontos ? "bg-ok/10" : "")}
                 >
-                  <span className="block text-lg font-semibold">{m.numero}</span>
+                  <span className="flex items-center justify-between gap-1">
+                    <span className="text-lg font-semibold">{m.numero}</span>
+                    {resp && <span className={clsx("truncate text-[11px]", resp === "Você" ? "font-semibold text-destaque" : "text-suave")}>{resp}</span>}
+                  </span>
                   {c && r ? (
                     <>
                       <span className="codigo block text-[13px]">{reais(r.total)}</span>
@@ -175,7 +224,7 @@ export function Garcom({ estab }: { estab: string }) {
               </li>
             );
           })}
-          {avulsas.map((c) => (
+          {avulsas.filter(visivel).map((c) => (
             <li key={c.id}>
               <button
                 onClick={() => {
@@ -236,7 +285,68 @@ export function Garcom({ estab }: { estab: string }) {
             ) : (
               <>
                 {ok && <p role="status" className="mb-3 rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{ok}</p>}
+                <div className="mb-4 flex flex-wrap items-center gap-2">
+                  <span className="inline-flex items-center gap-1.5 text-sm">
+                    <UserRound className="h-4 w-4 text-suave" />
+                    {comanda.responsavel_id ? <>Responsável: <strong>{primeiroNome(comanda.responsavel_id)}</strong></> : <span className="text-suave">Sem garçom responsável</span>}
+                  </span>
+                  <span className="ml-auto flex flex-wrap gap-2">
+                    {comanda.responsavel_id !== eu && (!comanda.responsavel_id || supervisor) && (
+                      <button className="botao h-9 px-3" disabled={ocupado} onClick={() => void executarRpc("assumir_comanda", { p_comanda: comanda.id, p_para: null }, `Você assumiu ${titulo}.`)}>
+                        <Hand className="h-4 w-4" />
+                        Assumir
+                      </button>
+                    )}
+                    {(comanda.responsavel_id === eu || supervisor) && (
+                      <button className="botao h-9 px-3" disabled={ocupado} onClick={() => void abrirMover("transferir")}>
+                        <ArrowRightLeft className="h-4 w-4" />
+                        Transferir
+                      </button>
+                    )}
+                    <button className="botao h-9 px-3" disabled={ocupado} onClick={() => void abrirMover("trocar")}>
+                      <Armchair className="h-4 w-4" />
+                      Trocar de mesa
+                    </button>
+                  </span>
+                </div>
+                {mover && (
+                  <div className="cartao mb-4 flex flex-wrap items-end gap-2 p-3">
+                    <label className="min-w-0 flex-1">
+                      <span className="rotulo mb-1 block">{mover === "transferir" ? "Transferir para o garçom" : "Levar a comanda para a mesa"}</span>
+                      <select
+                        className="entrada"
+                        defaultValue=""
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          if (!v) return;
+                          if (mover === "transferir") void executarRpc("assumir_comanda", { p_comanda: comanda.id, p_para: v }, `${titulo} transferida.`);
+                          else void executarRpc("trocar_mesa", { p_comanda: comanda.id, p_mesa: v }, `Comanda levada para a mesa ${mesas.find((x) => x.id === v)?.numero}.`);
+                        }}
+                      >
+                        <option value="">Escolha...</option>
+                        {mover === "transferir"
+                          ? garcons.map((g) => (
+                              <option key={g.usuario_id} value={g.usuario_id}>
+                                {g.nome}
+                              </option>
+                            ))
+                          : mesas
+                              .filter((x) => !daMesa(x.id))
+                              .map((x) => (
+                                <option key={x.id} value={x.id}>
+                                  Mesa {x.numero}
+                                  {x.area ? ` · ${x.area}` : ""}
+                                </option>
+                              ))}
+                      </select>
+                    </label>
+                    <button className="botao h-10 w-10 px-0" onClick={() => setMover(null)} aria-label="Cancelar">
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                )}
                 <DetalheComanda
+                  supervisor={supervisor}
                   comanda={comanda}
                   pedidos={pedidos.filter((p) => p.comanda_id === comanda.id)}
                   descontos={descontos.filter((d) => d.comanda_id === comanda.id)}

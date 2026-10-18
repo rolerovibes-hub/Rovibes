@@ -64,6 +64,10 @@ export interface ItemPedido {
   entregue_em: string | null;
   entrega_por_qr: boolean | null;
   motivo_cancelamento: string | null;
+  bloqueado: boolean;
+  entregador_id: string | null;
+  estornado: boolean;
+  refeito: number;
 }
 
 export interface Pedido {
@@ -90,7 +94,7 @@ export interface Totais {
 }
 
 export const CAMPOS_PEDIDO =
-  "id, envio_id, numero, setor, modalidade, usuario_id, lancado_por, observacao, situacao, motivo_cancelamento, criado_em, atualizado_em, itens:pedido_itens(id, nome, preco, quantidade, observacao, destino, situacao, pronto_em, saiu_em, entregue_em, entrega_por_qr, motivo_cancelamento)";
+  "id, envio_id, numero, setor, modalidade, usuario_id, lancado_por, observacao, situacao, motivo_cancelamento, criado_em, atualizado_em, itens:pedido_itens(id, nome, preco, quantidade, observacao, destino, situacao, pronto_em, saiu_em, entregue_em, entrega_por_qr, motivo_cancelamento, bloqueado, entregador_id, estornado, refeito)";
 
 export const normalizarPedidos = (dados: unknown[] | null): Pedido[] =>
   ((dados ?? []) as Pedido[]).map((p) => ({ ...p, itens: (p.itens ?? []).map((i) => ({ ...i, preco: Number(i.preco) })) }));
@@ -155,7 +159,7 @@ export interface ItemFila extends ItemPedido {
 }
 
 export const CAMPOS_ITEM_FILA =
-  "id, nome, preco, quantidade, observacao, destino, situacao, pronto_em, saiu_em, entregue_em, entrega_por_qr, motivo_cancelamento, atualizado_em, pedido:pedidos(id, numero, modalidade, usuario_id, observacao, criado_em, comanda:comandas(id, nome, mesa:mesas(numero)))";
+  "id, nome, preco, quantidade, observacao, destino, situacao, pronto_em, saiu_em, entregue_em, entrega_por_qr, motivo_cancelamento, bloqueado, entregador_id, estornado, refeito, atualizado_em, pedido:pedidos(id, numero, modalidade, usuario_id, observacao, criado_em, comanda:comandas(id, nome, mesa:mesas(numero)))";
 
 export const normalizarItensFila = (dados: unknown[] | null): ItemFila[] =>
   ((dados ?? []) as ItemFila[]).filter((i) => i.pedido).map((i) => ({ ...i, preco: Number(i.preco) }));
@@ -165,4 +169,28 @@ export const origemDoItem = (i: ItemFila) =>
 
 export async function mudarItens(itens: string[], acao: "iniciar" | "liberar" | "saiu" | "voltar" | "entregar" | "cancelar", motivo?: string) {
   return supabase.rpc("mudar_itens", { p_itens: itens, p_acao: acao, p_motivo: motivo ?? null });
+}
+
+export type TipoOcorrencia = "cancelamento" | "nao_localizado" | "cliente_nao_encontrado" | "item_errado" | "qr_falhou" | "outro";
+
+export const NOME_OCORRENCIA: Record<TipoOcorrencia, string> = {
+  cancelamento: "Pedido de cancelamento",
+  nao_localizado: "Item não localizado",
+  cliente_nao_encontrado: "Cliente não encontrado",
+  item_errado: "Item errado",
+  qr_falhou: "QR não funciona",
+  outro: "Outro problema",
+};
+
+export async function abrirOcorrencia(itens: string[], tipo: TipoOcorrencia, descricao?: string) {
+  return supabase.rpc("abrir_ocorrencia", { p_itens: itens, p_tipo: tipo, p_descricao: descricao ?? null });
+}
+
+/** Cancela direto quando pode; depois do preparo (sem supervisão) vira pedido de cancelamento. */
+export async function cancelarOuPedir(item: ItemPedido, supervisor: boolean) {
+  const motivo = window.prompt(item.situacao === "recebido" || supervisor ? "Motivo do cancelamento:" : "O item já está em preparo. Motivo do pedido de cancelamento (vai para a supervisão):");
+  if (!motivo?.trim()) return { error: null, pedido: false };
+  const direto = supervisor || item.situacao === "recebido" || (item.situacao === "pronto" && item.destino === "sem_preparo");
+  const { error } = direto ? await mudarItens([item.id], "cancelar", motivo) : await abrirOcorrencia([item.id], "cancelamento", motivo);
+  return { error, pedido: !direto };
 }

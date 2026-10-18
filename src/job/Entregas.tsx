@@ -1,9 +1,10 @@
 import { FormEvent, useState } from "react";
 import clsx from "clsx";
-import { CheckCircle2, Clock, PackageCheck, ScanLine, Smartphone, Undo2, WifiOff, X } from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, Hand, PackageCheck, ScanLine, Smartphone, Undo2, WifiOff, X } from "lucide-react";
 import { LeitorQr } from "@/components/Qr";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { ItemFila, minutosDesde, mudarItens, origemDoItem } from "@/lib/salao";
+import { abrirOcorrencia, ItemFila, minutosDesde, mudarItens, NOME_OCORRENCIA, origemDoItem, TipoOcorrencia } from "@/lib/salao";
+import { usePermissoesJob } from "./permissoes";
 import { bip, porPedido, useItensFila } from "./fila";
 
 type Aba = "levar" | "caminho" | "retirada";
@@ -25,7 +26,32 @@ export function FilaEntregas({ estab }: { estab: string }) {
   const [lendo, setLendo] = useState(false);
   const [conf, setConf] = useState<Conferencia | null>(null);
   const [digitado, setDigitado] = useState("");
-  const { itens, carregar, conectado } = useItensFila(estab, ["pronto", "saiu"], bip);
+  const { itens, carregar, conectado, nomes } = useItensFila(estab, ["pronto", "saiu"], bip);
+  const { eu, supervisor } = usePermissoesJob();
+  const [problema, setProblema] = useState<{ ids: string[]; titulo: string; tipo: TipoOcorrencia; descricao: string } | null>(null);
+
+  const pegar = async (ids: string[], para?: string) => {
+    setOcupado(true);
+    setErro("");
+    setOk("");
+    const { error } = await supabase.rpc("pegar_itens", { p_itens: ids, p_para: para ?? null });
+    setOcupado(false);
+    if (error) setErro(mensagemDeErro(error));
+    else setOk(para ? `Entrega passada para ${nomes.get(para) ?? "outra pessoa"}.` : "Entrega com você.");
+    void carregar();
+  };
+
+  const registrarProblema = async () => {
+    if (!problema) return;
+    setOcupado(true);
+    setErro("");
+    const { error } = await abrirOcorrencia(problema.ids, problema.tipo, problema.descricao.trim() || undefined);
+    setOcupado(false);
+    if (error) setErro(mensagemDeErro(error));
+    else setOk("Ocorrência registrada. A supervisão vai decidir o que fazer.");
+    setProblema(null);
+    void carregar();
+  };
 
   const todos = itens ?? [];
   const lista: Record<Aba, ItemFila[]> = {
@@ -139,8 +165,11 @@ export function FilaEntregas({ estab }: { estab: string }) {
           {grupos.map((g) => {
             const p = g[0].pedido!;
             const desde = g.map((i) => (aba === "caminho" ? i.saiu_em : i.pronto_em) ?? p.criado_em).sort()[0];
-            const ids = g.map((i) => i.id);
+            const ids = g.filter((i) => !i.bloqueado).map((i) => i.id);
             const semApp = !p.usuario_id;
+            const dono = g.find((i) => i.entregador_id)?.entregador_id ?? null;
+            const deOutro = !!dono && dono !== eu;
+            const travado = deOutro && !supervisor;
             return (
               <li key={p.id} className="cartao overflow-hidden">
                 <header className="flex items-start justify-between gap-2 border-b border-borda px-4 py-3">
@@ -158,9 +187,16 @@ export function FilaEntregas({ estab }: { estab: string }) {
                     <li key={i.id} className="px-4 py-2 text-[15px]">
                       <span className="codigo font-semibold">{i.quantidade}×</span> {i.nome}
                       {i.observacao && <span className="block text-[13px] text-suave">{i.observacao}</span>}
+                      {i.bloqueado && <span className="block text-[12px] font-semibold text-alerta">Aguardando supervisão</span>}
                     </li>
                   ))}
                 </ul>
+                {dono && (
+                  <p className={clsx("flex items-center gap-1.5 border-t border-borda px-4 py-2 text-[13px] font-medium", deOutro ? "text-alerta" : "text-ok")}>
+                    <Hand className="h-4 w-4" />
+                    {deOutro ? `Com ${nomes.get(dono) ?? "outra pessoa"}` : "Com você"}
+                  </p>
+                )}
                 <p className="flex items-center gap-1.5 border-t border-borda px-4 py-2 text-[12px] text-suave">
                   {semApp ? "Cliente sem App: confirme a entrega com um toque" : (
                     <>
@@ -169,29 +205,59 @@ export function FilaEntregas({ estab }: { estab: string }) {
                     </>
                   )}
                 </p>
-                <div className="flex gap-2 border-t border-borda p-3">
+                <div className="flex flex-wrap gap-2 border-t border-borda p-3">
+                  {!dono && aba !== "caminho" && (
+                    <button className="botao h-10 px-3" disabled={ocupado || !ids.length} onClick={() => void pegar(ids)}>
+                      <Hand className="h-4 w-4" />
+                      Pegar
+                    </button>
+                  )}
                   {aba === "levar" && (
-                    <button className="botao-principal h-10 flex-1" disabled={ocupado} onClick={() => void agir(ids, "saiu", `Pedido #${p.numero} saiu para entrega.`)}>
+                    <button className="botao-principal h-10 flex-1" disabled={ocupado || travado || !ids.length} onClick={() => void agir(ids, "saiu", `Pedido #${p.numero} saiu para entrega.`)}>
                       Saiu para entrega
                     </button>
                   )}
                   {aba === "caminho" && (
-                    <button className="botao h-10 px-3" disabled={ocupado} onClick={() => void agir(ids, "voltar", `Pedido #${p.numero} voltou para a fila.`)} title="Item não localizado ou cliente não encontrado">
+                    <button className="botao h-10 px-3" disabled={ocupado || travado || !ids.length} onClick={() => void agir(ids, "voltar", `Pedido #${p.numero} voltou para a fila.`)}>
                       <Undo2 className="h-4 w-4" />
                       Voltar à fila
                     </button>
                   )}
                   {semApp ? (
-                    <button className={clsx("h-10 flex-1", aba === "levar" ? "botao" : "botao-principal")} disabled={ocupado} onClick={() => void agir(ids, "entregar", `Pedido #${p.numero} entregue.`)}>
+                    <button className={clsx("h-10 flex-1", aba === "levar" ? "botao" : "botao-principal")} disabled={ocupado || travado || !ids.length} onClick={() => void agir(ids, "entregar", `Pedido #${p.numero} entregue.`)}>
                       Entregue
                     </button>
                   ) : (
                     aba !== "levar" && (
-                      <button className="botao-principal h-10 flex-1" onClick={() => setLendo(true)}>
+                      <button className="botao-principal h-10 flex-1" disabled={travado} onClick={() => setLendo(true)}>
                         <ScanLine className="h-4 w-4" />
                         Ler QR
                       </button>
                     )
+                  )}
+                  <button
+                    className="botao h-10 w-10 px-0 text-alerta"
+                    aria-label="Registrar problema"
+                    title="Registrar problema"
+                    disabled={!ids.length}
+                    onClick={() => setProblema({ ids, titulo: `#${p.numero} · ${origemDoItem(g[0])}`, tipo: aba === "caminho" ? "cliente_nao_encontrado" : "nao_localizado", descricao: "" })}
+                  >
+                    <AlertTriangle className="h-4 w-4" />
+                  </button>
+                  {supervisor && ids.length > 0 && (
+                    <select
+                      className="entrada h-10 w-full text-[13px]"
+                      value=""
+                      aria-label="Passar entrega para"
+                      onChange={(e) => e.target.value && void pegar(ids, e.target.value)}
+                    >
+                      <option value="">Passar entrega para...</option>
+                      {[...nomes.entries()].map(([idPessoa, nome]) => (
+                        <option key={idPessoa} value={idPessoa}>
+                          {nome}
+                        </option>
+                      ))}
+                    </select>
                   )}
                 </div>
               </li>
@@ -216,6 +282,40 @@ export function FilaEntregas({ estab }: { estab: string }) {
                 OK
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {problema && (
+        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Registrar problema">
+          <div className="w-full max-w-sm rounded-t-2xl bg-superficie p-5 sm:rounded-2xl">
+            <p className="text-sm text-suave">Problema no pedido</p>
+            <p className="text-lg font-semibold">{problema.titulo}</p>
+            <div className="mt-4 space-y-2">
+              {(["nao_localizado", "cliente_nao_encontrado", "item_errado", "qr_falhou", "outro"] as TipoOcorrencia[]).map((t) => (
+                <label key={t} className={clsx("flex items-center gap-3 rounded-lg border px-3 py-2.5 text-sm", problema.tipo === t ? "border-marca" : "border-borda")}>
+                  <input type="radio" name="tipo" className="accent-[rgb(var(--marca))]" checked={problema.tipo === t} onChange={() => setProblema({ ...problema, tipo: t })} />
+                  {NOME_OCORRENCIA[t]}
+                </label>
+              ))}
+            </div>
+            <textarea
+              rows={2}
+              maxLength={300}
+              className="entrada mt-3"
+              placeholder={problema.tipo === "item_errado" || problema.tipo === "outro" ? "Descreva o que aconteceu (obrigatório)" : "Detalhes (opcional)"}
+              value={problema.descricao}
+              onChange={(e) => setProblema({ ...problema, descricao: e.target.value })}
+            />
+            <p className="mt-2 text-[12px] text-suave">Os itens ficam parados até a supervisão decidir.</p>
+            <div className="mt-4 flex gap-2">
+              <button className="botao h-11 flex-1" onClick={() => setProblema(null)}>
+                Voltar
+              </button>
+              <button className="botao-principal h-11 flex-1" disabled={ocupado} onClick={() => void registrarProblema()}>
+                Registrar
+              </button>
+            </div>
           </div>
         </div>
       )}

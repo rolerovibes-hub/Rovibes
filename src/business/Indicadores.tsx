@@ -21,11 +21,20 @@ export function Indicadores() {
   const [linhas, setLinhas] = useState<Linha[]>([]);
   const [dias, setDias] = useState<{ dia: string; total: number }[]>([]);
   const [erro, setErro] = useState("");
+  const [operacao, setOperacao] = useState<{ indicador: string; unidade: string; hoje: number | null; sete_dias: number | null; trinta_dias: number | null }[]>([]);
+  const [horas, setHoras] = useState<{ hora: number; pedidos: number }[]>([]);
 
   const carregar = useCallback(async () => {
     if (!id) return;
     setErro("");
-    const [i, d] = await Promise.all([supabase.rpc("indicadores", { p_estab: id }), supabase.rpc("checkins_por_dia", { p_estab: id })]);
+    const [i, d, o, h] = await Promise.all([
+      supabase.rpc("indicadores", { p_estab: id }),
+      supabase.rpc("checkins_por_dia", { p_estab: id }),
+      supabase.rpc("indicadores_operacao", { p_estab: id }),
+      supabase.rpc("pedidos_por_hora", { p_estab: id, p_dias: 7 }),
+    ]);
+    setOperacao((o.data ?? []) as typeof operacao);
+    setHoras((h.data ?? []) as typeof horas);
     if (i.error) setErro(mensagemDeErro(i.error));
     setLinhas((i.data ?? []) as Linha[]);
     setDias((d.data ?? []) as { dia: string; total: number }[]);
@@ -100,6 +109,55 @@ export function Indicadores() {
           </table>
         </div>
       </section>
+      {operacao.length > 0 && (
+        <>
+          <h2 className="pt-2 text-lg font-semibold">Operação</h2>
+          <section className="cartao overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead className="border-b border-borda bg-elevado/60">
+                  <tr>
+                    {["Indicador", "Hoje", "7 dias", "30 dias"].map((c, n) => (
+                      <th key={c} scope="col" className={`whitespace-nowrap px-4 py-2.5 text-[13px] font-semibold text-suave ${n ? "text-right" : ""}`}>
+                        {c}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {operacao.map((l) => {
+                    const f = (v: number | null) =>
+                      v == null ? "—" : l.unidade === "R$" ? Number(v).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : `${Number(v).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}${l.unidade === "min" ? " min" : l.unidade === "%" ? "%" : ""}`;
+                    return (
+                      <tr key={l.indicador} className="border-b border-borda last:border-0">
+                        <td className="px-4 py-2.5">{l.indicador}</td>
+                        <td className="codigo px-4 py-2.5 text-right text-sm">{f(l.hoje)}</td>
+                        <td className="codigo px-4 py-2.5 text-right text-sm">{f(l.sete_dias)}</td>
+                        <td className="codigo px-4 py-2.5 text-right text-sm">{f(l.trinta_dias)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="border-t border-borda px-4 py-2.5 text-[12px] text-suave">Tempos calculados a partir dos registros reais de cada item (pedido, preparo, liberação e entrega).</p>
+          </section>
+          <Secao titulo="Pedidos por hora · últimos 7 dias">
+            <div className="flex h-36 items-end gap-1" role="img" aria-label="Pedidos por hora do dia nos últimos 7 dias">
+              {horas.map((x) => {
+                const max = Math.max(1, ...horas.map((y) => y.pedidos));
+                return (
+                  <div key={x.hora} className="flex flex-1 flex-col items-center gap-1" title={`${x.hora}h: ${x.pedidos} pedidos`}>
+                    <span className="codigo text-[10px] text-suave">{x.pedidos || ""}</span>
+                    <div className="w-full rounded-t bg-marca" style={{ height: `${Math.max(2, (x.pedidos / max) * 100)}px`, opacity: x.pedidos ? 1 : 0.25 }} />
+                    <span className="codigo text-[10px] text-suave">{x.hora % 3 === 0 ? `${x.hora}h` : ""}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </Secao>
+        </>
+      )}
     </TelaUniversal>
   );
 }

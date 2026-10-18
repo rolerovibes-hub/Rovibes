@@ -25,7 +25,7 @@ const MODULOS: Modulo[] = [
   { id: "garcom", nome: "Mesas", descricao: "Garçom: mesas, venda e comandas", icone: Armchair, codigo: "T7001" },
   { id: "preparo", nome: "Preparo", descricao: "Cozinha e bar", icone: ChefHat, codigo: "T7002" },
   { id: "entregas", nome: "Entregas", descricao: "Cumim: levar e confirmar", icone: PackageCheck, codigo: "T7003" },
-  { id: "geral", nome: "Geral", descricao: "Gerência: visão da operação", icone: LayoutDashboard },
+  { id: "geral", nome: "Supervisão", descricao: "Ocorrências, atrasos e visão da operação", icone: LayoutDashboard },
 ];
 
 /** RoVibes Job: aplicativo de trabalho da equipe, com telas por função. */
@@ -53,7 +53,7 @@ function Job() {
 
   if (negocio.carregando) return <Carregando />;
   const atual = negocio.atual;
-  const gerencia = ehAdmin || atual?.papel === "proprietario" || atual?.papel === "gestor";
+  const gerencia = ehAdmin || atual?.papel === "proprietario" || atual?.papel === "gestor" || negocio.temAcesso(porCodigo("T7004")!);
   const meus = MODULOS.filter((m) => (m.codigo ? negocio.temAcesso(porCodigo(m.codigo)!) : gerencia));
 
   if (!atual) {

@@ -21,6 +21,7 @@ import { Equipe } from "./Equipe";
 import { Salao } from "./Salao";
 import { FilaPreparo } from "@/job/Preparo";
 import { FilaEntregas } from "@/job/Entregas";
+import { VisaoGeral } from "@/job/Geral";
 import { Link } from "react-router-dom";
 import { SeletorTema } from "@/components/SeletorTema";
 import { Avatar } from "@/components/Avatar";
@@ -98,6 +99,15 @@ export function TelaAplicativo() {
   if (app.codigo === "G9001") return <ProgramaPontos />;
   if (app.codigo === "G3001") return <Equipe />;
   if (app.codigo === "T7001") return <Salao />;
+  if (app.codigo === "T7004") {
+    const estab = acessos.atual?.estabelecimento_id;
+    if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
+    return (
+      <div className="mx-auto max-w-6xl">
+        <VisaoGeral estab={estab} />
+      </div>
+    );
+  }
   if (app.codigo === "T7002" || app.codigo === "T7003") {
     const estab = acessos.atual?.estabelecimento_id;
     if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;

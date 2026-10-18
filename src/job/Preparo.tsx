@@ -3,7 +3,8 @@ import clsx from "clsx";
 import { Bell, BellOff, ChefHat, Clock, Martini, WifiOff } from "lucide-react";
 import { mensagemDeErro } from "@/lib/supabase";
 import { gravar, ler } from "@/lib/armazenamento";
-import { ItemFila, minutosDesde, mudarItens, NOME_MODALIDADE, origemDoItem, Setor } from "@/lib/salao";
+import { cancelarOuPedir, ItemFila, minutosDesde, mudarItens, NOME_MODALIDADE, origemDoItem, Setor } from "@/lib/salao";
+import { usePermissoesJob } from "./permissoes";
 import { bip, porPedido, useItensFila } from "./fila";
 
 const ATENCAO = 15;
@@ -16,21 +17,28 @@ export function FilaPreparo({ estab }: { estab: string }) {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const { itens, carregar, conectado } = useItensFila(estab, ["recebido", "preparo"], () => som && bip());
+  const { supervisor } = usePermissoesJob();
+  const [ok, setOk] = useState("");
 
   const visiveis = (itens ?? []).filter((i) => i.destino !== "sem_preparo" && (setor === "todos" || i.destino === setor));
   const grupos = porPedido(visiveis);
 
   const agir = async (chave: string, ids: string[], acao: "iniciar" | "liberar" | "cancelar") => {
-    let motivo: string | undefined;
-    if (acao === "cancelar") {
-      motivo = window.prompt("Por que o item não pode ser feito? (ex.: acabou o ingrediente)") ?? "";
-      if (!motivo.trim()) return;
-    }
     setOcupado(chave);
     setErro("");
-    const { error } = await mudarItens(ids, acao, motivo);
+    setOk("");
+    if (acao === "cancelar") {
+      const item = (itens ?? []).find((i) => i.id === ids[0]);
+      if (item) {
+        const r = await cancelarOuPedir(item, supervisor);
+        if (r.error) setErro(mensagemDeErro(r.error));
+        else if (r.pedido) setOk("Pedido de cancelamento enviado para a supervisão.");
+      }
+    } else {
+      const { error } = await mudarItens(ids, acao);
+      if (error) setErro(mensagemDeErro(error));
+    }
     setOcupado(null);
-    if (error) setErro(mensagemDeErro(error));
     void carregar();
   };
 
@@ -75,6 +83,7 @@ export function FilaPreparo({ estab }: { estab: string }) {
           Sem conexão. A fila pode estar desatualizada; nenhuma ação é confirmada até a conexão voltar.
         </p>
       )}
+      {ok && <p role="status" className="rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{ok}</p>}
       {erro && <p role="alert" className="rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
 
       {itens === null ? (
@@ -100,6 +109,7 @@ function CartaoPreparo({ itens, ocupado, agir }: { itens: ItemFila[]; ocupado: s
   const p = itens[0].pedido!;
   const min = minutosDesde(p.criado_em);
   const ocupadoAqui = ocupado === p.id || itens.some((i) => ocupado === i.id);
+  const livres = itens.filter((i) => !i.bloqueado);
   return (
     <li className={clsx("cartao overflow-hidden", min >= ATRASO ? "border-perigo" : min >= ATENCAO && "border-alerta")}>
       <header className="flex items-start justify-between gap-2 border-b border-borda px-4 py-3">
@@ -126,11 +136,16 @@ function CartaoPreparo({ itens, ocupado, agir }: { itens: ItemFila[]; ocupado: s
                 <span className="codigo font-semibold">{i.quantidade}×</span> {i.nome}
               </p>
               {i.observacao && <p className="text-[13px] font-medium text-alerta">{i.observacao}</p>}
-              <button className="text-[12px] text-suave hover:text-perigo" disabled={ocupadoAqui} onClick={() => agir(i.id, [i.id], "cancelar")}>
-                Indisponível
-              </button>
+              {i.refeito > 0 && <p className="text-[12px] font-semibold text-magenta">Refazer ({i.refeito}ª vez)</p>}
+              {i.bloqueado ? (
+                <p className="text-[12px] font-semibold text-alerta">Aguardando supervisão</p>
+              ) : (
+                <button className="text-[12px] text-suave hover:text-perigo" disabled={ocupadoAqui} onClick={() => agir(i.id, [i.id], "cancelar")}>
+                  Indisponível
+                </button>
+              )}
             </div>
-            {i.situacao === "recebido" ? (
+            {i.bloqueado ? null : i.situacao === "recebido" ? (
               <button className="botao h-10 shrink-0 px-3" disabled={ocupadoAqui} onClick={() => agir(i.id, [i.id], "iniciar")}>
                 Iniciar
               </button>
@@ -143,9 +158,9 @@ function CartaoPreparo({ itens, ocupado, agir }: { itens: ItemFila[]; ocupado: s
         ))}
       </ul>
       {p.observacao && <p className="border-t border-borda bg-elevado/60 px-4 py-2 text-[13px]">Obs.: {p.observacao}</p>}
-      {itens.length > 1 && (
-        <button className="w-full border-t border-borda px-4 py-2.5 text-sm font-semibold text-destaque hover:bg-elevado" disabled={ocupadoAqui} onClick={() => agir(p.id, itens.map((i) => i.id), "liberar")}>
-          Liberar tudo ({itens.length})
+      {livres.length > 1 && (
+        <button className="w-full border-t border-borda px-4 py-2.5 text-sm font-semibold text-destaque hover:bg-elevado" disabled={ocupadoAqui} onClick={() => agir(p.id, livres.map((i) => i.id), "liberar")}>
+          Liberar tudo ({livres.length})
         </button>
       )}
     </li>

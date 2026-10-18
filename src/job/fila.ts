@@ -49,7 +49,8 @@ export function useItensFila(estab: string | undefined, situacoes: SituacaoItem[
   }, [carregar]);
 
   useAoVivo(`fila-${chave}`, { itens: `estabelecimento_id=eq.${estab}` }, () => void carregar(), !!estab);
-  return { itens, carregar, conectado };
+  const nomes = useNomesEquipe(estab);
+  return { itens, carregar, conectado, nomes };
 }
 
 /** Agrupa itens por pedido, mantendo a ordem de chegada. */
@@ -79,4 +80,16 @@ export function bip() {
     /* sem áudio */
   }
   navigator.vibrate?.(80);
+}
+
+/** Nomes da equipe (para mostrar "com Fulano"). */
+export function useNomesEquipe(estab: string | undefined) {
+  const [nomes, setNomes] = useState<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!estab) return;
+    supabase.rpc("equipe_nomes", { p_estab: estab }).then(({ data }) => {
+      setNomes(new Map(((data ?? []) as { usuario_id: string; nome: string }[]).map((x) => [x.usuario_id, x.nome.split(" ")[0] || "Equipe"])));
+    });
+  }, [estab]);
+  return nomes;
 }

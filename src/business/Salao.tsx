@@ -6,6 +6,7 @@ import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, reais, Secao } from "@/components/Formulario";
 import { DetalheComanda, Desconto, resumoDaComanda } from "@/job/DetalheComanda";
 import { FormularioPedido } from "@/job/FormularioPedido";
+import { usePermissoesJob } from "@/job/permissoes";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useBusiness } from "@/lib/acessos";
 import { CAMPOS_PEDIDO, linkDaMesa, minutosDesde, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
@@ -37,6 +38,7 @@ const ordenarMesas = (a: Mesa, b: Mesa) => a.numero.localeCompare(b.numero, "pt-
 
 export function Salao() {
   const { atual } = useBusiness();
+  const { supervisor } = usePermissoesJob();
   const id = atual?.estabelecimento_id;
   const [aba, setAba] = useState<Aba>("salao");
   const [mesas, setMesas] = useState<Mesa[]>([]);
@@ -419,6 +421,7 @@ export function Salao() {
                   pedidos={pedidos.filter((p) => p.comanda_id === comanda.id)}
                   descontos={descontos.filter((d) => d.comanda_id === comanda.id)}
                   podeEntregar
+                  supervisor={supervisor}
                   aoMudar={() => void carregar()}
                   aoErro={(t) => setAviso({ tipo: "erro", texto: t })}
                 />
