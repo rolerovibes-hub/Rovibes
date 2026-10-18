@@ -365,8 +365,9 @@ begin
   end if;
 
   -- Itens válidos, do mesmo lugar, disponíveis e com preço.
-  create temporary table if not exists _pedido (item_id uuid, nome text, preco numeric, quantidade int, observacao text, setor text) on commit drop;
-  delete from _pedido;
+  -- Tabela de trabalho só desta chamada (o Supabase não aceita DELETE sem WHERE).
+  drop table if exists _pedido;
+  create temporary table _pedido (item_id uuid, nome text, preco numeric, quantidade int, observacao text, setor text) on commit drop;
   insert into _pedido
   select ci.id, ci.nome, ci.preco, greatest(1, least(50, coalesce((x->>'quantidade')::int, 1))),
          nullif(btrim(left(x->>'observacao', 200)), ''), coalesce(cc.setor, 'cozinha')
