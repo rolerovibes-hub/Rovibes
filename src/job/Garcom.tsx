@@ -1,11 +1,11 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { ArrowLeft, Armchair, ArrowRightLeft, CircleDollarSign, Hand, Plus, ReceiptText, Store, UserRound, Users, X } from "lucide-react";
+import { ArrowLeft, Armchair, ArrowRightLeft, CircleDollarSign, Combine, Hand, Plus, ReceiptText, Store, UserRound, Users, X } from "lucide-react";
 import { usePermissoesJob } from "./permissoes";
 import { useNomesEquipe } from "./fila";
 import { reais } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { CAMPOS_PEDIDO, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
+import { CAMPOS_PEDIDO, faltaAoFechar, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
 import { DetalheComanda, Desconto, resumoDaComanda } from "./DetalheComanda";
 import { FormularioPedido } from "./FormularioPedido";
 
@@ -41,7 +41,7 @@ export function Garcom({ estab }: { estab: string }) {
   const { eu, supervisor } = usePermissoesJob();
   const nomes = useNomesEquipe(estab);
   const [filtro, setFiltro] = useState<"minhas" | "todas">("todas");
-  const [mover, setMover] = useState<"transferir" | "trocar" | null>(null);
+  const [mover, setMover] = useState<"transferir" | "trocar" | "juntar" | null>(null);
   const [garcons, setGarcons] = useState<{ usuario_id: string; nome: string }[]>([]);
 
   const carregar = useCallback(async () => {
@@ -99,7 +99,7 @@ export function Garcom({ estab }: { estab: string }) {
     void carregar();
   };
 
-  const abrirMover = async (tipo: "transferir" | "trocar") => {
+  const abrirMover = async (tipo: "transferir" | "trocar" | "juntar") => {
     setMover(tipo);
     if (tipo === "transferir") {
       const { data } = await supabase.rpc("garcons", { p_estab: estab });
@@ -125,14 +125,17 @@ export function Garcom({ estab }: { estab: string }) {
     setBalcao(null);
   };
 
-  const fecharConta = async () => {
+  const fecharConta = async (mesmoAssim = false) => {
     if (!comanda) return;
-    const r = resumo.get(comanda.id);
-    if (!window.confirm(`Fechar ${titulo} com total de ${reais(r?.total ?? 0)}? Confirme que o pagamento foi feito no caixa.`)) return;
+    if (!mesmoAssim && !window.confirm(`Fechar ${titulo}?`)) return;
     setOcupado(true);
-    const { data, error } = await supabase.rpc("fechar_comanda", { p_comanda: comanda.id, p_cancelar: false });
+    const { data, error } = await supabase.rpc("fechar_comanda", { p_comanda: comanda.id, p_cancelar: false, p_mesmo_assim: mesmoAssim });
     setOcupado(false);
-    if (error) return setErro(mensagemDeErro(error));
+    if (error) {
+      const falta = faltaAoFechar(error.message);
+      if (falta && window.confirm(`Ainda falta receber R$ ${falta}. Fechar mesmo assim (cortesia ou pagamento por fora)?`)) return void fecharConta(true);
+      return setErro(falta ? `Ainda falta receber R$ ${falta}. Registre o pagamento em "Receber no caixa".` : mensagemDeErro(error));
+    }
     setOk(`${titulo} fechada. Total: ${reais(Number(data ?? 0))}.`);
     setSel(null);
     void carregar();
@@ -307,12 +310,20 @@ export function Garcom({ estab }: { estab: string }) {
                       <Armchair className="h-4 w-4" />
                       Trocar de mesa
                     </button>
+                    {comandas.length > 1 && (
+                      <button className="botao h-9 px-3" disabled={ocupado} onClick={() => void abrirMover("juntar")}>
+                        <Combine className="h-4 w-4" />
+                        Juntar mesas
+                      </button>
+                    )}
                   </span>
                 </div>
                 {mover && (
                   <div className="cartao mb-4 flex flex-wrap items-end gap-2 p-3">
                     <label className="min-w-0 flex-1">
-                      <span className="rotulo mb-1 block">{mover === "transferir" ? "Transferir para o garçom" : "Levar a comanda para a mesa"}</span>
+                      <span className="rotulo mb-1 block">
+                        {mover === "transferir" ? "Transferir para o garçom" : mover === "juntar" ? `Trazer para ${titulo} a comanda de` : "Levar a comanda para a mesa"}
+                      </span>
                       <select
                         className="entrada"
                         defaultValue=""
@@ -320,11 +331,24 @@ export function Garcom({ estab }: { estab: string }) {
                           const v = e.target.value;
                           if (!v) return;
                           if (mover === "transferir") void executarRpc("assumir_comanda", { p_comanda: comanda.id, p_para: v }, `${titulo} transferida.`);
-                          else void executarRpc("trocar_mesa", { p_comanda: comanda.id, p_mesa: v }, `Comanda levada para a mesa ${mesas.find((x) => x.id === v)?.numero}.`);
+                          else if (mover === "juntar") {
+                            const o = comandas.find((x) => x.id === v);
+                            const nomeO = o?.mesa_id ? `Mesa ${mesas.find((m) => m.id === o.mesa_id)?.numero}` : o?.nome ?? "Comanda";
+                            if (window.confirm(`Juntar ${nomeO} com ${titulo}? Pessoas, pedidos e pagamentos passam para ${titulo}.`))
+                              void executarRpc("juntar_comandas", { p_destino: comanda.id, p_origem: v }, `${nomeO} juntada com ${titulo}.`);
+                          } else void executarRpc("trocar_mesa", { p_comanda: comanda.id, p_mesa: v }, `Comanda levada para a mesa ${mesas.find((x) => x.id === v)?.numero}.`);
                         }}
                       >
                         <option value="">Escolha...</option>
-                        {mover === "transferir"
+                        {mover === "juntar"
+                          ? comandas
+                              .filter((x) => x.id !== comanda.id)
+                              .map((x) => (
+                                <option key={x.id} value={x.id}>
+                                  {x.mesa_id ? `Mesa ${mesas.find((m) => m.id === x.mesa_id)?.numero ?? ""}` : x.nome ?? "Balcão"}
+                                </option>
+                              ))
+                          : mover === "transferir"
                           ? garcons.map((g) => (
                               <option key={g.usuario_id} value={g.usuario_id}>
                                 {g.nome}
@@ -359,7 +383,7 @@ export function Garcom({ estab }: { estab: string }) {
           </div>
           {comanda && !vendendo && (
             <footer className="mx-auto grid w-full max-w-3xl grid-cols-2 gap-2 border-t border-borda px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
-              <button className="botao h-12" disabled={ocupado} onClick={() => void fecharConta()}>
+              <button className="botao h-12" disabled={ocupado} onClick={() => void fecharConta(false)}>
                 <CircleDollarSign className="h-4 w-4" />
                 Fechar conta
               </button>

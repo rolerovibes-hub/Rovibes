@@ -9,7 +9,7 @@ import { FormularioPedido } from "@/job/FormularioPedido";
 import { usePermissoesJob } from "@/job/permissoes";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useBusiness } from "@/lib/acessos";
-import { CAMPOS_PEDIDO, linkDaMesa, minutosDesde, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
+import { CAMPOS_PEDIDO, faltaAoFechar, linkDaMesa, minutosDesde, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
 
 interface Mesa {
   id: string;
@@ -147,12 +147,14 @@ export function Salao() {
   const fechar = (cancelar: boolean) =>
     comanda &&
     void executar(async () => {
-      const r = resumo.get(comanda.id);
-      const pergunta = cancelar
-        ? `Cancelar ${titulo(comanda, mesaSel)}? Use só para comanda aberta por engano, sem pedidos.`
-        : `Fechar ${titulo(comanda, mesaSel)} com total de ${reais(r?.total ?? 0)}? Confirme que o cliente pagou no caixa.`;
+      const pergunta = cancelar ? `Cancelar ${titulo(comanda, mesaSel)}? Use só para comanda aberta por engano, sem pedidos.` : `Fechar ${titulo(comanda, mesaSel)}?`;
       if (!window.confirm(pergunta)) return;
-      const { data, error } = await supabase.rpc("fechar_comanda", { p_comanda: comanda.id, p_cancelar: cancelar });
+      let { data, error } = await supabase.rpc("fechar_comanda", { p_comanda: comanda.id, p_cancelar: cancelar });
+      const falta = error ? faltaAoFechar(error.message) : null;
+      if (falta) {
+        if (!window.confirm(`Ainda falta receber R$ ${falta}. Fechar mesmo assim (cortesia ou pagamento por fora)?`)) return;
+        ({ data, error } = await supabase.rpc("fechar_comanda", { p_comanda: comanda.id, p_cancelar: false, p_mesmo_assim: true }));
+      }
       if (error) throw error;
       setLancando(false);
       await carregar();
@@ -416,6 +418,38 @@ export function Salao() {
               {!comanda ? (
                 <p className="text-sm text-suave">Mesa livre. Quando o cliente ler o QR code, a comanda abre sozinha. Você também pode abrir pela ação "Abrir comanda".</p>
               ) : (
+                <>
+                {comandas.length > 1 && (
+                  <label className="mb-3 flex items-center gap-2 text-sm">
+                    <span className="text-suave">Juntar com:</span>
+                    <select
+                      className="entrada h-9 max-w-[220px]"
+                      value=""
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        const o = comandas.find((x) => x.id === v);
+                        if (!o) return;
+                        const nomeO = titulo(o, mesas.find((m) => m.id === o.mesa_id) ?? null);
+                        if (!window.confirm(`Trazer ${nomeO} para ${titulo(comanda, mesaSel)}? Pessoas, pedidos e pagamentos passam para esta comanda.`)) return;
+                        void executar(async () => {
+                          const { error } = await supabase.rpc("juntar_comandas", { p_destino: comanda.id, p_origem: v });
+                          if (error) throw error;
+                          await carregar();
+                          setAviso({ tipo: "ok", texto: `${nomeO} juntada com ${titulo(comanda, mesaSel)}.` });
+                        });
+                      }}
+                    >
+                      <option value="">Escolha a mesa...</option>
+                      {comandas
+                        .filter((x) => x.id !== comanda.id)
+                        .map((x) => (
+                          <option key={x.id} value={x.id}>
+                            {titulo(x, mesas.find((m) => m.id === x.mesa_id) ?? null)}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
+                )}
                 <DetalheComanda
                   comanda={comanda}
                   pedidos={pedidos.filter((p) => p.comanda_id === comanda.id)}
@@ -425,6 +459,7 @@ export function Salao() {
                   aoMudar={() => void carregar()}
                   aoErro={(t) => setAviso({ tipo: "erro", texto: t })}
                 />
+                </>
               )}
             </Secao>
           )}

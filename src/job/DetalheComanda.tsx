@@ -1,7 +1,8 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { BadgePercent, ChefHat, History, Martini, PackageCheck, Smartphone, Users } from "lucide-react";
+import { ChefHat, History, Martini, PackageCheck, Smartphone, Users } from "lucide-react";
 import { Historico } from "./Historico";
+import { PagamentosComanda } from "./PagamentosComanda";
 import { reais } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { cancelarOuPedir, COR_SITUACAO_ITEM, ItemPedido, itemPendente, minutosDesde, mudarItens, NOME_MODALIDADE, NOME_SITUACAO_ITEM, Pedido, totalDoPedido } from "@/lib/salao";
@@ -51,7 +52,6 @@ export function DetalheComanda({
 }) {
   const [ocupado, setOcupado] = useState(false);
   const [historico, setHistorico] = useState(false);
-  const r = resumoDaComanda(pedidos, descontos);
 
   const entregar = async (ids: string[]) => {
     setOcupado(true);
@@ -149,25 +149,7 @@ export function DetalheComanda({
           })}
         </ul>
       )}
-      <div className="ml-auto max-w-xs space-y-1 text-sm">
-        <p className="flex justify-between">
-          <span className="text-suave">Itens</span>
-          <span className="codigo">{reais(r.subtotal)}</span>
-        </p>
-        {descontos.map((d, i) => (
-          <p key={i} className="flex justify-between text-ok">
-            <span className="flex items-center gap-1">
-              <BadgePercent className="h-3.5 w-3.5" />
-              {d.titulo}
-            </span>
-            <span className="codigo">−{reais(d.valor)}</span>
-          </p>
-        ))}
-        <p className="flex justify-between border-t border-borda pt-1 text-base font-semibold">
-          <span>Total</span>
-          <span className="codigo">{reais(r.total)}</span>
-        </p>
-      </div>
+      <PagamentosComanda comanda={comanda.id} descontos={descontos} supervisor={supervisor} aoMudar={aoMudar} aoErro={aoErro} />
     </div>
   );
 }

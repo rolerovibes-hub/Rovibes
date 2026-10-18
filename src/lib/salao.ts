@@ -89,9 +89,40 @@ export interface Pedido {
 export interface Totais {
   subtotal: number;
   desconto: number;
+  servico: number;
+  taxa_servico: number;
   total: number;
+  pago: number;
+  falta: number;
+  pessoas: number;
   meu_subtotal: number;
+  minha_parte_itens: number;
+  minha_parte_igual: number;
+  pendente: number;
 }
+
+export interface PagamentoComanda {
+  id: string;
+  origem: "app" | "caixa";
+  meio: "pix" | "credito" | "debito" | "dinheiro" | "outro" | null;
+  modo: string | null;
+  valor: number;
+  situacao: "aprovado" | "cancelado" | "estornado";
+  criado_em: string;
+  quem: string | null;
+  minha: boolean;
+  observacao: string | null;
+}
+
+export const NOME_MEIO: Record<string, string> = { pix: "Pix", credito: "Crédito", debito: "Débito", dinheiro: "Dinheiro", outro: "Outro" };
+
+export async function buscarPagamentos(comanda: string): Promise<PagamentoComanda[]> {
+  const { data } = await supabase.rpc("pagamentos_comanda", { p_comanda: comanda });
+  return ((data ?? []) as PagamentoComanda[]).map((p) => ({ ...p, valor: Number(p.valor) }));
+}
+
+/** "FALTA_PAGAR:12,34" vindo do banco ao fechar uma comanda com saldo. */
+export const faltaAoFechar = (msg: string) => msg.match(/FALTA_PAGAR:([\d.,]+)/)?.[1] ?? null;
 
 export const CAMPOS_PEDIDO =
   "id, envio_id, numero, setor, modalidade, usuario_id, lancado_por, observacao, situacao, motivo_cancelamento, criado_em, atualizado_em, itens:pedido_itens(id, nome, preco, quantidade, observacao, destino, situacao, pronto_em, saiu_em, entregue_em, entrega_por_qr, motivo_cancelamento, bloqueado, entregador_id, estornado, refeito)";
@@ -104,11 +135,26 @@ export const totalDoPedido = (p: Pedido) => p.itens.reduce((s, i) => s + (i.situ
 export async function buscarTotais(comanda: string): Promise<Totais> {
   const { data } = await supabase.rpc("totais_comanda", { p_comanda: comanda });
   const t = ((data ?? []) as Record<string, unknown>[])[0] ?? {};
-  return { subtotal: Number(t.subtotal ?? 0), desconto: Number(t.desconto ?? 0), total: Number(t.total ?? 0), meu_subtotal: Number(t.meu_subtotal ?? 0) };
+  const n = (k: string) => Number(t[k] ?? 0);
+  // Antes da atualização 017 não há serviço/pagamentos: falta = total.
+  return {
+    subtotal: n("subtotal"),
+    desconto: n("desconto"),
+    servico: n("servico"),
+    taxa_servico: n("taxa_servico"),
+    total: n("total"),
+    pago: n("pago"),
+    falta: t.falta === undefined ? n("total") : n("falta"),
+    pessoas: n("pessoas") || 1,
+    meu_subtotal: n("meu_subtotal"),
+    minha_parte_itens: t.minha_parte_itens === undefined ? n("meu_subtotal") : n("minha_parte_itens"),
+    minha_parte_igual: n("minha_parte_igual"),
+    pendente: n("pendente"),
+  };
 }
 
 /** Recarrega quando pedidos ou comandas mudam no banco (tempo real), com um recarregamento periódico de reserva. */
-export function useAoVivo(nome: string, filtro: { pedidos?: string; comandas?: string; itens?: string }, recarregar: () => void, ativo = true) {
+export function useAoVivo(nome: string, filtro: { pedidos?: string; comandas?: string; itens?: string; pagamentos?: string }, recarregar: () => void, ativo = true) {
   const callback = useRef(recarregar);
   callback.current = recarregar;
   useEffect(() => {
@@ -122,6 +168,7 @@ export function useAoVivo(nome: string, filtro: { pedidos?: string; comandas?: s
     if (filtro.pedidos) canal = canal.on("postgres_changes", { event: "*", schema: "public", table: "pedidos", filter: filtro.pedidos }, avisar);
     if (filtro.itens) canal = canal.on("postgres_changes", { event: "*", schema: "public", table: "pedido_itens", filter: filtro.itens }, avisar);
     if (filtro.comandas) canal = canal.on("postgres_changes", { event: "*", schema: "public", table: "comandas", filter: filtro.comandas }, avisar);
+    if (filtro.pagamentos) canal = canal.on("postgres_changes", { event: "*", schema: "public", table: "pagamentos", filter: filtro.pagamentos }, avisar);
     canal.subscribe();
     const reserva = window.setInterval(() => callback.current(), 30000);
     return () => {
@@ -129,7 +176,7 @@ export function useAoVivo(nome: string, filtro: { pedidos?: string; comandas?: s
       window.clearInterval(reserva);
       void supabase.removeChannel(canal);
     };
-  }, [nome, filtro.pedidos, filtro.comandas, filtro.itens, ativo]);
+  }, [nome, filtro.pedidos, filtro.comandas, filtro.itens, filtro.pagamentos, ativo]);
 }
 
 /** Link impresso no QR da mesa: abre direto o RoVibes ao ser lido pela câmera do celular. */

@@ -16,6 +16,7 @@ import { Indicadores } from "./Indicadores";
 import { MeuPerfil } from "./MeuPerfil";
 import { Denuncias } from "./Denuncias";
 import { MensagensEstab } from "./Mensagens";
+import { Pagamentos } from "./Pagamentos";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
 import { ProgramaPontos } from "./ProgramaPontos";
@@ -89,6 +90,7 @@ export function TelaAplicativo() {
   if (app.codigo === "A1002") return <AprovacaoEstabelecimentos key="todas" filtroInicial="todas" />;
   if (app.codigo === "A1004") return <VibesCategorias />;
   if (app.codigo === "A1003") return <Denuncias />;
+  if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "T2001") {
     const atual = acessos.atual;
     if (!atual) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;

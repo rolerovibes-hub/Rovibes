@@ -10,13 +10,16 @@ import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
 import { descreverBeneficio, descreverRegras } from "@/lib/beneficio";
 import {
+  buscarPagamentos,
   buscarTotais,
   CAMPOS_PEDIDO,
   COR_SITUACAO_ITEM,
   Modalidade,
+  NOME_MEIO,
   NOME_MODALIDADE,
   NOME_SITUACAO_ITEM,
   normalizarPedidos,
+  PagamentoComanda,
   Pedido,
   Totais,
   useAoVivo,
@@ -60,6 +63,7 @@ export function ComandaPagina() {
   const [comanda, setComanda] = useState<Comanda | null | undefined>(undefined);
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [totais, setTotais] = useState<Totais | null>(null);
+  const [pagamentos, setPagamentos] = useState<PagamentoComanda[]>([]);
   const [pessoas, setPessoas] = useState<{ id: string; nome: string }[]>([]);
   const [descontos, setDescontos] = useState<{ id: string; titulo: string; valor: number; usuario_id: string }[]>([]);
   const [pedindo, setPedindo] = useState(false);
@@ -80,7 +84,14 @@ export function ComandaPagina() {
       supabase.from("comanda_descontos").select("id, titulo, valor, usuario_id").eq("comanda_id", id),
       buscarTotais(id),
     ]);
-    setComanda((c.data as unknown as Comanda | null) ?? null);
+    const dadosComanda = (c.data as unknown as (Comanda & { situacao: string }) | null) ?? null;
+    // Mesa juntada com outra: leva para a comanda que ficou aberta.
+    if (dadosComanda?.situacao === "juntada") {
+      const { data: atual } = await supabase.rpc("comanda_atual", { p_comanda: id });
+      if (atual && atual !== id) return navegar(`/comanda/${atual as string}`, { replace: true });
+    }
+    setComanda(dadosComanda);
+    buscarPagamentos(id).then(setPagamentos);
     const lista = normalizarPedidos(p.data);
     // Avisa quando algum item da pessoa sai para entrega ou fica pronto para retirar.
     const antes = situacoes.current;
@@ -105,13 +116,13 @@ export function ComandaPagina() {
       const nomes = new Map(((data ?? []) as { id: string; nome: string }[]).map((x) => [x.id, x.nome]));
       setPessoas(ids.map((i) => ({ id: i, nome: nomes.get(i) ?? "Alguém" })));
     } else setPessoas([]);
-  }, [id, eu]);
+  }, [id, eu, navegar]);
 
   useEffect(() => {
     void carregar();
   }, [carregar]);
 
-  useAoVivo("comanda", { pedidos: `comanda_id=eq.${id}`, comandas: `id=eq.${id}` }, () => void carregar(), !!id);
+  useAoVivo("comanda", { pedidos: `comanda_id=eq.${id}`, comandas: `id=eq.${id}`, pagamentos: `comanda_id=eq.${id}` }, () => void carregar(), !!id);
 
   const envios = useMemo(() => {
     const mapa = new Map<string, Envio>();
@@ -282,11 +293,54 @@ export function ComandaPagina() {
                 <span className="codigo">−{reais(d.valor)}</span>
               </p>
             ))}
+            {totais.servico > 0 && (
+              <p className="flex justify-between px-4 py-2.5">
+                <span className="text-suave">Serviço ({String(totais.taxa_servico).replace(".", ",")}%)</span>
+                <span className="codigo">{reais(totais.servico)}</span>
+              </p>
+            )}
             <p className="flex justify-between px-4 py-3 font-semibold">
               <span>Total da mesa</span>
               <span className="codigo">{reais(totais.total)}</span>
             </p>
-            <p className="px-4 py-2.5 text-[12px] text-suave">A conta é paga no caixa do lugar. A equipe fecha a comanda.</p>
+            {pagamentos.length > 0 && (
+              <div className="px-4 py-2.5">
+                {pagamentos
+                  .filter((p) => p.situacao === "aprovado")
+                  .map((p) => (
+                    <p key={p.id} className="flex justify-between text-[13px] text-ok">
+                      <span>
+                        {p.minha ? "Você pagou" : p.origem === "caixa" ? `Pago no caixa (${NOME_MEIO[p.meio ?? "outro"]})` : `${p.quem ?? "Alguém"} pagou`}
+                      </span>
+                      <span className="codigo">−{reais(p.valor)}</span>
+                    </p>
+                  ))}
+              </div>
+            )}
+            <p className={clsx("flex justify-between px-4 py-3 text-base font-bold", totais.falta > 0 ? "" : "text-ok")}>
+              <span>{totais.falta > 0 ? "Falta pagar" : "Conta paga"}</span>
+              <span className="codigo">{reais(totais.falta)}</span>
+            </p>
+          </section>
+        )}
+
+        {totais && aberta && totais.falta > 0 && (
+          <section className="cartao p-4">
+            <h2 className="font-semibold">Dividir a conta</h2>
+            <p className="mt-0.5 text-[13px] text-suave">Veja quanto é a sua parte. Já com o serviço.</p>
+            <div className="mt-3 grid grid-cols-2 gap-2 text-center">
+              <div className="rounded-xl bg-elevado px-3 py-3">
+                <p className="text-[12px] text-suave">Só o que eu pedi</p>
+                <p className="codigo mt-0.5 text-lg font-semibold">{reais(totais.minha_parte_itens)}</p>
+              </div>
+              <div className="rounded-xl bg-elevado px-3 py-3">
+                <p className="text-[12px] text-suave">Dividir igual ({totais.pessoas})</p>
+                <p className="codigo mt-0.5 text-lg font-semibold">{reais(totais.minha_parte_igual)}</p>
+              </div>
+            </div>
+            <p className="mt-3 text-[12px] text-suave">
+              Itens lançados pela equipe sem dono entram divididos entre todos. O pagamento pelo App chega em breve; por enquanto, pague no caixa informando o valor.
+            </p>
           </section>
         )}
 
