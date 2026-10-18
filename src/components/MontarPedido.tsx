@@ -124,14 +124,17 @@ export function MontarPedido({ itens, carrinho, mudar, compacto }: { itens: Item
 /** Carrega os itens disponíveis do cardápio já com o nome da categoria. */
 export async function carregarItensParaPedido(estab: string): Promise<ItemParaPedido[]> {
   const sb = supabase;
-  const [c, i] = await Promise.all([
+  const itens = (campos: string) => sb.from("cardapio_itens").select(campos).eq("estabelecimento_id", estab).eq("disponivel", true).order("ordem");
+  const [c, primeiro] = await Promise.all([
     sb.from("cardapio_categorias").select("id, nome, ordem").eq("estabelecimento_id", estab).order("ordem"),
-    sb.from("cardapio_itens").select("id, categoria_id, nome, descricao, preco, foto_url, ordem, esgotado").eq("estabelecimento_id", estab).eq("disponivel", true).order("ordem"),
+    itens("id, categoria_id, nome, descricao, preco, foto_url, ordem, esgotado"),
   ]);
+  // Sem a atualização 011 do banco não existe "esgotado": busca sem ele.
+  const i = primeiro.error ? await itens("id, categoria_id, nome, descricao, preco, foto_url, ordem") : primeiro;
   const cats = (c.data ?? []) as { id: string; nome: string; ordem: number }[];
   const ordem = new Map(cats.map((x, n) => [x.id, n]));
   const nome = new Map(cats.map((x) => [x.id, x.nome]));
-  return ((i.data ?? []) as { id: string; categoria_id: string | null; nome: string; descricao: string | null; preco: number | null; foto_url: string | null; esgotado: boolean }[])
+  return ((i.data ?? []) as unknown as { id: string; categoria_id: string | null; nome: string; descricao: string | null; preco: number | null; foto_url: string | null; esgotado: boolean }[])
     .sort((a, b) => (ordem.get(a.categoria_id ?? "") ?? 999) - (ordem.get(b.categoria_id ?? "") ?? 999))
     .map((x) => ({ ...x, preco: x.preco == null ? null : Number(x.preco), categoria: nome.get(x.categoria_id ?? "") ?? "Outros" }));
 }

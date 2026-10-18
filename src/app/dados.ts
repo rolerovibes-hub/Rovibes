@@ -98,12 +98,7 @@ export async function buscarLugar(id: string) {
       .limit(10),
     supabase.from("fotos").select("id, url").eq("estabelecimento_id", id).order("ordem"),
     supabase.from("cardapio_categorias").select("id, nome").eq("estabelecimento_id", id).order("ordem"),
-    supabase
-      .from("cardapio_itens")
-      .select("id, categoria_id, nome, descricao, preco, foto_url, destaque, esgotado")
-      .eq("estabelecimento_id", id)
-      .eq("disponivel", true)
-      .order("ordem"),
+    buscarItensCardapio(id),
   ]);
   return {
     lugar: (l.data as unknown as Lugar | null) ?? null,
@@ -114,6 +109,14 @@ export async function buscarLugar(id: string) {
       (x) => ({ ...x, preco: x.preco == null ? null : Number(x.preco) }),
     ),
   };
+}
+
+/** Itens do cardápio publicados. Se o banco ainda não tiver o campo "esgotado" (atualização 011), busca sem ele. */
+async function buscarItensCardapio(id: string) {
+  const campos = "id, categoria_id, nome, descricao, preco, foto_url, destaque";
+  const r = await supabase.from("cardapio_itens").select(`${campos}, esgotado`).eq("estabelecimento_id", id).eq("disponivel", true).order("ordem");
+  if (!r.error) return r;
+  return supabase.from("cardapio_itens").select(campos).eq("estabelecimento_id", id).eq("disponivel", true).order("ordem");
 }
 
 export async function buscarEvento(id: string) {
