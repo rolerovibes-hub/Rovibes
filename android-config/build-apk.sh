@@ -6,8 +6,11 @@ set -euo pipefail
 set -x
 NUM="${1:-1}"
 
+# Plugin do botão voltar do aparelho / sair do app (precisa estar no package.json para o "cap sync" achar).
+npm pkg set "dependencies.@capacitor/app=^6.0.0"
 npm install --no-audit --no-fund
 npm install --no-save --no-audit --no-fund @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
+test -d node_modules/@capacitor/app
 npm run build
 
 rm -rf android
@@ -15,8 +18,10 @@ npx cap add android
 npx cap sync android
 
 RES=android/app/src/main/res
-rm -f $RES/mipmap-anydpi-v26/ic_launcher.xml $RES/mipmap-anydpi-v26/ic_launcher_round.xml
+# Ícone adaptativo (o Android recorta no formato do aparelho: gota, círculo, quadrado...).
 cp -r android-config/res/. $RES/
+grep -q ic_launcher_foreground $RES/mipmap-anydpi-v26/ic_launcher.xml
+grep -q "capacitor-app" android/capacitor.settings.gradle
 
 # Localização (check-in e "perto de mim") e câmera (ler QR dos ingressos).
 MANIFESTO=android/app/src/main/AndroidManifest.xml

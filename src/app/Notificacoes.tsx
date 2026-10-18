@@ -52,7 +52,7 @@ export function Notificacoes() {
                     <span className="block text-[13px] text-suave">{n.texto}</span>
                   </span>
                   <span className="shrink-0 text-[12px] text-suave">{n.agora ? "agora" : tempoAtras(n.quando)}</span>
-                  {nova && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-[#F43F5E]" />}
+                  {nova && <span className="mt-2 h-2 w-2 shrink-0 rounded-full bg-magenta" />}
                 </Link>
               </li>
             );

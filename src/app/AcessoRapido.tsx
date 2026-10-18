@@ -16,7 +16,7 @@ export function LogoRov({ className }: { className?: string }) {
 function Selo({ n }: { n: number }) {
   if (!n) return null;
   return (
-    <span className="absolute right-2.5 top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-[#F43F5E] px-1 text-[11px] font-semibold text-white">{n > 9 ? "9+" : n}</span>
+    <span className="absolute right-2.5 top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-magenta px-1 text-[11px] font-semibold text-white">{n > 9 ? "9+" : n}</span>
   );
 }
 
@@ -76,7 +76,7 @@ export function MenuFlutuante() {
             aria-label="Abrir acesso rápido"
           >
             <LogoRov className="text-[16px]" />
-            {total > 0 && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-fundo bg-[#F43F5E]" />}
+            {total > 0 && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-fundo bg-magenta" />}
           </button>
         )}
       </div>
@@ -122,7 +122,7 @@ export function MenuMais({ fechar }: { fechar: () => void }) {
           <Link to="/notificacoes" onClick={fechar} className={linha}>
             <Bell className="h-5 w-5 text-destaque" />
             <span className="flex-1">Notificações</span>
-            {naoLidas > 0 && <span className="rounded-full bg-[#F43F5E] px-2 text-[12px] font-semibold text-white">{naoLidas}</span>}
+            {naoLidas > 0 && <span className="rounded-full bg-magenta px-2 text-[12px] font-semibold text-white">{naoLidas}</span>}
           </Link>
           <Link to="/carteira" onClick={fechar} className={linha}>
             <Wallet className="h-5 w-5 text-destaque" />

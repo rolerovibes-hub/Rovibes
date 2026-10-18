@@ -4,7 +4,7 @@
 
 /*
   Paleta oficial RoVibes (derivada da logo)
-  - Violeta: cor principal. Magenta: destaque pontual. Azul: localização.
+  - Violeta: cor principal. Destaque pontual: azul RoVibes #0000FF (variável --magenta). Azul: localização.
   - O degradê da logo fica só na marca (logo, ícone, abertura); a interface usa cores sólidas.
   - Escuro confortável: grafite azulado, nunca preto puro.
   Valores em "R G B" para permitir transparência no Tailwind.
@@ -19,7 +19,7 @@
   --marca: 109 40 217;
   --marca-texto: 255 255 255;
   --destaque: 109 40 217;
-  --magenta: 214 31 127;
+  --magenta: 0 0 255; /* azul RoVibes #0000FF (destaques, selos, Bora!) */
   --azul: 37 99 235;
   --ok: 31 132 84;
   --alerta: 176 108 12;
@@ -37,7 +37,7 @@
   --marca: 124 58 237;
   --marca-texto: 255 255 255;
   --destaque: 196 181 253;
-  --magenta: 244 114 182;
+  --magenta: 108 124 255; /* #0000FF clareado para ler bem no escuro */
   --azul: 96 150 250;
   --ok: 92 191 140;
   --alerta: 230 170 74;

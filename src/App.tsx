@@ -21,9 +21,12 @@ import { Notificacoes } from "./app/Notificacoes";
 import { Retirada } from "./app/Retirada";
 import { ListaConexoes, PessoaPagina } from "./app/PessoaPagina";
 import { ConversaPagina } from "./app/ConversaPagina";
+import { BotaoVoltarAparelho } from "./components/BotaoVoltarAparelho";
 
 export default function App() {
   return (
+    <>
+    <BotaoVoltarAparelho />
     <Routes>
       <Route path="/business" element={<BusinessLayout />}>
         <Route index element={<AreaDeTrabalho />} />
@@ -54,5 +57,6 @@ export default function App() {
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
+    </>
   );
 }
