@@ -1,11 +1,27 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { ChevronLeft, ChevronRight, Lock, Search, Star, X } from "lucide-react";
-import { AREAS, Aplicativo, buscar, CATALOGO } from "@/lib/catalogo";
-import { NOME_PAPEL, NOME_SITUACAO, tempoRelativo, useBusiness } from "@/lib/acessos";
+import { CalendarDays, ChevronLeft, ChevronRight, History, Lock, MoreVertical, Search, Star, StarOff, X, Zap } from "lucide-react";
+import { Aplicativo, Area, buscar, CATALOGO } from "@/lib/catalogo";
+import { NOME_PAPEL, NOME_SITUACAO, useBusiness } from "@/lib/acessos";
 import { useSessao } from "@/lib/sessao";
-import { Avatar } from "@/components/Avatar";
+
+/** Cor sólida de cada área nos blocos da Área de Trabalho. */
+export const COR_AREA: Record<Area, string> = {
+  Estabelecimento: "bg-[#1F4E8C]",
+  Vitrine: "bg-[#E06A1B]",
+  Conteúdo: "bg-[#7C3AED]",
+  Operação: "bg-[#14998A]",
+  Equipe: "bg-[#1F8A4C]",
+  Administração: "bg-[#B4234A]",
+};
+
+const dataLonga = (d: Date) =>
+  d
+    .toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })
+    .split(" ")
+    .map((p) => (p === "de" ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+    .join(" ");
 
 export function AreaDeTrabalho() {
   const acessos = useBusiness();
@@ -13,17 +29,22 @@ export function AreaDeTrabalho() {
   const { perfil, ehAdmin } = useSessao();
   const navegar = useNavigate();
   const [termo, setTermo] = useState("");
-  const [organizando, setOrganizando] = useState(false);
+  const [agora, setAgora] = useState(() => new Date());
   const campo = useRef<HTMLInputElement>(null);
   const resultados = useMemo(() => buscar(CATALOGO, termo), [termo]);
   const cargo = atual ? atual.cargo || NOME_PAPEL[atual.papel] : ehAdmin ? "Administração RoVibes" : "";
   const situacao = atual?.estabelecimento.situacao;
 
-  // "/" leva à busca, como no Expedição.
+  useEffect(() => {
+    const t = window.setInterval(() => setAgora(new Date()), 20000);
+    return () => window.clearInterval(t);
+  }, []);
+
+  // Ctrl+K ou "/" levam à busca.
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
       const alvo = e.target as HTMLElement;
-      if (e.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName)) {
+      if ((e.key === "k" && (e.ctrlKey || e.metaKey)) || (e.key === "/" && !["INPUT", "TEXTAREA", "SELECT"].includes(alvo.tagName))) {
         e.preventDefault();
         campo.current?.focus();
       }
@@ -35,133 +56,100 @@ export function AreaDeTrabalho() {
   const abrir = (a: Aplicativo) => navegar(`/business/app/${a.codigo}`);
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
-      {/* Coluna do usuário */}
-      <aside className="space-y-4">
-        <section className="cartao p-5">
-          <div className="flex items-center gap-3.5">
-            <Avatar nome={perfil?.nome || "?"} tamanho="lg" />
-            <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold leading-tight">{perfil?.nome}</h2>
-              <p className="text-sm text-suave">{cargo}</p>
-            </div>
-          </div>
-          <dl className="mt-5 space-y-3 border-t border-borda pt-4 text-sm">
-            {atual && (
-              <div className="flex justify-between gap-3">
-                <dt className="text-suave">Estabelecimento</dt>
-                <dd className="truncate font-medium">{atual.estabelecimento.nome}</dd>
-              </div>
-            )}
-            <div className="flex justify-between gap-3">
-              <dt className="text-suave">Aplicativos liberados</dt>
-              <dd className="codigo text-sm font-medium">{CATALOGO.filter(temAcesso).length}</dd>
-            </div>
-            {situacao && (
-              <div className="flex justify-between gap-3">
-                <dt className="text-suave">Situação</dt>
-                <dd
-                  className={clsx(
-                    "inline-flex items-center gap-1.5 font-medium",
-                    situacao === "aprovado" ? "text-ok" : situacao === "pendente" ? "text-alerta" : "text-perigo",
-                  )}
-                >
-                  <span className="h-2 w-2 rounded-full bg-current" />
-                  {NOME_SITUACAO[situacao]}
-                </dd>
-              </div>
-            )}
-          </dl>
-          {atual?.estabelecimento.motivo_situacao && situacao !== "aprovado" && (
-            <p className="mt-3 rounded-lg bg-elevado px-3 py-2 text-[13px]">{atual.estabelecimento.motivo_situacao}</p>
-          )}
-          <div className="mt-5 grid gap-2">
-            <Link to="/business/app/G1002" className="botao w-full">
-              Meu perfil
-            </Link>
-            <Link to="/business/novo" className="botao w-full">
-              Cadastrar estabelecimento
-            </Link>
-          </div>
-        </section>
-
-        <section className="cartao hidden p-5 lg:block">
-          <h3 className="rotulo">Últimos acessos</h3>
-          <ListaRecentes itens={acessos.ultimos} />
-        </section>
-      </aside>
-
-      {/* Área de trabalho */}
-      <div className="min-w-0 space-y-8">
-        <div className="relative">
-          <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-suave" />
-          <input
-            ref={campo}
-            value={termo}
-            onChange={(e) => setTermo(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && resultados[0]) abrir(resultados[0]);
-              if (e.key === "Escape") setTermo("");
-            }}
-            placeholder="Buscar aplicativo por nome ou código"
-            aria-label="Buscar aplicativo"
-            className="h-12 w-full rounded-cartao border border-borda bg-superficie pl-11 pr-12 text-[15px] placeholder:text-suave focus:border-marca focus:outline-none"
-          />
-          {termo ? (
-            <button
-              onClick={() => setTermo("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-suave hover:text-texto"
-              aria-label="Limpar busca"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          ) : (
-            <kbd className="codigo absolute right-4 top-1/2 hidden -translate-y-1/2 rounded border border-borda px-1.5 py-0.5 text-suave sm:block">
-              /
-            </kbd>
-          )}
+    <div className="space-y-6">
+      {/* Saudação e relógio */}
+      <header className="flex flex-wrap items-end justify-between gap-4 border-b border-borda pb-6">
+        <div>
+          <p className="text-sm text-suave">Olá,</p>
+          <h1 className="text-[26px] font-semibold leading-tight">{perfil?.nome}</h1>
+          <p className="text-sm text-suave">{[cargo, atual?.estabelecimento.nome].filter(Boolean).join(" · ")}</p>
         </div>
+        <div className="cartao flex items-center gap-4 px-5 py-3">
+          <CalendarDays className="h-6 w-6 text-destaque" />
+          <div>
+            <p className="text-[13px] font-medium text-suave">{dataLonga(agora)}</p>
+            <p className="codigo text-[28px] font-semibold leading-none">{agora.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</p>
+          </div>
+        </div>
+      </header>
 
-        {termo ? (
-          <section aria-live="polite">
-            <h2 className="mb-3 font-semibold">
-              {resultados.length === 0 ? "Nenhum aplicativo encontrado" : `${resultados.length} encontrado${resultados.length > 1 ? "s" : ""}`}
-            </h2>
-            <div className="cartao divide-y divide-borda">
-              {resultados.map((a) => (
-                <LinhaResultado
-                  key={a.codigo}
-                  app={a}
-                  liberado={temAcesso(a)}
-                  solicitado={acessos.foiSolicitado(a.codigo)}
-                  favorito={acessos.ehFavorito(a.codigo)}
-                  onAbrir={() => abrir(a)}
-                  onFavoritar={() => acessos.alternarFavorito(a.codigo)}
-                  onSolicitar={() => acessos.solicitarAcesso(a.codigo)}
-                />
-              ))}
-            </div>
-          </section>
-        ) : (
-          <>
-            <section>
-              <div className="mb-3 flex items-center justify-between">
-                <h2 className="font-semibold">Meus aplicativos</h2>
-                <button onClick={() => setOrganizando((v) => !v)} className={organizando ? "botao-principal" : "botao"}>
-                  {organizando ? "Concluir" : "Organizar"}
-                </button>
+      {situacao && situacao !== "aprovado" && (
+        <p className={clsx("rounded-cartao border px-4 py-3 text-sm", situacao === "pendente" ? "border-alerta/40 bg-alerta/10" : "border-perigo/40 bg-perigo/10")}>
+          <strong>{atual?.estabelecimento.nome}</strong>: {NOME_SITUACAO[situacao]}.{" "}
+          {atual?.estabelecimento.motivo_situacao ?? (situacao === "pendente" ? "O cadastro está em análise pela equipe RoVibes." : "")}
+        </p>
+      )}
+
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px]">
+        {/* Busca e aplicativos */}
+        <div className="min-w-0 space-y-6">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-suave" />
+            <input
+              ref={campo}
+              value={termo}
+              onChange={(e) => setTermo(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && resultados[0]) abrir(resultados[0]);
+                if (e.key === "Escape") setTermo("");
+              }}
+              placeholder="Buscar por código ou nome da funcionalidade..."
+              aria-label="Buscar aplicativo"
+              className="h-12 w-full rounded-cartao border border-borda bg-superficie pl-11 pr-24 text-[15px] placeholder:text-suave focus:border-marca focus:outline-none"
+            />
+            {termo ? (
+              <button onClick={() => setTermo("")} className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-suave hover:text-texto" aria-label="Limpar busca">
+                <X className="h-4 w-4" />
+              </button>
+            ) : (
+              <kbd className="codigo absolute right-3 top-1/2 hidden -translate-y-1/2 rounded border border-borda bg-elevado px-1.5 py-0.5 text-suave sm:block">Ctrl + K</kbd>
+            )}
+          </div>
+
+          {termo ? (
+            <section aria-live="polite">
+              <h2 className="mb-3 font-semibold">{resultados.length === 0 ? "Nenhum aplicativo encontrado" : `${resultados.length} encontrado${resultados.length > 1 ? "s" : ""}`}</h2>
+              <div className="cartao divide-y divide-borda">
+                {resultados.map((a) => (
+                  <LinhaResultado
+                    key={a.codigo}
+                    app={a}
+                    liberado={temAcesso(a)}
+                    solicitado={acessos.foiSolicitado(a.codigo)}
+                    favorito={acessos.ehFavorito(a.codigo)}
+                    onAbrir={() => abrir(a)}
+                    onFavoritar={() => acessos.alternarFavorito(a.codigo)}
+                    onSolicitar={() => acessos.solicitarAcesso(a.codigo)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : (
+            <section className="cartao p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h2 className="flex items-center gap-2 text-lg font-semibold">
+                  <Star className="h-5 w-5 fill-current text-destaque" />
+                  Meus Aplicativos
+                </h2>
+                <span className="text-[13px] text-suave">
+                  {acessos.favoritos.length} {acessos.favoritos.length === 1 ? "favorito" : "favoritos"}
+                </span>
               </div>
               {acessos.favoritos.length === 0 ? (
-                <p className="cartao p-6 text-sm text-suave">
-                  Use a busca e marque a estrela dos aplicativos que você mais usa.
-                </p>
+                <div className="rounded-lg border border-dashed border-borda px-6 py-10 text-center text-sm text-suave">
+                  Toque na sua foto, no canto superior, e marque a estrela dos aplicativos que você quer aqui. Você também pode buscar um aplicativo acima.
+                  <div className="mt-4">
+                    <Link to="/business/app/G1002" className="botao">
+                      Escolher meus aplicativos
+                    </Link>
+                  </div>
+                </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
                   {acessos.favoritos.map((a, i) => (
                     <Bloco
                       key={a.codigo}
                       app={a}
-                      organizando={organizando}
                       primeiro={i === 0}
                       ultimo={i === acessos.favoritos.length - 1}
                       onAbrir={() => abrir(a)}
@@ -172,52 +160,66 @@ export function AreaDeTrabalho() {
                 </div>
               )}
             </section>
+          )}
+        </div>
 
-            <div className="grid gap-6 md:grid-cols-2">
-              <section>
-                <h2 className="mb-3 font-semibold">Mais usados</h2>
-                <div className="cartao divide-y divide-borda">
-                  {acessos.maisUsados.length === 0 ? (
-                    <p className="p-4 text-sm text-suave">Os aplicativos que você abrir aparecem aqui.</p>
-                  ) : (
-                    acessos.maisUsados.map((a) => <LinhaSimples key={a.codigo} app={a} />)
-                  )}
-                </div>
-              </section>
-              <section className="lg:hidden">
-                <h2 className="mb-3 font-semibold">Últimos acessos</h2>
-                <div className="cartao px-4 pb-2">
-                  <ListaRecentes itens={acessos.ultimos} />
-                </div>
-              </section>
+        {/* Lado direito: mais usados e últimos acessos */}
+        <aside className="space-y-6">
+          <section className="cartao p-5">
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-lg font-semibold">
+                <Zap className="h-5 w-5 text-magenta" />
+                Apps mais usados
+              </h2>
+              <span className="text-[12px] text-suave">30 dias</span>
             </div>
-
-            <section>
-              <h2 className="mb-3 font-semibold">Todos os aplicativos</h2>
-              <div className="grid gap-x-8 gap-y-6 sm:grid-cols-2 xl:grid-cols-3">
-                {AREAS.map((area) => (
-                  <div key={area}>
-                    <h3 className="rotulo mb-1.5">{area}</h3>
-                    <ul>
-                      {CATALOGO.filter((a) => a.area === area).map((a) => (
-                        <li key={a.codigo}>
-                          <button
-                            onClick={() => abrir(a)}
-                            className="group flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-elevado"
-                          >
-                            <span className="codigo w-12 text-suave">{a.codigo}</span>
-                            <span className={clsx("flex-1 truncate", !temAcesso(a) && "text-suave")}>{a.nome}</span>
-                            {!temAcesso(a) && <Lock className="h-3.5 w-3.5 text-suave" aria-label="Sem acesso" />}
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
+            {acessos.usoPercentual.length === 0 ? (
+              <p className="py-3 text-sm text-suave">Os aplicativos que você abrir aparecem aqui.</p>
+            ) : (
+              <ul className="divide-y divide-borda">
+                {acessos.usoPercentual.map(({ app, pct }) => (
+                  <li key={app.codigo}>
+                    <Link to={`/business/app/${app.codigo}`} className="flex items-center gap-3 py-2.5 hover:opacity-80">
+                      <span className="codigo w-12 shrink-0 text-destaque">{app.codigo}</span>
+                      <span className="min-w-0 flex-1 truncate text-sm font-medium">{app.nome}</span>
+                      <span className="h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-elevado">
+                        <span className="block h-full rounded-full bg-magenta" style={{ width: `${Math.max(4, pct)}%` }} />
+                      </span>
+                      <span className="codigo w-9 shrink-0 text-right text-[13px] font-semibold">{pct}%</span>
+                    </Link>
+                  </li>
                 ))}
-              </div>
-            </section>
-          </>
-        )}
+              </ul>
+            )}
+          </section>
+
+          <section className="cartao p-5">
+            <h2 className="mb-3 flex items-center gap-2 text-lg font-semibold">
+              <History className="h-5 w-5 text-magenta" />
+              Últimos acessos
+            </h2>
+            {acessos.ultimos.length === 0 ? (
+              <p className="py-3 text-sm text-suave">Nenhum acesso ainda.</p>
+            ) : (
+              <ul className="divide-y divide-borda">
+                {acessos.ultimos.map(({ app, quando }) => (
+                  <li key={app.codigo}>
+                    <Link to={`/business/app/${app.codigo}`} className="flex items-center gap-3 py-2.5 hover:opacity-80">
+                      <History className="h-4 w-4 shrink-0 text-suave" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-medium">{app.nome}</span>
+                        <span className="codigo block text-[12px] text-suave">
+                          {app.codigo} · {new Date(quando).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} às{" "}
+                          {new Date(quando).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </aside>
       </div>
     </div>
   );
@@ -225,7 +227,6 @@ export function AreaDeTrabalho() {
 
 function Bloco({
   app,
-  organizando,
   primeiro,
   ultimo,
   onAbrir,
@@ -233,7 +234,6 @@ function Bloco({
   onRemover,
 }: {
   app: Aplicativo;
-  organizando: boolean;
   primeiro: boolean;
   ultimo: boolean;
   onAbrir: () => void;
@@ -241,33 +241,43 @@ function Bloco({
   onRemover: () => void;
 }) {
   const Icone = app.icone;
+  const [menu, setMenu] = useState(false);
+  const caixa = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menu) return;
+    const fora = (e: MouseEvent) => !caixa.current?.contains(e.target as Node) && setMenu(false);
+    document.addEventListener("mousedown", fora);
+    return () => document.removeEventListener("mousedown", fora);
+  }, [menu]);
+
   return (
-    <div className="cartao relative flex flex-col">
-      <button
-        onClick={onAbrir}
-        disabled={organizando}
-        className="flex flex-1 flex-col gap-4 rounded-cartao p-4 text-left transition-colors hover:bg-elevado disabled:hover:bg-transparent"
-      >
-        <div className="flex items-start justify-between">
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-destaque-suave text-destaque">
-            <Icone className="h-5 w-5" />
-          </span>
-          <span className="codigo text-suave">{app.codigo}</span>
-        </div>
-        <span className="text-[15px] font-medium leading-snug">{app.nome}</span>
+    <div ref={caixa} className={clsx("relative rounded-cartao text-white shadow-sm", COR_AREA[app.area])}>
+      <button onClick={onAbrir} className="flex h-[108px] w-full flex-col justify-between rounded-cartao p-3.5 text-left transition-[filter] hover:brightness-110">
+        <span>
+          <Icone className="h-5 w-5 opacity-90" />
+          <span className="mt-2 block text-[15px] font-semibold leading-snug">{app.nome}</span>
+        </span>
+        <span className="codigo truncate text-[12px] opacity-80">
+          {app.codigo} · {app.area}
+        </span>
       </button>
-      {organizando && (
-        <div className="flex items-center justify-between border-t border-borda px-2 py-1.5">
-          <div className="flex">
-            <button onClick={() => onMover(-1)} disabled={primeiro} className="rounded p-1.5 text-suave hover:bg-elevado hover:text-texto disabled:opacity-30" aria-label={`Mover ${app.nome} para trás`}>
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button onClick={() => onMover(1)} disabled={ultimo} className="rounded p-1.5 text-suave hover:bg-elevado hover:text-texto disabled:opacity-30" aria-label={`Mover ${app.nome} para frente`}>
-              <ChevronRight className="h-4 w-4" />
-            </button>
-          </div>
-          <button onClick={onRemover} className="rounded px-2 py-1 text-[13px] text-perigo hover:bg-elevado">
-            Remover
+      <button onClick={() => setMenu((m) => !m)} className="absolute right-1.5 top-1.5 rounded p-1 opacity-80 hover:bg-white/15 hover:opacity-100" aria-label={`Opções de ${app.nome}`}>
+        <MoreVertical className="h-4 w-4" />
+      </button>
+      {menu && (
+        <div className="absolute right-1.5 top-8 z-20 w-48 overflow-hidden rounded-lg border border-borda bg-superficie py-1 text-sm text-texto shadow-lg">
+          <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-elevado disabled:opacity-40" disabled={primeiro} onClick={() => { onMover(-1); setMenu(false); }}>
+            <ChevronLeft className="h-4 w-4" />
+            Mover para trás
+          </button>
+          <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-elevado disabled:opacity-40" disabled={ultimo} onClick={() => { onMover(1); setMenu(false); }}>
+            <ChevronRight className="h-4 w-4" />
+            Mover para frente
+          </button>
+          <button className="flex w-full items-center gap-2 px-3 py-2 text-perigo hover:bg-elevado" onClick={() => { onRemover(); setMenu(false); }}>
+            <StarOff className="h-4 w-4" />
+            Tirar da tela inicial
           </button>
         </div>
       )}
@@ -295,7 +305,7 @@ function LinhaResultado({
   const Icone = app.icone;
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <span className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg", liberado ? "bg-destaque-suave text-destaque" : "bg-elevado text-suave")}>
+      <span className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white", liberado ? COR_AREA[app.area] : "bg-elevado text-suave")}>
         <Icone className="h-[18px] w-[18px]" />
       </span>
       <div className="min-w-0 flex-1">
@@ -306,8 +316,8 @@ function LinhaResultado({
       </div>
       {liberado ? (
         <>
-          <button onClick={onFavoritar} className="rounded p-2 hover:bg-elevado" aria-label={favorito ? "Tirar dos meus aplicativos" : "Pôr nos meus aplicativos"} aria-pressed={favorito}>
-            <Star className={clsx("h-4 w-4", favorito ? "fill-current text-destaque" : "text-suave")} />
+          <button onClick={onFavoritar} className="rounded p-2 hover:bg-elevado" aria-label={favorito ? "Tirar da tela inicial" : "Pôr na tela inicial"} aria-pressed={favorito}>
+            <Star className={clsx("h-4 w-4", favorito ? "fill-current text-alerta" : "text-suave")} />
           </button>
           <button onClick={onAbrir} className="botao">
             Abrir
@@ -322,32 +332,5 @@ function LinhaResultado({
         </button>
       )}
     </div>
-  );
-}
-
-function LinhaSimples({ app }: { app: Aplicativo }) {
-  const Icone = app.icone;
-  return (
-    <Link to={`/business/app/${app.codigo}`} className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevado">
-      <Icone className="h-4 w-4 text-destaque" />
-      <span className="flex-1 truncate text-sm">{app.nome}</span>
-      <span className="codigo text-suave">{app.codigo}</span>
-    </Link>
-  );
-}
-
-function ListaRecentes({ itens }: { itens: { app: Aplicativo; quando: number }[] }) {
-  if (itens.length === 0) return <p className="mt-3 text-sm text-suave">Nenhum acesso ainda.</p>;
-  return (
-    <ul className="mt-2">
-      {itens.map(({ app, quando }) => (
-        <li key={app.codigo}>
-          <Link to={`/business/app/${app.codigo}`} className="-mx-2 flex items-baseline gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-elevado">
-            <span className="flex-1 truncate">{app.nome}</span>
-            <span className="shrink-0 text-xs text-suave">{tempoRelativo(quando)}</span>
-          </Link>
-        </li>
-      ))}
-    </ul>
   );
 }

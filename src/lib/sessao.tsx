@@ -7,6 +7,7 @@ export interface Perfil {
   nome: string;
   data_nascimento: string;
   foto_url: string | null;
+  telefone?: string | null;
 }
 
 interface SessaoContexto {
@@ -42,7 +43,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
       return;
     }
     const [p, a] = await Promise.all([
-      supabase.from("perfis").select("id, nome, data_nascimento, foto_url").eq("id", s.user.id).maybeSingle(),
+      supabase.from("perfis").select("id, nome, data_nascimento, foto_url, telefone").eq("id", s.user.id).maybeSingle(),
       supabase.from("administradores").select("usuario_id").eq("usuario_id", s.user.id).maybeSingle(),
     ]);
     setPerfil((p.data as Perfil | null) ?? null);

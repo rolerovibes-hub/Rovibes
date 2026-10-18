@@ -3,8 +3,7 @@ import { TelaUniversal } from "./TelaUniversal";
 import { Navigate, useParams } from "react-router-dom";
 import { Download, FilePlus2, FolderOpen, Lock, Pencil, Printer, Search, Trash2 } from "lucide-react";
 import { porCodigo, Aplicativo } from "@/lib/catalogo";
-import { NOME_PAPEL, useBusiness } from "@/lib/acessos";
-import { useSessao } from "@/lib/sessao";
+import { useBusiness } from "@/lib/acessos";
 import { AprovacaoEstabelecimentos } from "./AprovacaoEstabelecimentos";
 import { PerfilEstabelecimento } from "./PerfilEstabelecimento";
 import { Cardapio } from "./Cardapio";
@@ -14,6 +13,7 @@ import { StatusAoVivo } from "./StatusAoVivo";
 import { Publicacoes } from "./Publicacoes";
 import { Stories } from "./Stories";
 import { Indicadores } from "./Indicadores";
+import { MeuPerfil } from "./MeuPerfil";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
 import { ProgramaPontos } from "./ProgramaPontos";
@@ -24,8 +24,6 @@ import { FilaPreparo } from "@/job/Preparo";
 import { FilaEntregas } from "@/job/Entregas";
 import { VisaoGeral } from "@/job/Geral";
 import { Link } from "react-router-dom";
-import { SeletorTema } from "@/components/SeletorTema";
-import { Avatar } from "@/components/Avatar";
 
 // Colunas previstas da consulta de cada aplicativo (o conteúdo chega em cada fase).
 const COLUNAS: Record<string, string[]> = {
@@ -208,52 +206,5 @@ function Consulta({ app }: { app: Aplicativo }) {
         </div>
       </section>
     </>
-  );
-}
-
-function MeuPerfil() {
-  const { perfil, email, ehAdmin } = useSessao();
-  const { vinculos } = useBusiness();
-  const nascimento = perfil?.data_nascimento ? perfil.data_nascimento.split("-").reverse().join("/") : "";
-  const campos: [string, string][] = [
-    ["Nome", perfil?.nome ?? ""],
-    ["E-mail", email ?? ""],
-    ["Data de nascimento", nascimento],
-    ["Estabelecimentos", vinculos.map((v) => `${v.estabelecimento.nome} (${v.cargo || NOME_PAPEL[v.papel]})`).join(", ") || "Nenhum"],
-  ];
-  return (
-    <TelaUniversal
-      acoes={
-        <button className="botao-principal col-span-2 sm:col-span-1" disabled title="Edição na próxima etapa">
-          <Pencil className="h-4 w-4" />
-          Editar dados
-        </button>
-      }
-    >
-      <section className="cartao p-5">
-        <div className="flex items-center gap-4">
-          <Avatar nome={perfil?.nome || "?"} tamanho="lg" />
-          <div>
-            <p className="text-lg font-semibold">{perfil?.nome}</p>
-            {ehAdmin && <p className="text-sm text-suave">Administração RoVibes</p>}
-          </div>
-        </div>
-        <dl className="mt-6 grid gap-x-6 gap-y-4 sm:grid-cols-2">
-          {campos.map(([rotulo, valor]) => (
-            <div key={rotulo}>
-              <dt className="rotulo">{rotulo}</dt>
-              <dd className="mt-1 rounded-lg border border-borda bg-fundo px-3 py-2 text-sm">{valor}</dd>
-            </div>
-          ))}
-        </dl>
-      </section>
-      <section className="cartao p-5">
-        <h2 className="font-semibold">Aparência</h2>
-        <p className="mb-4 mt-1 text-sm text-suave">Vale para o Business e para o App neste aparelho.</p>
-        <div className="max-w-md">
-          <SeletorTema />
-        </div>
-      </section>
-    </TelaUniversal>
   );
 }

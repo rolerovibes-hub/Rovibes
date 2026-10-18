@@ -28,6 +28,7 @@ interface BusinessContexto {
   temAcesso: (a: Aplicativo) => boolean;
   favoritos: Aplicativo[];
   maisUsados: Aplicativo[];
+  usoPercentual: { app: Aplicativo; pct: number }[];
   ultimos: { app: Aplicativo; quando: number }[];
   ehFavorito: (codigo: string) => boolean;
   foiSolicitado: (codigo: string) => boolean;
@@ -171,6 +172,15 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       temAcesso,
       favoritos: apps(favoritos).filter(temAcesso),
       maisUsados: apps([...usos].sort((a, b) => b.vezes - a.vezes).slice(0, 5).map((u) => u.codigo)).filter(temAcesso),
+      usoPercentual: (() => {
+        const limite = Date.now() - 30 * 86400000;
+        const validos = usos.filter((u) => Date.parse(u.ultimo_em) >= limite && porCodigo(u.codigo) && temAcesso(porCodigo(u.codigo)!));
+        const total = validos.reduce((s, u) => s + u.vezes, 0) || 1;
+        return [...validos]
+          .sort((a, b) => b.vezes - a.vezes)
+          .slice(0, 5)
+          .map((u) => ({ app: porCodigo(u.codigo)!, pct: Math.round((u.vezes / total) * 100) }));
+      })(),
       ultimos: [...usos]
         .sort((a, b) => b.ultimo_em.localeCompare(a.ultimo_em))
         .slice(0, 5)
