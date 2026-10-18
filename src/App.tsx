@@ -20,6 +20,7 @@ import { ComandaPagina } from "./app/ComandaPagina";
 import { Notificacoes } from "./app/Notificacoes";
 import { Retirada } from "./app/Retirada";
 import { ListaConexoes, PessoaPagina } from "./app/PessoaPagina";
+import { ConversaPagina } from "./app/ConversaPagina";
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
         <Route path="notificacoes" element={<Notificacoes />} />
         <Route path="retirada" element={<Retirada />} />
         <Route path="chats" element={<Chats />} />
+        <Route path="chat/:id" element={<ConversaPagina />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="lugar/:id" element={<LugarPagina />} />
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />

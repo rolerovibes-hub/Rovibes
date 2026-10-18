@@ -41,7 +41,7 @@ export interface Aplicativo {
 export const CATALOGO: Aplicativo[] = [
   { codigo: "G1001", nome: "Perfil do estabelecimento", area: "Estabelecimento", icone: Store, fase: 2 },
   { codigo: "G1002", nome: "Meu perfil", area: "Equipe", icone: UserRound, fase: 1, padrao: true },
-  { codigo: "T2001", nome: "Mensagens", area: "Equipe", icone: MessagesSquare, fase: 6, padrao: true },
+  { codigo: "T2001", nome: "Mensagens", area: "Equipe", icone: MessagesSquare, fase: 6 },
   { codigo: "G3001", nome: "Equipe e permissões", area: "Equipe", icone: Users, fase: 5 },
   { codigo: "G4001", nome: "Cardápio e produtos", area: "Vitrine", icone: UtensilsCrossed, fase: 2 },
   { codigo: "G4002", nome: "Estoque", area: "Operação", icone: Boxes, fase: 5 },

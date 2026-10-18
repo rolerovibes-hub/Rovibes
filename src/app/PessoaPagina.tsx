@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, Ban, Flag, Lock, MoreHorizontal, UserMinus, UserRound } from "lucide-react";
+import { ArrowLeft, Ban, Flag, Lock, MessageCircle, MoreHorizontal, UserMinus, UserRound } from "lucide-react";
+import { abrirConversa } from "@/lib/chat";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
 import { JanelaDenuncia } from "@/components/Denunciar";
@@ -36,6 +37,7 @@ function Topo({ titulo }: { titulo: string }) {
 /** Perfil de outra pessoa: /p/:usuario */
 export function PessoaPagina() {
   const { usuario = "" } = useParams();
+  const navegar = useNavigate();
   const { sessao, perfil: eu } = useSessao();
   const [p, setP] = useState<PerfilPessoa | null | undefined>(undefined);
   const [stories, setStories] = useState<GrupoStories[]>([]);
@@ -178,13 +180,28 @@ export function PessoaPagina() {
             Desbloquear
           </button>
         ) : (
-          <button
-            className={clsx("mt-4 h-10 w-full rounded-lg text-sm font-semibold", p.eu_sigo ? "botao" : "botao-principal")}
-            disabled={ocupado || !sessao}
-            onClick={() => void alternarSeguir()}
-          >
-            {textoSeguir(p.eu_sigo, p.me_segue)}
-          </button>
+          <div className="mt-4 flex gap-2">
+            <button
+              className={clsx("h-10 flex-1 rounded-lg text-sm font-semibold", p.eu_sigo ? "botao" : "botao-principal")}
+              disabled={ocupado || !sessao}
+              onClick={() => void alternarSeguir()}
+            >
+              {textoSeguir(p.eu_sigo, p.me_segue)}
+            </button>
+            <button
+              className="botao h-10 flex-1 text-sm font-semibold"
+              disabled={ocupado}
+              onClick={() =>
+                void acao(async () => {
+                  const c = await abrirConversa(p.id);
+                  navegar(`/chat/${c}`);
+                })
+              }
+            >
+              <MessageCircle className="h-4 w-4" />
+              Mensagem
+            </button>
+          </div>
         )}
         {erro && <p className="mt-2 text-sm text-perigo">{erro}</p>}
       </section>

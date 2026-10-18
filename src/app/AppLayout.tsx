@@ -9,6 +9,7 @@ import { Carregando } from "@/components/Carregando";
 import { useSessao } from "@/lib/sessao";
 import { AcessoRapidoProvider, useAcessoRapido } from "./estadoAcesso";
 import { MenuFlutuante, MenuMais } from "./AcessoRapido";
+import { useChatNaoLidas } from "@/lib/chat";
 
 const ABAS = [
   { para: "/mapa", nome: "Mapa", icone: Map },
@@ -19,7 +20,7 @@ const ABAS = [
 ];
 
 // Telas em que o menu flutuante atrapalharia (têm botões próprios no canto de baixo).
-const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada"];
+const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada", "/chat/"];
 
 export function AppLayout() {
   const { carregando, sessao } = useSessao();
@@ -44,6 +45,8 @@ function Estrutura() {
   const navegar = useNavigate();
   const { mesa, lendo, setLendo } = useAcessoRapido();
   const [mais, setMais] = useState(false);
+  const chat = useChatNaoLidas(true);
+  const seloChat = chat.conversas + chat.pedidos;
   const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r));
 
   return (
@@ -120,7 +123,14 @@ function Estrutura() {
               >
                 {({ isActive }) => (
                   <>
-                    <Icone className={clsx("h-[22px] w-[22px]", central && isActive && "fill-current")} />
+                    <span className="relative">
+                      <Icone className={clsx("h-[22px] w-[22px]", central && isActive && "fill-current")} />
+                      {para === "/chats" && seloChat > 0 && (
+                        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-magenta px-1 text-[10px] font-bold text-white">
+                          {seloChat > 9 ? "9+" : seloChat}
+                        </span>
+                      )}
+                    </span>
                     {nome}
                   </>
                 )}

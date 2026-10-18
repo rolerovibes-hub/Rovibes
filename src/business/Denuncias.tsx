@@ -91,7 +91,7 @@ export function Denuncias() {
     <TelaUniversal
       acoes={
         <>
-          {botao("ocultado", EyeOff, d?.tipo_alvo === "mensagem")}
+          {botao("ocultado", EyeOff)}
           {botao("advertido", AlertTriangle, !d?.alvo_usuario_nome)}
           {botao("suspenso", Ban, !d?.alvo_usuario_nome)}
           {botao("arquivado", Archive)}

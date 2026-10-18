@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, AtSign, Bookmark, CalendarDays, ChevronRight, MapPin, MapPinned, Navigation, Phone, Store, UtensilsCrossed } from "lucide-react";
+import { ArrowLeft, AtSign, Bookmark, CalendarDays, ChevronRight, MapPin, MapPinned, MessageCircle, Navigation, PartyPopper, Phone, Store, UtensilsCrossed } from "lucide-react";
+import { abrirConversaEstab } from "@/lib/chat";
 import { Carregando } from "@/components/Carregando";
 import { MapaBase, PinMapa } from "@/components/MapaBase";
 import { reais } from "@/components/Formulario";
@@ -12,7 +13,7 @@ import { FolhaCheckin } from "./Checkin";
 import { buscarStories, GrupoStories } from "./conteudo";
 import { VisorStories } from "./VisorStories";
 import { useSessao } from "@/lib/sessao";
-import { supabase } from "@/lib/supabase";
+import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { NotaCompacta, SecaoAvaliacoes } from "./Avaliacoes";
 import { MedidorMovimento } from "@/components/Marca";
 import { BeneficiosLugar } from "./BeneficiosLugar";
@@ -231,6 +232,24 @@ export function LugarPagina() {
             <button onClick={() => exigirLogin() && setCheckinAberto(true)} className="botao flex-col gap-1 py-2.5 text-[13px]">
               <MapPinned className="h-4 w-4" />
               Check-in
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() =>
+                exigirLogin() &&
+                abrirConversaEstab(lugar.id)
+                  .then((c) => navegar(`/chat/${c}`))
+                  .catch((e) => window.alert(mensagemDeErro(e)))
+              }
+              className="botao py-2.5 text-[13px]"
+            >
+              <MessageCircle className="h-4 w-4" />
+              Mensagem
+            </button>
+            <button onClick={() => exigirLogin() && navegar(`/chats?novoRole=${lugar.id}`)} className="botao py-2.5 text-[13px]">
+              <PartyPopper className="h-4 w-4 text-magenta" />
+              Montar rolê aqui
             </button>
           </div>
         </div>
