@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { BuscaPessoas } from "./BuscaPessoas";
 import clsx from "clsx";
 import { CalendarDays, MapPin, Search, Store } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
@@ -22,6 +23,8 @@ export function Descobrir() {
   const [busca, setBusca] = useState("");
   const [eu, setEu] = useState<[number, number] | null>(null);
   const [avisoLocal, setAvisoLocal] = useState("");
+  const [params, setParams] = useSearchParams();
+  const aba = params.get("aba") === "pessoas" ? "pessoas" : "lugares";
 
   // Filtros: fixos + as vibes que existem nos lugares.
   const filtros = useMemo(() => {
@@ -67,9 +70,34 @@ export function Descobrir() {
       .filter((e) => filtro !== "Eventos hoje" || ehHoje(e.inicio));
   }, [eventos, busca, filtro]);
 
+  const abas = (
+    <div className="mx-4 flex rounded-full border border-borda bg-superficie p-0.5" role="tablist" aria-label="O que pesquisar">
+      {(["lugares", "pessoas"] as const).map((a) => (
+        <button
+          key={a}
+          role="tab"
+          aria-selected={aba === a}
+          onClick={() => setParams(a === "pessoas" ? { aba: "pessoas" } : {}, { replace: true })}
+          className={clsx("flex-1 rounded-full py-1.5 text-sm", aba === a ? "bg-marca font-medium text-marca-texto" : "text-suave")}
+        >
+          {a === "lugares" ? "Lugares e eventos" : "Pessoas"}
+        </button>
+      ))}
+    </div>
+  );
+
+  if (aba === "pessoas")
+    return (
+      <div className="space-y-4 py-4">
+        {abas}
+        <BuscaPessoas />
+      </div>
+    );
+
   return (
     <div className="space-y-7 py-4">
-      <div className="space-y-3 px-4">
+      {abas}
+      <div className="-mt-3 space-y-3 px-4">
         <h1 className="text-[22px] font-semibold leading-tight">Para onde hoje?</h1>
         <label className="relative block">
           <span className="sr-only">Buscar lugares e eventos</span>

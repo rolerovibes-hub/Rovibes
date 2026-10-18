@@ -101,7 +101,7 @@ export function ComandaPagina() {
     setTotais(t);
     const ids = ((g.data ?? []) as { usuario_id: string }[]).map((x) => x.usuario_id);
     if (ids.length) {
-      const { data } = await supabase.from("perfis").select("id, nome").in("id", ids);
+      const { data } = await supabase.from("perfis_publicos").select("id, nome").in("id", ids);
       const nomes = new Map(((data ?? []) as { id: string; nome: string }[]).map((x) => [x.id, x.nome]));
       setPessoas(ids.map((i) => ({ id: i, nome: nomes.get(i) ?? "Alguém" })));
     } else setPessoas([]);

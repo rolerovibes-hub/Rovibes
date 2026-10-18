@@ -1,13 +1,14 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, Heart, LocateFixed, Newspaper, Plus, Store, X } from "lucide-react";
+import { CalendarDays, ChevronRight, Heart, LocateFixed, Newspaper, Plus, Store } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
 import { useSessao } from "@/lib/sessao";
 import { distanciaKm, km, Lugar, pedirLocalizacao, quando, useVitrine } from "./dados";
 import { useResumos } from "./presenca";
-import { alternarCurtida, buscarPublicacoes, buscarStories, GrupoStories, PublicacaoApp, tempoAtras } from "./conteudo";
+import { alternarCurtida, buscarPublicacoes, buscarStories, buscarStoriesPessoas, GrupoStories, PublicacaoApp, tempoAtras } from "./conteudo";
+import { NovoStory } from "./NovoStory";
 import { AnelStory, VisorStories } from "./VisorStories";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
@@ -35,7 +36,17 @@ export function Feed() {
   const [visor, setVisor] = useState<number | null>(null);
   const [meuStory, setMeuStory] = useState(false);
 
-  const carregarStories = useCallback(() => buscarStories(usuario).then(setGrupos), [usuario]);
+  const carregarStories = useCallback(
+    () =>
+      Promise.all([buscarStoriesPessoas(usuario), buscarStories(usuario)]).then(([pessoas, lugares]) => {
+        const meu = pessoas.filter((x) => x.meu);
+        const outros = [...pessoas.filter((x) => !x.meu), ...lugares].sort((a, b) => Number(a.vistos) - Number(b.vistos));
+        setGrupos([...meu, ...outros]);
+      }),
+    [usuario],
+  );
+  const temMeu = grupos[0]?.meu === true;
+  const outrosGrupos = temMeu ? grupos.slice(1) : grupos;
   useEffect(() => {
     void carregarStories();
   }, [carregarStories]);
@@ -76,29 +87,35 @@ export function Feed() {
       <section aria-label="Stories">
         <ul className="flex gap-3.5 overflow-x-auto px-4 py-3 [scrollbar-width:none]">
           <li className="shrink-0">
-            <button onClick={() => setMeuStory(true)} className="flex w-[70px] flex-col items-center gap-1.5">
-              <span className="relative inline-flex rounded-full border-2 border-marca p-[2px]">
-                {perfil?.foto_url ? (
-                  <img src={perfil.foto_url} alt="" className="h-[60px] w-[60px] rounded-full object-cover opacity-80" />
+            <div className="relative flex w-[70px] flex-col items-center gap-1.5">
+              <button onClick={() => (temMeu ? setVisor(0) : setMeuStory(true))} aria-label={temMeu ? "Ver seu story" : "Criar story"}>
+                {temMeu ? (
+                  <AnelStory visto={false}>
+                    <Avatar nome={perfil?.nome || "?"} foto={perfil?.foto_url} tamanho="story" />
+                  </AnelStory>
                 ) : (
-                  <span className="flex h-[60px] w-[60px] items-center justify-center rounded-full bg-elevado">
-                    <Plus className="h-6 w-6 text-texto" />
+                  <span className="relative inline-flex rounded-full border-2 border-dashed border-borda p-[2px]">
+                    <Avatar nome={perfil?.nome || "?"} foto={perfil?.foto_url} tamanho="story" />
                   </span>
                 )}
-                {perfil?.foto_url && (
-                  <span className="absolute bottom-0 right-0 flex h-5 w-5 items-center justify-center rounded-full border-2 border-fundo bg-marca text-marca-texto">
-                    <Plus className="h-3 w-3" />
-                  </span>
-                )}
-              </span>
+              </button>
+              <button
+                onClick={() => setMeuStory(true)}
+                className="absolute right-0.5 top-[44px] flex h-5 w-5 items-center justify-center rounded-full border-2 border-fundo bg-marca text-marca-texto"
+                aria-label="Novo story"
+              >
+                <Plus className="h-3 w-3" />
+              </button>
               <span className="w-full truncate text-center text-[12px]">Seu story</span>
-            </button>
+            </div>
           </li>
-          {grupos.map((gr, i) => (
-            <li key={gr.autor.id} className="shrink-0">
-              <button onClick={() => setVisor(i)} className="flex w-[70px] flex-col items-center gap-1.5">
+          {outrosGrupos.map((gr, i) => (
+            <li key={`${gr.tipo}-${gr.autor.id}`} className="shrink-0">
+              <button onClick={() => setVisor(temMeu ? i + 1 : i)} className="flex w-[70px] flex-col items-center gap-1.5">
                 <AnelStory visto={gr.vistos}>
-                  {gr.autor.logo_url ? (
+                  {gr.tipo === "pessoa" && !gr.autor.logo_url ? (
+                    <Avatar nome={gr.autor.nome} tamanho="story" />
+                  ) : gr.autor.logo_url ? (
                     <img src={gr.autor.logo_url} alt="" className="h-[58px] w-[58px] rounded-full object-cover" />
                   ) : (
                     <span className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-elevado text-suave">
@@ -106,7 +123,7 @@ export function Feed() {
                     </span>
                   )}
                 </AnelStory>
-                <span className="w-full truncate text-center text-[12px]">{gr.autor.nome}</span>
+                <span className="w-full truncate text-center text-[12px]">{gr.tipo === "pessoa" ? gr.autor.usuario : gr.autor.nome}</span>
               </button>
             </li>
           ))}
@@ -220,20 +237,14 @@ export function Feed() {
       )}
 
       {meuStory && (
-        <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Seu story" onClick={() => setMeuStory(false)}>
-          <div className="w-full max-w-sm rounded-t-2xl bg-superficie p-6 text-center sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="flex justify-end">
-              <button onClick={() => setMeuStory(false)} className="-mr-2 -mt-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destaque-suave text-destaque">
-              <Plus className="h-6 w-6" />
-            </span>
-            <p className="mt-4 font-semibold">Seu story chega com as conexões entre pessoas</p>
-            <p className="mt-1 text-sm text-suave">Na fase de Chat e rolê você vai poder seguir pessoas e postar seus stories para quem segue você. Por enquanto, aqui aparecem os stories dos lugares que você segue.</p>
-          </div>
-        </div>
+        <NovoStory
+          lugares={lugares}
+          fechar={() => setMeuStory(false)}
+          publicado={() => {
+            setMeuStory(false);
+            void carregarStories();
+          }}
+        />
       )}
     </div>
   );

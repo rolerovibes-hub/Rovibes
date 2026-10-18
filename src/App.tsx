@@ -19,6 +19,7 @@ import { JobLayout } from "./job/JobLayout";
 import { ComandaPagina } from "./app/ComandaPagina";
 import { Notificacoes } from "./app/Notificacoes";
 import { Retirada } from "./app/Retirada";
+import { ListaConexoes, PessoaPagina } from "./app/PessoaPagina";
 
 export default function App() {
   return (
@@ -46,6 +47,8 @@ export default function App() {
         <Route path="carteira" element={<Carteira />} />
         <Route path="mesa/:codigo" element={<MesaPagina />} />
         <Route path="comanda/:id" element={<ComandaPagina />} />
+        <Route path="p/:usuario" element={<PessoaPagina />} />
+        <Route path="p/:usuario/:tipo" element={<ListaConexoes />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

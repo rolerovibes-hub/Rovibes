@@ -14,6 +14,7 @@ import { Publicacoes } from "./Publicacoes";
 import { Stories } from "./Stories";
 import { Indicadores } from "./Indicadores";
 import { MeuPerfil } from "./MeuPerfil";
+import { Denuncias } from "./Denuncias";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
 import { ProgramaPontos } from "./ProgramaPontos";
@@ -86,6 +87,7 @@ export function TelaAplicativo() {
   if (app.codigo === "A1001") return <AprovacaoEstabelecimentos key="pendente" />;
   if (app.codigo === "A1002") return <AprovacaoEstabelecimentos key="todas" filtroInicial="todas" />;
   if (app.codigo === "A1004") return <VibesCategorias />;
+  if (app.codigo === "A1003") return <Denuncias />;
   if (app.codigo === "G1001") return <PerfilEstabelecimento />;
   if (app.codigo === "G4001") return <Cardapio />;
   if (app.codigo === "G5001") return <Eventos />;

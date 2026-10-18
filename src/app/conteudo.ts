@@ -4,6 +4,8 @@ export interface Autor {
   id: string;
   nome: string;
   logo_url: string | null;
+  /** Só em stories de pessoas: o @usuário. */
+  usuario?: string;
 }
 
 export interface StoryApp {
@@ -12,12 +14,16 @@ export interface StoryApp {
   legenda: string | null;
   criado_em: string;
   estabelecimento: Autor;
+  /** Story de pessoa: lugar marcado. */
+  local?: { id: string; nome: string } | null;
 }
 
 export interface GrupoStories {
   autor: Autor;
   stories: StoryApp[];
   vistos: boolean;
+  tipo?: "lugar" | "pessoa";
+  meu?: boolean;
 }
 
 export interface PublicacaoApp {
@@ -44,7 +50,7 @@ export async function buscarStories(usuario: string, soDoLugar?: string): Promis
   const grupos = new Map<string, GrupoStories>();
   for (const st of (s.data ?? []) as unknown as StoryApp[]) {
     if (!st.estabelecimento) continue;
-    const g = grupos.get(st.estabelecimento.id) ?? { autor: st.estabelecimento, stories: [], vistos: true };
+    const g = grupos.get(st.estabelecimento.id) ?? { autor: st.estabelecimento, stories: [], vistos: true, tipo: "lugar" as const };
     g.stories.push(st);
     if (!vistos.has(st.id)) g.vistos = false;
     grupos.set(st.estabelecimento.id, g);
@@ -52,8 +58,43 @@ export async function buscarStories(usuario: string, soDoLugar?: string): Promis
   return [...grupos.values()].sort((a, b) => Number(a.vistos) - Number(b.vistos));
 }
 
-export async function marcarVisto(storyId: string, usuario: string) {
-  await supabase.from("visualizacoes_story").upsert({ story_id: storyId, usuario_id: usuario }, { onConflict: "story_id,usuario_id", ignoreDuplicates: true });
+export async function marcarVisto(storyId: string, usuario: string, tipo: "lugar" | "pessoa" = "lugar") {
+  await supabase
+    .from(tipo === "pessoa" ? "visualizacoes_story_pessoa" : "visualizacoes_story")
+    .upsert({ story_id: storyId, usuario_id: usuario }, { onConflict: "story_id,usuario_id", ignoreDuplicates: true });
+}
+
+/** Stories de pessoas (os seus e de quem você segue), agrupados por pessoa; o seu vem primeiro. */
+export async function buscarStoriesPessoas(usuario: string, soDe?: string): Promise<GrupoStories[]> {
+  let q = supabase
+    .from("stories_pessoas")
+    .select("id, usuario_id, foto_url, legenda, criado_em, local:estabelecimentos(id, nome)")
+    .eq("oculto", false)
+    .gt("expira_em", new Date().toISOString())
+    .order("criado_em");
+  if (soDe) q = q.eq("usuario_id", soDe);
+  const { data, error } = await q;
+  if (error || !data?.length) return [];
+  type Linha = { id: string; usuario_id: string; foto_url: string; legenda: string | null; criado_em: string; local: { id: string; nome: string } | null };
+  const linhas = data as unknown as Linha[];
+  const ids = [...new Set(linhas.map((l) => l.usuario_id))];
+  const [p, v] = await Promise.all([
+    supabase.from("perfis_publicos").select("id, nome, usuario, foto_url").in("id", ids),
+    supabase.from("visualizacoes_story_pessoa").select("story_id").eq("usuario_id", usuario),
+  ]);
+  const pessoas = new Map(((p.data ?? []) as { id: string; nome: string; usuario: string; foto_url: string | null }[]).map((x) => [x.id, x]));
+  const vistos = new Set((v.data ?? []).map((x) => x.story_id as string));
+  const grupos = new Map<string, GrupoStories>();
+  for (const l of linhas) {
+    const pe = pessoas.get(l.usuario_id);
+    if (!pe) continue;
+    const autor: Autor = { id: pe.id, nome: pe.nome, logo_url: pe.foto_url, usuario: pe.usuario };
+    const g = grupos.get(pe.id) ?? { autor, stories: [], vistos: true, tipo: "pessoa" as const, meu: pe.id === usuario };
+    g.stories.push({ id: l.id, foto_url: l.foto_url, legenda: l.legenda, criado_em: l.criado_em, estabelecimento: autor, local: l.local });
+    if (!vistos.has(l.id) && !g.meu) g.vistos = false;
+    grupos.set(pe.id, g);
+  }
+  return [...grupos.values()].sort((a, b) => Number(b.meu ?? false) - Number(a.meu ?? false) || Number(a.vistos) - Number(b.vistos));
 }
 
 /** Publicações recentes: de quem a pessoa segue, ou de todos os lugares. */

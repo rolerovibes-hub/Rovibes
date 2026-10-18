@@ -1,6 +1,6 @@
 import clsx from "clsx";
 
-export function Avatar({ nome, tamanho = "md", foto }: { nome: string; tamanho?: "sm" | "md" | "lg" | "xl"; foto?: string | null }) {
+export function Avatar({ nome, tamanho = "md", foto }: { nome: string; tamanho?: "sm" | "md" | "lg" | "xl" | "story"; foto?: string | null }) {
   const iniciais = nome
     .split(" ")
     .filter(Boolean)
@@ -12,6 +12,7 @@ export function Avatar({ nome, tamanho = "md", foto }: { nome: string; tamanho?:
     tamanho === "md" && "h-10 w-10 text-sm",
     tamanho === "lg" && "h-16 w-16 text-lg",
     tamanho === "xl" && "h-24 w-24 text-2xl",
+    tamanho === "story" && "h-[58px] w-[58px] text-lg",
   );
   if (foto) return <img src={foto} alt="" className={clsx("shrink-0 rounded-full object-cover", medida)} />;
   return (
