@@ -11,6 +11,7 @@ export interface ItemParaPedido {
   preco: number | null;
   foto_url?: string | null;
   categoria: string;
+  esgotado?: boolean;
 }
 
 export interface Escolha {
@@ -68,7 +69,7 @@ export function MontarPedido({ itens, carrinho, mudar, compacto }: { itens: Item
             {lista.map((i) => {
               const e = carrinho[i.id];
               return (
-                <li key={i.id} className={clsx("px-3", compacto ? "py-2" : "py-2.5")}>
+                <li key={i.id} className={clsx("px-3", compacto ? "py-2" : "py-2.5", i.esgotado && "opacity-60")}>
                   <div className="flex items-center gap-3">
                     {!compacto &&
                       (i.foto_url ? (
@@ -78,11 +79,13 @@ export function MontarPedido({ itens, carrinho, mudar, compacto }: { itens: Item
                           <UtensilsCrossed className="h-4 w-4" />
                         </span>
                       ))}
-                    <button type="button" className="min-w-0 flex-1 text-left" onClick={() => ajustar(i.id, 1)}>
+                    <button type="button" className="min-w-0 flex-1 text-left" disabled={i.esgotado} onClick={() => ajustar(i.id, 1)}>
                       <span className="block truncate text-sm font-medium">{i.nome}</span>
                       <span className="codigo block text-[13px] text-destaque">{reais(i.preco)}</span>
                     </button>
-                    {e ? (
+                    {i.esgotado ? (
+                      <span className="shrink-0 rounded bg-elevado px-2 py-1 text-[12px] font-semibold text-suave">Esgotado</span>
+                    ) : e ? (
                       <span className="flex shrink-0 items-center gap-1">
                         <button type="button" className="botao h-8 w-8 px-0" onClick={() => ajustar(i.id, -1)} aria-label={`Tirar um ${i.nome}`}>
                           <Minus className="h-4 w-4" />
@@ -123,12 +126,12 @@ export async function carregarItensParaPedido(estab: string): Promise<ItemParaPe
   const sb = supabase;
   const [c, i] = await Promise.all([
     sb.from("cardapio_categorias").select("id, nome, ordem").eq("estabelecimento_id", estab).order("ordem"),
-    sb.from("cardapio_itens").select("id, categoria_id, nome, descricao, preco, foto_url, ordem").eq("estabelecimento_id", estab).eq("disponivel", true).order("ordem"),
+    sb.from("cardapio_itens").select("id, categoria_id, nome, descricao, preco, foto_url, ordem, esgotado").eq("estabelecimento_id", estab).eq("disponivel", true).order("ordem"),
   ]);
   const cats = (c.data ?? []) as { id: string; nome: string; ordem: number }[];
   const ordem = new Map(cats.map((x, n) => [x.id, n]));
   const nome = new Map(cats.map((x) => [x.id, x.nome]));
-  return ((i.data ?? []) as { id: string; categoria_id: string | null; nome: string; descricao: string | null; preco: number | null; foto_url: string | null }[])
+  return ((i.data ?? []) as { id: string; categoria_id: string | null; nome: string; descricao: string | null; preco: number | null; foto_url: string | null; esgotado: boolean }[])
     .sort((a, b) => (ordem.get(a.categoria_id ?? "") ?? 999) - (ordem.get(b.categoria_id ?? "") ?? 999))
     .map((x) => ({ ...x, preco: x.preco == null ? null : Number(x.preco), categoria: nome.get(x.categoria_id ?? "") ?? "Outros" }));
 }

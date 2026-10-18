@@ -51,9 +51,12 @@ export function CardapioPagina() {
               <h2 className="mb-2.5 text-[17px] font-semibold">{g.nome}</h2>
               <ul className="cartao divide-y divide-borda">
                 {g.itens.map((i) => (
-                  <li key={i.id} className="flex gap-3 px-4 py-3">
+                  <li key={i.id} className={`flex gap-3 px-4 py-3 ${i.esgotado ? "opacity-60" : ""}`}>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium">{i.nome}</p>
+                      <p className="font-medium">
+                        {i.nome}
+                        {i.esgotado && <span className="ml-2 rounded bg-elevado px-1.5 py-0.5 text-[11px] font-semibold text-suave">Esgotado</span>}
+                      </p>
                       {i.descricao && <p className="mt-0.5 text-[13px] text-suave">{i.descricao}</p>}
                       {i.preco != null && <p className="codigo mt-1 text-sm text-destaque">{reais(i.preco)}</p>}
                     </div>

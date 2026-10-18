@@ -28,6 +28,7 @@ export interface ItemCardapio {
   preco: number | null;
   foto_url: string | null;
   destaque: boolean;
+  esgotado?: boolean;
 }
 
 export interface EventoResumo {
@@ -99,7 +100,7 @@ export async function buscarLugar(id: string) {
     supabase.from("cardapio_categorias").select("id, nome").eq("estabelecimento_id", id).order("ordem"),
     supabase
       .from("cardapio_itens")
-      .select("id, categoria_id, nome, descricao, preco, foto_url, destaque")
+      .select("id, categoria_id, nome, descricao, preco, foto_url, destaque, esgotado")
       .eq("estabelecimento_id", id)
       .eq("disponivel", true)
       .order("ordem"),

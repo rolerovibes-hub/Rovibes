@@ -17,6 +17,7 @@ import { Indicadores } from "./Indicadores";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
 import { ProgramaPontos } from "./ProgramaPontos";
+import { Estoque } from "./Estoque";
 import { Equipe } from "./Equipe";
 import { Salao } from "./Salao";
 import { FilaPreparo } from "@/job/Preparo";
@@ -98,6 +99,7 @@ export function TelaAplicativo() {
   if (app.codigo === "G5004") return <Ingressos />;
   if (app.codigo === "G9001") return <ProgramaPontos />;
   if (app.codigo === "G3001") return <Equipe />;
+  if (app.codigo === "G4002") return <Estoque />;
   if (app.codigo === "T7001") return <Salao />;
   if (app.codigo === "T7004") {
     const estab = acessos.atual?.estabelecimento_id;
