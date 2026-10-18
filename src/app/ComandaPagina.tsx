@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { ArrowLeft, BadgePercent, Plus, QrCode as IconeQr, ReceiptText, Store, Truck, Users, X } from "lucide-react";
 import { QrCode } from "@/components/Qr";
@@ -64,6 +64,12 @@ export function ComandaPagina() {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [totais, setTotais] = useState<Totais | null>(null);
   const [pagamentos, setPagamentos] = useState<PagamentoComanda[]>([]);
+  const [pagando, setPagando] = useState(false);
+  const [outroValor, setOutroValor] = useState<string | null>(null);
+  const [erroPagamento, setErroPagamento] = useState("");
+  const [busca, setBusca] = useSearchParams();
+  const voltouDoPagamento = busca.get("pagamento");
+  const [confirmando, setConfirmando] = useState<null | "aguardando" | "aprovado" | "recusado">(voltouDoPagamento ? "aguardando" : null);
   const [pessoas, setPessoas] = useState<{ id: string; nome: string }[]>([]);
   const [descontos, setDescontos] = useState<{ id: string; titulo: string; valor: number; usuario_id: string }[]>([]);
   const [pedindo, setPedindo] = useState(false);
@@ -121,6 +127,52 @@ export function ComandaPagina() {
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Voltou do Mercado Pago: pede ao servidor para conferir o pagamento direto no Mercado Pago.
+  useEffect(() => {
+    if (!voltouDoPagamento) return;
+    const mpId = busca.get("payment_id") ?? busca.get("collection_id");
+    let tentativas = 0;
+    let parar = false;
+    const conferir = async () => {
+      if (parar) return;
+      tentativas++;
+      const { data } = await supabase.functions.invoke("mp-webhook", { body: { pagamento: voltouDoPagamento, payment_id: mpId, type: "payment" } });
+      const sit = (data as { situacao?: string } | null)?.situacao;
+      if (sit === "aprovado" || sit === "ja_aprovado") {
+        setConfirmando("aprovado");
+        void carregar();
+      } else if (sit === "recusado" || busca.get("status") === "rejected") setConfirmando("recusado");
+      else if (tentativas < 6) window.setTimeout(() => void conferir(), 3000);
+      else setConfirmando(null);
+    };
+    if (mpId) void conferir();
+    else setConfirmando(busca.get("status") === "rejected" ? "recusado" : null);
+    return () => {
+      parar = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voltouDoPagamento]);
+
+  const pagar = async (modo: "meus_itens" | "igual" | "total" | "valor", valor?: number) => {
+    setPagando(true);
+    setErroPagamento("");
+    const { data, error } = await supabase.functions.invoke("mp-pagar", { body: { comanda: id, modo, valor: valor ?? null } });
+    if (error || !(data as { url?: string })?.url) {
+      let msg = (data as { erro?: string } | null)?.erro;
+      if (!msg && error && "context" in error) {
+        try {
+          msg = ((await (error as { context: Response }).context.json()) as { erro?: string }).erro;
+        } catch {
+          /* sem detalhe */
+        }
+      }
+      setErroPagamento(msg ?? "O pagamento pelo App ainda não está disponível neste lugar.");
+      setPagando(false);
+      return;
+    }
+    window.location.href = (data as { url: string }).url;
+  };
 
   useAoVivo("comanda", { pedidos: `comanda_id=eq.${id}`, comandas: `id=eq.${id}`, pagamentos: `comanda_id=eq.${id}` }, () => void carregar(), !!id);
 
@@ -274,6 +326,33 @@ export function ComandaPagina() {
           })
         )}
 
+        {confirmando && (
+          <div
+            role="status"
+            className={clsx(
+              "cartao flex items-center gap-3 px-4 py-3 text-sm",
+              confirmando === "aprovado" ? "border-ok/40 text-ok" : confirmando === "recusado" ? "border-perigo/40 text-perigo" : "text-suave",
+            )}
+          >
+            <span className="flex-1">
+              {confirmando === "aprovado"
+                ? "Pagamento aprovado! Já entrou na conta da mesa."
+                : confirmando === "recusado"
+                  ? "O pagamento não foi aprovado. Você pode tentar de novo ou pagar no caixa."
+                  : "Confirmando seu pagamento com o Mercado Pago..."}
+            </span>
+            <button
+              onClick={() => {
+                setConfirmando(null);
+                setBusca({}, { replace: true });
+              }}
+              aria-label="Fechar aviso"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
+
         {totais && (totais.subtotal > 0 || descontos.length > 0) && (
           <section className="cartao divide-y divide-borda text-sm">
             <p className="flex justify-between px-4 py-2.5">
@@ -327,20 +406,47 @@ export function ComandaPagina() {
         {totais && aberta && totais.falta > 0 && (
           <section className="cartao p-4">
             <h2 className="font-semibold">Dividir a conta</h2>
-            <p className="mt-0.5 text-[13px] text-suave">Veja quanto é a sua parte. Já com o serviço.</p>
+            <p className="mt-0.5 text-[13px] text-suave">Escolha como quer pagar a sua parte. Já com o serviço.</p>
             <div className="mt-3 grid grid-cols-2 gap-2 text-center">
-              <div className="rounded-xl bg-elevado px-3 py-3">
-                <p className="text-[12px] text-suave">Só o que eu pedi</p>
-                <p className="codigo mt-0.5 text-lg font-semibold">{reais(totais.minha_parte_itens)}</p>
-              </div>
-              <div className="rounded-xl bg-elevado px-3 py-3">
-                <p className="text-[12px] text-suave">Dividir igual ({totais.pessoas})</p>
-                <p className="codigo mt-0.5 text-lg font-semibold">{reais(totais.minha_parte_igual)}</p>
-              </div>
+              <button disabled={pagando} onClick={() => void pagar("meus_itens")} className="rounded-xl bg-elevado px-3 py-3 transition-colors hover:bg-borda">
+                <span className="block text-[12px] text-suave">Só o que eu pedi</span>
+                <span className="codigo mt-0.5 block text-lg font-semibold">{reais(totais.minha_parte_itens)}</span>
+                <span className="mt-1 block text-[12px] font-semibold text-destaque">Pagar</span>
+              </button>
+              <button disabled={pagando} onClick={() => void pagar("igual")} className="rounded-xl bg-elevado px-3 py-3 transition-colors hover:bg-borda">
+                <span className="block text-[12px] text-suave">Dividir igual ({totais.pessoas})</span>
+                <span className="codigo mt-0.5 block text-lg font-semibold">{reais(totais.minha_parte_igual)}</span>
+                <span className="mt-1 block text-[12px] font-semibold text-destaque">Pagar</span>
+              </button>
             </div>
-            <p className="mt-3 text-[12px] text-suave">
-              Itens lançados pela equipe sem dono entram divididos entre todos. O pagamento pelo App chega em breve; por enquanto, pague no caixa informando o valor.
-            </p>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button disabled={pagando} className="botao h-10 text-[13px]" onClick={() => setOutroValor(outroValor === null ? "" : null)}>
+                Outro valor
+              </button>
+              <button disabled={pagando} className="botao-principal h-10 text-[13px]" onClick={() => void pagar("total")}>
+                Pagar tudo ({reais(totais.falta)})
+              </button>
+            </div>
+            {outroValor !== null && (
+              <form
+                className="mt-2 flex gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void pagar("valor", Number(outroValor.replace(/\./g, "").replace(",", ".")));
+                }}
+              >
+                <label className="relative min-w-0 flex-1">
+                  <span className="sr-only">Valor a pagar</span>
+                  <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-suave">R$</span>
+                  <input autoFocus value={outroValor} onChange={(e) => setOutroValor(e.target.value.replace(/[^\d,.]/g, ""))} inputMode="decimal" className="entrada pl-9" />
+                </label>
+                <button type="submit" className="botao-principal h-10 px-4" disabled={pagando || !outroValor}>
+                  Pagar
+                </button>
+              </form>
+            )}
+            {erroPagamento && <p className="mt-2 text-sm text-perigo">{erroPagamento}</p>}
+            <p className="mt-3 text-[12px] text-suave">Pix ou cartão pelo Mercado Pago, com segurança. Itens lançados pela equipe sem dono entram divididos entre todos. Também dá para pagar no caixa.</p>
           </section>
         )}
 
