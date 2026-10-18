@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { useSessao } from "@/lib/sessao";
 import { distanciaKm, km, Lugar, pedirLocalizacao, quando, useVitrine } from "./dados";
 import { useResumos } from "./presenca";
-import { alternarCurtida, buscarPublicacoes, buscarStories, buscarStoriesPessoas, GrupoStories, PublicacaoApp, tempoAtras } from "./conteudo";
+import { alternarCurtida, buscarFeed, buscarStories, seguirLugar, buscarStoriesPessoas, GrupoStories, PublicacaoApp, tempoAtras } from "./conteudo";
 import { NovoStory } from "./NovoStory";
 import { AnelStory, VisorStories } from "./VisorStories";
 
@@ -30,7 +30,6 @@ export function Feed() {
   const { lugares, carregando } = useVitrine();
   const { resumos } = useResumos(null);
   const { pos, pedir } = usePosicaoSilenciosa();
-  const [modo, setModo] = useState<"seguindo" | "todos">("seguindo");
   const [grupos, setGrupos] = useState<GrupoStories[]>([]);
   const [pubs, setPubs] = useState<PublicacaoApp[] | null>(null);
   const [visor, setVisor] = useState<number | null>(null);
@@ -51,29 +50,30 @@ export function Feed() {
     void carregarStories();
   }, [carregarStories]);
   useEffect(() => {
-    setPubs(null);
-    buscarPublicacoes(usuario, modo).then(setPubs);
-  }, [usuario, modo]);
+    buscarFeed(usuario).then(setPubs);
+  }, [usuario]);
 
   const dist = useCallback((l: Lugar) => (pos && l.latitude != null && l.longitude != null ? distanciaKm(pos, [l.latitude, l.longitude]) : null), [pos]);
 
-  const perto = useMemo(() => {
-    const lista = [...lugares];
-    if (pos) lista.sort((a, b) => (dist(a) ?? 1e9) - (dist(b) ?? 1e9));
-    else lista.sort((a, b) => (resumos.get(b.id)?.nota ?? 0) - (resumos.get(a.id)?.nota ?? 0));
-    return lista.slice(0, 10);
-  }, [lugares, pos, dist, resumos]);
-
-  // Em alta: movimento agora, check-ins recentes, seguidores e nota.
+  // Em alta: movimento agora, check-ins recentes, seguidores e nota — e, com a localização liberada, o que está perto pesa mais.
   const emAlta = useMemo(() => {
     const peso = (l: Lugar) => {
       const r = resumos.get(l.id);
-      if (!r) return 0;
-      const mov = r.movimento === "cheio" ? 6 : r.movimento === "moderado" ? 3 : r.movimento ? 1 : 0;
-      return r.pessoas_2h * 4 + mov + r.seguidores * 0.5 + (r.nota ?? 0) * 0.8;
+      const mov = r?.movimento === "cheio" ? 6 : r?.movimento === "moderado" ? 3 : r?.movimento ? 1 : 0;
+      const d = dist(l);
+      return (r ? r.pessoas_2h * 4 + mov + r.seguidores * 0.5 + (r.nota ?? 0) * 0.8 : 0) + (d != null ? 8 / (1 + d) : 0);
     };
-    return [...lugares].filter((l) => peso(l) > 0).sort((a, b) => peso(b) - peso(a)).slice(0, 10);
-  }, [lugares, resumos]);
+    return [...lugares].sort((a, b) => peso(b) - peso(a)).slice(0, 12);
+  }, [lugares, resumos, dist]);
+
+  const seguir = async (estab: string) => {
+    setPubs((l) => l?.map((x) => (x.estabelecimento.id === estab ? { ...x, sigo: true, motivo: null } : x)) ?? null);
+    try {
+      await seguirLugar(estab);
+    } catch {
+      setPubs((l) => l?.map((x) => (x.estabelecimento.id === estab ? { ...x, sigo: false } : x)) ?? null);
+    }
+  };
 
   const curtir = async (p: PublicacaoApp) => {
     setPubs((l) => l?.map((x) => (x.id === p.id ? { ...x, curti: !p.curti, curtidas: x.curtidas + (p.curti ? -1 : 1) } : x)) ?? null);
@@ -135,40 +135,24 @@ export function Feed() {
       ) : (
         <>
           <Carrossel
-            titulo="Destaques perto de você"
+            titulo="Em alta"
             acao={
               !pos && (
                 <button onClick={() => void pedir()} className="inline-flex items-center gap-1 text-[12px] font-medium text-destaque">
                   <LocateFixed className="h-3.5 w-3.5" />
-                  Usar minha localização
+                  Perto de mim
                 </button>
               )
             }
-            lugares={perto}
+            lugares={emAlta}
             distancia={dist}
           />
-          {emAlta.length > 0 && <Carrossel titulo="Em alta" lugares={emAlta} distancia={dist} />}
         </>
       )}
 
       {/* Publicações */}
-      <section className="mt-6">
-        <div className="flex items-center justify-between px-4">
-          <h2 className="text-[17px] font-semibold">Publicações</h2>
-          <div className="flex gap-1 rounded-full border border-borda bg-superficie p-0.5" role="tablist" aria-label="O que mostrar">
-            {(["seguindo", "todos"] as const).map((m) => (
-              <button
-                key={m}
-                role="tab"
-                aria-selected={modo === m}
-                onClick={() => setModo(m)}
-                className={clsx("rounded-full px-3 py-1 text-[13px]", modo === m ? "bg-marca font-medium text-marca-texto" : "text-suave")}
-              >
-                {m === "seguindo" ? "Seguindo" : "Todos"}
-              </button>
-            ))}
-          </div>
-        </div>
+      <section className="mt-5">
+        <h2 className="px-4 text-[17px] font-semibold">Publicações</h2>
 
         {pubs === null ? (
           <Carregando />
@@ -177,30 +161,33 @@ export function Feed() {
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destaque-suave text-destaque">
               <Newspaper className="h-5 w-5" />
             </span>
-            {modo === "seguindo" ? (
-              <>
-                <p className="mt-3 font-semibold">Siga lugares para ver as novidades aqui</p>
-                <button onClick={() => setModo("todos")} className="botao mt-4">
-                  Ver todos os lugares
-                </button>
-              </>
-            ) : (
-              <p className="mt-3 text-sm text-suave">Nenhuma publicação ainda.</p>
-            )}
+            <p className="mt-3 text-sm text-suave">Nenhuma publicação ainda. Assim que os lugares publicarem, aparece aqui.</p>
           </div>
         ) : (
           <ul className="space-y-4 px-4 pt-3">
             {pubs.map((p) => (
               <li key={p.id} className="cartao overflow-hidden">
-                <Link to={`/lugar/${p.estabelecimento.id}`} className="flex items-center gap-2.5 px-3.5 py-3">
-                  {p.estabelecimento.logo_url ? (
-                    <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
-                  ) : (
-                    <Avatar nome={p.estabelecimento.nome} />
+                <div className="flex items-center gap-2.5 px-3.5 py-3">
+                  <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+                    {p.estabelecimento.logo_url ? (
+                      <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                    ) : (
+                      <Avatar nome={p.estabelecimento.nome} />
+                    )}
+                    <span className="min-w-0">
+                      <span className="block truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
+                      <span className="block truncate text-[12px] text-suave">
+                        {p.motivo && !p.sigo ? `${p.motivo} · ` : ""}
+                        {tempoAtras(p.criado_em)}
+                      </span>
+                    </span>
+                  </Link>
+                  {p.sigo === false && (
+                    <button onClick={() => void seguir(p.estabelecimento.id)} className="shrink-0 rounded-full bg-marca px-3.5 py-1.5 text-[13px] font-semibold text-marca-texto">
+                      Seguir
+                    </button>
                   )}
-                  <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
-                  <span className="text-[12px] text-suave">{tempoAtras(p.criado_em)}</span>
-                </Link>
+                </div>
                 {p.foto_url && <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />}
                 <div className="space-y-2.5 px-3.5 py-3">
                   {p.texto && <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.texto}</p>}
@@ -266,12 +253,12 @@ function Carrossel({ titulo, acao, lugares, distancia }: { titulo: string; acao?
           const d = distancia(l);
           const img = l.capa_url ?? l.logo_url;
           return (
-            <li key={l.id} className="w-[150px] shrink-0">
+            <li key={l.id} className="w-[128px] shrink-0">
               <Link to={`/lugar/${l.id}`} className="cartao block overflow-hidden">
                 {img ? (
-                  <img src={img} alt="" className="aspect-square w-full object-cover" loading="lazy" />
+                  <img src={img} alt="" className="aspect-[4/3] w-full object-cover" loading="lazy" />
                 ) : (
-                  <span className="flex aspect-square w-full items-center justify-center bg-elevado text-suave">
+                  <span className="flex aspect-[4/3] w-full items-center justify-center bg-elevado text-suave">
                     <Store className="h-7 w-7" />
                   </span>
                 )}

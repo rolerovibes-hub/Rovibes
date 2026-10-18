@@ -35,6 +35,10 @@ export interface PublicacaoApp {
   evento: { id: string; nome: string; inicio: string } | null;
   curtidas: number;
   curti: boolean;
+  /** Se a pessoa já segue o lugar (feed único). */
+  sigo?: boolean;
+  /** Por que apareceu (lugares que ainda não segue). */
+  motivo?: string | null;
 }
 
 /** Stories no ar, agrupados por lugar; quem ainda tem story não visto vem primeiro. */
@@ -134,4 +138,22 @@ export function tempoAtras(iso: string) {
   if (h < 24) return `${h} h`;
   const d = Math.round(h / 24);
   return d < 7 ? `${d} d` : new Date(iso).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
+
+/** Feed único: publicações ordenadas pela interação da pessoa, misturando lugares que ainda não segue. */
+export async function buscarFeed(usuario: string): Promise<PublicacaoApp[]> {
+  const { data, error } = await supabase.rpc("feed_publicacoes", { p_limite: 40 });
+  if (!error) return (data ?? []) as PublicacaoApp[];
+  // Antes da atualização 016 do banco: todas as publicações, marcando quais lugares a pessoa segue.
+  const [lista, seg] = await Promise.all([
+    buscarPublicacoes(usuario, "todos"),
+    supabase.from("seguidores").select("estabelecimento_id").eq("usuario_id", usuario),
+  ]);
+  const sigo = new Set((seg.data ?? []).map((x) => x.estabelecimento_id as string));
+  return lista.map((p) => ({ ...p, sigo: sigo.has(p.estabelecimento.id), motivo: null }));
+}
+
+export async function seguirLugar(estab: string) {
+  const { error } = await supabase.from("seguidores").insert({ estabelecimento_id: estab });
+  if (error && !/duplicate/i.test(error.message)) throw error;
 }
