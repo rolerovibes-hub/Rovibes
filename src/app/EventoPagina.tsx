@@ -28,7 +28,7 @@ export function EventoPagina() {
         <CalendarDays className="mx-auto h-8 w-8 text-suave" />
         <p className="mt-3 font-medium">Evento não encontrado</p>
         <Link to="/" className="botao mt-5">
-          Voltar ao Descobrir
+          Voltar ao início
         </Link>
       </div>
     );

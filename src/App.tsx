@@ -17,6 +17,8 @@ import { Carteira } from "./app/Carteira";
 import { MesaPagina } from "./app/MesaPagina";
 import { JobLayout } from "./job/JobLayout";
 import { ComandaPagina } from "./app/ComandaPagina";
+import { Notificacoes } from "./app/Notificacoes";
+import { Retirada } from "./app/Retirada";
 
 export default function App() {
   return (
@@ -30,9 +32,12 @@ export default function App() {
       <Route path="/job" element={<JobLayout />} />
       <Route path="/job/:modulo" element={<JobLayout />} />
       <Route path="/" element={<AppLayout />}>
-        <Route index element={<Descobrir />} />
+        <Route index element={<Feed />} />
+        <Route path="pesquisar" element={<Descobrir />} />
         <Route path="mapa" element={<Mapa />} />
-        <Route path="feed" element={<Feed />} />
+        <Route path="feed" element={<Navigate to="/" replace />} />
+        <Route path="notificacoes" element={<Notificacoes />} />
+        <Route path="retirada" element={<Retirada />} />
         <Route path="chats" element={<Chats />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="lugar/:id" element={<LugarPagina />} />

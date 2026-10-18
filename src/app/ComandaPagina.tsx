@@ -134,7 +134,7 @@ export function ComandaPagina() {
         <ReceiptText className="mx-auto h-8 w-8 text-suave" />
         <p className="mt-3 font-medium">Comanda não encontrada</p>
         <Link to="/" className="botao mt-5">
-          Voltar ao Descobrir
+          Voltar ao início
         </Link>
       </div>
     );

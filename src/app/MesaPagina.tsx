@@ -41,7 +41,7 @@ export function MesaPagina() {
         <p className="mt-3 font-medium">Mesa não encontrada</p>
         <p className="mt-1 text-sm text-suave">O QR code pode estar desatualizado. Peça ajuda à equipe.</p>
         <Link to="/" className="botao mt-5">
-          Voltar ao Descobrir
+          Voltar ao início
         </Link>
       </div>
     );

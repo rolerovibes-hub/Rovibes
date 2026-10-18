@@ -1,106 +1,78 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Armchair, Bell, ChevronRight, Compass, Map, MessageCircle, Newspaper, ScanLine, UserRound, X } from "lucide-react";
+import { Armchair, Bell, ChevronRight, Home, Map, MessageCircle, MoreHorizontal, Search, UserRound, X } from "lucide-react";
 import { LeitorQr } from "@/components/Qr";
-import { supabase } from "@/lib/supabase";
-import { codigoDaMesa, useAoVivo } from "@/lib/salao";
+import { codigoDaMesa } from "@/lib/salao";
 import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { useSessao } from "@/lib/sessao";
+import { AcessoRapidoProvider, useAcessoRapido } from "./estadoAcesso";
+import { MenuFlutuante, MenuMais } from "./AcessoRapido";
 
 const ABAS = [
-  { para: "/", nome: "Descobrir", icone: Compass, fim: true },
   { para: "/mapa", nome: "Mapa", icone: Map },
-  { para: "/feed", nome: "Feed", icone: Newspaper },
-  { para: "/chats", nome: "Chats", icone: MessageCircle },
+  { para: "/pesquisar", nome: "Pesquisar", icone: Search },
+  { para: "/", nome: "Feed", icone: Home, fim: true, central: true },
+  { para: "/chats", nome: "Chat", icone: MessageCircle },
   { para: "/perfil", nome: "Perfil", icone: UserRound },
 ];
+
+// Telas em que o menu flutuante atrapalharia (têm botões próprios no canto de baixo).
+const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada"];
 
 export function AppLayout() {
   const { carregando, sessao } = useSessao();
   const local = useLocation();
-  const navegar = useNavigate();
-  const [lendo, setLendo] = useState(false);
-  const [mesaAberta, setMesaAberta] = useState<{ id: string; rotulo: string; lugar: string; aviso: string | null } | null>(null);
-  const [versao, setVersao] = useState(0);
-  useAoVivo("barra-mesa", { pedidos: mesaAberta ? `comanda_id=eq.${mesaAberta.id}` : undefined }, () => setVersao((v) => v + 1), !!mesaAberta);
-  const usuario = sessao?.user.id;
   useEffect(() => {
     document.title = "RoVibes";
   }, []);
-
-  // Comanda aberta em que a pessoa está (aviso no topo de todas as telas).
-  useEffect(() => {
-    if (!usuario) return;
-    supabase
-      .from("comanda_pessoas")
-      .select("entrou_em, comanda:comandas(id, situacao, nome, mesa:mesas(numero), estabelecimento:estabelecimentos(nome), pedidos(modalidade, usuario_id, itens:pedido_itens(situacao)))")
-      .eq("usuario_id", usuario)
-      .order("entrou_em", { ascending: false })
-      .limit(5)
-      .then(({ data }) => {
-        type Linha = {
-          comanda: {
-            id: string;
-            situacao: string;
-            nome: string | null;
-            mesa: { numero: string } | null;
-            estabelecimento: { nome: string } | null;
-            pedidos: { modalidade: string; usuario_id: string | null; itens: { situacao: string }[] }[];
-          } | null;
-        };
-        const c = ((data ?? []) as unknown as Linha[]).map((x) => x.comanda).find((x) => x?.situacao === "aberta");
-        const meus = (c?.pedidos ?? []).filter((p) => p.usuario_id === usuario);
-        const aCaminho = meus.some((p) => p.itens.some((i) => i.situacao === "saiu"));
-        const retirar = meus.some((p) => p.modalidade === "retirada" && p.itens.some((i) => i.situacao === "pronto"));
-        setMesaAberta(
-          c
-            ? {
-                id: c.id,
-                rotulo: c.mesa ? `Mesa ${c.mesa.numero}` : c.nome ?? "comanda",
-                lugar: c.estabelecimento?.nome ?? "",
-                aviso: aCaminho ? "Seu pedido saiu para entrega" : retirar ? "Seu pedido está pronto para retirar" : null,
-              }
-            : null,
-        );
-      });
-  }, [usuario, local.pathname, versao]);
 
   // O App é só para quem tem conta: sem login, vai para a tela de entrar e volta depois.
   if (carregando) return <Carregando />;
   if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(local.pathname)}`} replace />;
 
   return (
+    <AcessoRapidoProvider>
+      <Estrutura />
+    </AcessoRapidoProvider>
+  );
+}
+
+function Estrutura() {
+  const local = useLocation();
+  const navegar = useNavigate();
+  const { mesa, lendo, setLendo } = useAcessoRapido();
+  const [mais, setMais] = useState(false);
+  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r));
+
+  return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col border-borda sm:border-x">
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-borda bg-fundo/95 px-4 backdrop-blur">
-        <Marca />
-        <div className="flex items-center gap-1">
-          <button onClick={() => setLendo(true)} className="rounded-full p-2 text-suave hover:bg-elevado hover:text-texto" aria-label="Ler QR code da mesa">
-            <ScanLine className="h-5 w-5" />
-          </button>
-          <button className="relative rounded-full p-2 text-suave hover:bg-elevado hover:text-texto" aria-label="Notificações">
-            <Bell className="h-5 w-5" />
-          </button>
-        </div>
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-fundo/95 px-4 backdrop-blur">
+        <Link to="/" aria-label="RoVibes, início">
+          <Marca />
+        </Link>
+        <button onClick={() => setMais(true)} className="rounded-full p-2 text-texto hover:bg-elevado" aria-label="Mais opções">
+          <MoreHorizontal className="h-6 w-6" />
+        </button>
       </header>
 
-      {mesaAberta && !local.pathname.startsWith("/comanda") && (
+      {mesa && !local.pathname.startsWith("/comanda") && (
         <Link
-          to={`/comanda/${mesaAberta.id}`}
-          className={clsx("flex items-center gap-3 border-b px-4 py-2.5 text-sm", mesaAberta.aviso ? "border-magenta/40 bg-magenta/10" : "border-borda bg-destaque-suave")}
+          to={mesa.aviso ? "/retirada" : `/comanda/${mesa.id}`}
+          className={clsx("flex items-center gap-3 border-y px-4 py-2.5 text-sm", mesa.aviso ? "border-magenta/40 bg-magenta/10" : "border-borda bg-destaque-suave")}
         >
           <Armchair className="h-4 w-4 text-destaque" />
           <span className="min-w-0 flex-1 truncate">
-            {mesaAberta.aviso ? (
-              <strong>{mesaAberta.aviso}</strong>
+            {mesa.aviso ? (
+              <strong>{mesa.aviso}</strong>
             ) : (
               <>
-                Você está na <strong>{mesaAberta.rotulo}</strong> · {mesaAberta.lugar}
+                Você está na <strong>{mesa.rotulo}</strong> · {mesa.lugar}
               </>
             )}
           </span>
-          <span className="font-semibold text-destaque">Comanda</span>
+          <span className="font-semibold text-destaque">{mesa.aviso ? "QR Code" : "Comanda"}</span>
           <ChevronRight className="h-4 w-4 text-destaque" />
         </Link>
       )}
@@ -129,12 +101,12 @@ export function AppLayout() {
         <Outlet />
       </main>
 
-      <nav
-        aria-label="Navegação principal"
-        className="pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-borda bg-superficie sm:border-x"
-      >
+      {comMenu && <MenuFlutuante />}
+      {mais && <MenuMais fechar={() => setMais(false)} />}
+
+      <nav aria-label="Navegação principal" className="pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-borda bg-superficie sm:border-x">
         <ul className="grid grid-cols-5">
-          {ABAS.map(({ para, nome, icone: Icone, fim }) => (
+          {ABAS.map(({ para, nome, icone: Icone, fim, central }) => (
             <li key={para}>
               <NavLink
                 to={para}
@@ -146,8 +118,12 @@ export function AppLayout() {
                   )
                 }
               >
-                <Icone className="h-[22px] w-[22px]" />
-                {nome}
+                {({ isActive }) => (
+                  <>
+                    <Icone className={clsx("h-[22px] w-[22px]", central && isActive && "fill-current")} />
+                    {nome}
+                  </>
+                )}
               </NavLink>
             </li>
           ))}
