@@ -84,9 +84,9 @@ export function ComandaPagina() {
       supabase.from("comanda_descontos").select("id, titulo, valor, usuario_id").eq("comanda_id", id),
       buscarTotais(id),
     ]);
-    const dadosComanda = (c.data as unknown as (Comanda & { situacao: string }) | null) ?? null;
+    const dadosComanda = (c.data as unknown as Comanda | null) ?? null;
     // Mesa juntada com outra: leva para a comanda que ficou aberta.
-    if (dadosComanda?.situacao === "juntada") {
+    if ((dadosComanda?.situacao as string | undefined) === "juntada") {
       const { data: atual } = await supabase.rpc("comanda_atual", { p_comanda: id });
       if (atual && atual !== id) return navegar(`/comanda/${atual as string}`, { replace: true });
     }
