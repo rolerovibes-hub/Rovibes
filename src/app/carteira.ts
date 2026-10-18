@@ -33,6 +33,7 @@ export interface Cupom extends Beneficio {
   usado_em: string | null;
   criado_em: string;
   recompensa_id: string | null;
+  item_id: string | null;
   estabelecimento: { id: string; nome: string; logo_url: string | null } | null;
 }
 
@@ -120,7 +121,7 @@ export async function buscarCarteira(usuario: string) {
     supabase
       .from("cupons")
       .select(
-        "id, titulo, codigo, situacao, validade, usado_em, criado_em, recompensa_id, tipo, valor, pedido_minimo, dias, hora_inicio, hora_fim, item:cardapio_itens(nome), estabelecimento:estabelecimentos(id, nome, logo_url)",
+        "id, titulo, codigo, situacao, validade, usado_em, criado_em, recompensa_id, item_id, tipo, valor, pedido_minimo, dias, hora_inicio, hora_fim, item:cardapio_itens(nome), estabelecimento:estabelecimentos(id, nome, logo_url)",
       )
       .eq("usuario_id", usuario)
       .order("criado_em", { ascending: false })

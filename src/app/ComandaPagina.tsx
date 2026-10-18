@@ -1,0 +1,415 @@
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import clsx from "clsx";
+import { ArrowLeft, BadgePercent, ChefHat, Martini, Plus, ReceiptText, Store, Users, X } from "lucide-react";
+import { Carregando } from "@/components/Carregando";
+import { reais } from "@/components/Formulario";
+import { Carrinho, carrinhoParaBanco, carregarItensParaPedido, ItemParaPedido, MontarPedido, qtdNoCarrinho, totalDoCarrinho } from "@/components/MontarPedido";
+import { mensagemDeErro, supabase } from "@/lib/supabase";
+import { useSessao } from "@/lib/sessao";
+import { descreverBeneficio, descreverRegras } from "@/lib/beneficio";
+import {
+  buscarTotais,
+  CAMPOS_PEDIDO,
+  COR_SITUACAO_PEDIDO,
+  NOME_SITUACAO_PEDIDO,
+  normalizarPedidos,
+  Pedido,
+  Totais,
+  useAoVivo,
+} from "@/lib/salao";
+import { buscarCarteira, Cupom } from "./carteira";
+
+interface Comanda {
+  id: string;
+  situacao: "aberta" | "fechada" | "cancelada";
+  nome: string | null;
+  total: number | null;
+  aberta_em: string;
+  estabelecimento: { id: string; nome: string; logo_url: string | null } | null;
+  mesa: { numero: string; area: string | null } | null;
+}
+
+interface Envio {
+  id: string;
+  usuario_id: string | null;
+  criado_em: string;
+  pedidos: Pedido[];
+}
+
+const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+/** Estimativa do desconto antes de enviar (o valor final é calculado pelo banco). */
+function estimarDesconto(c: Cupom | undefined, total: number, carrinho: Carrinho, itens: ItemParaPedido[]) {
+  if (!c) return 0;
+  if (c.pedido_minimo && total < c.pedido_minimo) return 0;
+  if (c.tipo === "percentual") return Math.round(total * (c.valor ?? 0)) / 100;
+  if (c.tipo === "valor") return Math.min(c.valor ?? 0, total);
+  const item = itens.find((i) => i.id === c.item_id);
+  return item && carrinho[item.id] ? Math.min(item.preco ?? 0, total) : 0;
+}
+
+export function ComandaPagina() {
+  const { id = "" } = useParams();
+  const navegar = useNavigate();
+  const { sessao } = useSessao();
+  const eu = sessao!.user.id;
+  const [comanda, setComanda] = useState<Comanda | null | undefined>(undefined);
+  const [pedidos, setPedidos] = useState<Pedido[]>([]);
+  const [totais, setTotais] = useState<Totais | null>(null);
+  const [pessoas, setPessoas] = useState<{ id: string; nome: string }[]>([]);
+  const [descontos, setDescontos] = useState<{ id: string; titulo: string; valor: number; usuario_id: string }[]>([]);
+  const [pedindo, setPedindo] = useState(false);
+  const [erro, setErro] = useState("");
+
+  const carregar = useCallback(async () => {
+    const [c, p, g, d, t] = await Promise.all([
+      supabase
+        .from("comandas")
+        .select("id, situacao, nome, total, aberta_em, estabelecimento:estabelecimentos(id, nome, logo_url), mesa:mesas(numero, area)")
+        .eq("id", id)
+        .maybeSingle(),
+      supabase.from("pedidos").select(CAMPOS_PEDIDO).eq("comanda_id", id).order("criado_em"),
+      supabase.from("comanda_pessoas").select("usuario_id").eq("comanda_id", id).order("entrou_em"),
+      supabase.from("comanda_descontos").select("id, titulo, valor, usuario_id").eq("comanda_id", id),
+      buscarTotais(id),
+    ]);
+    setComanda((c.data as unknown as Comanda | null) ?? null);
+    setPedidos(normalizarPedidos(p.data));
+    setDescontos(((d.data ?? []) as { id: string; titulo: string; valor: number; usuario_id: string }[]).map((x) => ({ ...x, valor: Number(x.valor) })));
+    setTotais(t);
+    const ids = ((g.data ?? []) as { usuario_id: string }[]).map((x) => x.usuario_id);
+    if (ids.length) {
+      const { data } = await supabase.from("perfis").select("id, nome").in("id", ids);
+      const nomes = new Map(((data ?? []) as { id: string; nome: string }[]).map((x) => [x.id, x.nome]));
+      setPessoas(ids.map((i) => ({ id: i, nome: nomes.get(i) ?? "Alguém" })));
+    } else setPessoas([]);
+  }, [id]);
+
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+
+  useAoVivo("comanda", { pedidos: `comanda_id=eq.${id}`, comandas: `id=eq.${id}` }, () => void carregar(), !!id);
+
+  const envios = useMemo(() => {
+    const mapa = new Map<string, Envio>();
+    for (const p of pedidos) {
+      const e = mapa.get(p.envio_id) ?? { id: p.envio_id, usuario_id: p.usuario_id, criado_em: p.criado_em, pedidos: [] };
+      e.pedidos.push(p);
+      mapa.set(p.envio_id, e);
+    }
+    return [...mapa.values()].sort((a, b) => b.criado_em.localeCompare(a.criado_em));
+  }, [pedidos]);
+
+  useEffect(() => {
+    if (comanda?.estabelecimento) document.title = `Comanda · ${comanda.estabelecimento.nome}`;
+  }, [comanda]);
+
+  if (comanda === undefined) return <Carregando />;
+  if (!comanda || !comanda.estabelecimento) {
+    return (
+      <div className="px-6 py-20 text-center">
+        <ReceiptText className="mx-auto h-8 w-8 text-suave" />
+        <p className="mt-3 font-medium">Comanda não encontrada</p>
+        <Link to="/" className="botao mt-5">
+          Voltar ao Descobrir
+        </Link>
+      </div>
+    );
+  }
+
+  const aberta = comanda.situacao === "aberta";
+  const nomeDe = (u: string | null) => (u ? (u === eu ? "Você" : pessoas.find((p) => p.id === u)?.nome ?? "Alguém da mesa") : "Equipe");
+
+  const cancelarEnvio = async (envio: string) => {
+    if (!window.confirm("Cancelar este pedido?")) return;
+    setErro("");
+    const { error } = await supabase.rpc("cancelar_meu_pedido", { p_envio: envio });
+    if (error) setErro(mensagemDeErro(error));
+    await carregar();
+  };
+
+  const sair = async () => {
+    if (!window.confirm("Sair desta mesa?")) return;
+    const { error } = await supabase.rpc("sair_da_comanda", { p_comanda: comanda.id });
+    if (error) return setErro(mensagemDeErro(error));
+    navegar("/", { replace: true });
+  };
+
+  return (
+    <div className="pb-28">
+      <div className="flex items-center gap-2 px-2 pt-3">
+        <button onClick={() => navegar(-1)} className="rounded-full p-2 hover:bg-elevado" aria-label="Voltar">
+          <ArrowLeft className="h-5 w-5" />
+        </button>
+        <Link to={`/lugar/${comanda.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+          {comanda.estabelecimento.logo_url ? (
+            <img src={comanda.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+          ) : (
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-elevado text-suave">
+              <Store className="h-4 w-4" />
+            </span>
+          )}
+          <span className="min-w-0">
+            <span className="block truncate font-semibold">{comanda.estabelecimento.nome}</span>
+            <span className="block text-[13px] text-suave">
+              {comanda.mesa ? `Mesa ${comanda.mesa.numero}${comanda.mesa.area ? ` · ${comanda.mesa.area}` : ""}` : comanda.nome ?? "Comanda"}
+            </span>
+          </span>
+        </Link>
+      </div>
+
+      {!aberta && (
+        <p className="mx-4 mt-4 rounded-cartao border border-borda bg-elevado px-4 py-3 text-sm">
+          {comanda.situacao === "fechada" ? `Comanda fechada no caixa · total ${reais(Number(comanda.total ?? 0))}` : "Comanda cancelada."}
+        </p>
+      )}
+
+      <section className="mx-4 mt-4 flex items-center gap-2 text-sm text-suave">
+        <Users className="h-4 w-4 shrink-0" />
+        <span className="truncate">{pessoas.map((p) => (p.id === eu ? "Você" : p.nome)).join(", ") || "Só você"}</span>
+      </section>
+
+      {erro && <p className="mx-4 mt-3 rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
+
+      <div className="space-y-3 px-4 pt-4">
+        {envios.length === 0 ? (
+          <div className="cartao px-6 py-12 text-center">
+            <ReceiptText className="mx-auto h-8 w-8 text-suave" />
+            <p className="mt-3 font-medium">Nenhum pedido ainda</p>
+            <p className="mt-1 text-sm text-suave">Toque em "Fazer pedido" para escolher no cardápio.</p>
+          </div>
+        ) : (
+          envios.map((e) => {
+            const cancelavel = aberta && e.usuario_id === eu && e.pedidos.every((p) => p.situacao === "novo");
+            return (
+              <article key={e.id} className="cartao overflow-hidden">
+                <header className="flex items-center justify-between gap-2 border-b border-borda px-4 py-2.5 text-[13px]">
+                  <span className="font-semibold">
+                    #{e.pedidos[0].numero} · {nomeDe(e.usuario_id)}
+                  </span>
+                  <span className="text-suave">{hora(e.criado_em)}</span>
+                </header>
+                {e.pedidos.map((p) => (
+                  <div key={p.id} className="px-4 py-2.5">
+                    <p className={clsx("mb-1 flex items-center gap-1.5 text-[12px] font-semibold", COR_SITUACAO_PEDIDO[p.situacao])}>
+                      {p.setor === "bar" ? <Martini className="h-3.5 w-3.5" /> : <ChefHat className="h-3.5 w-3.5" />}
+                      {NOME_SITUACAO_PEDIDO[p.situacao]}
+                      {p.situacao === "cancelado" && p.motivo_cancelamento ? ` · ${p.motivo_cancelamento}` : ""}
+                    </p>
+                    <ul className={clsx("space-y-0.5 text-sm", p.situacao === "cancelado" && "text-suave line-through")}>
+                      {p.itens.map((i) => (
+                        <li key={i.id} className="flex justify-between gap-3">
+                          <span>
+                            {i.quantidade}× {i.nome}
+                            {i.observacao && <span className="block text-[12px] text-suave">{i.observacao}</span>}
+                          </span>
+                          <span className="codigo shrink-0">{reais(i.preco * i.quantidade)}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+                {e.pedidos[0].observacao && <p className="border-t border-borda px-4 py-2 text-[12px] text-suave">Obs.: {e.pedidos[0].observacao}</p>}
+                {cancelavel && (
+                  <button onClick={() => void cancelarEnvio(e.id)} className="w-full border-t border-borda px-4 py-2 text-[13px] text-suave hover:bg-elevado">
+                    Cancelar pedido
+                  </button>
+                )}
+              </article>
+            );
+          })
+        )}
+
+        {totais && (totais.subtotal > 0 || descontos.length > 0) && (
+          <section className="cartao divide-y divide-borda text-sm">
+            <p className="flex justify-between px-4 py-2.5">
+              <span className="text-suave">Você pediu</span>
+              <span className="codigo">{reais(totais.meu_subtotal)}</span>
+            </p>
+            <p className="flex justify-between px-4 py-2.5">
+              <span className="text-suave">Itens da mesa</span>
+              <span className="codigo">{reais(totais.subtotal)}</span>
+            </p>
+            {descontos.map((d) => (
+              <p key={d.id} className="flex justify-between px-4 py-2.5 text-ok">
+                <span className="flex items-center gap-1.5">
+                  <BadgePercent className="h-4 w-4" />
+                  {d.titulo}
+                </span>
+                <span className="codigo">−{reais(d.valor)}</span>
+              </p>
+            ))}
+            <p className="flex justify-between px-4 py-3 font-semibold">
+              <span>Total da mesa</span>
+              <span className="codigo">{reais(totais.total)}</span>
+            </p>
+            <p className="px-4 py-2.5 text-[12px] text-suave">A conta é paga no caixa do lugar. A equipe fecha a comanda.</p>
+          </section>
+        )}
+
+        {aberta && (
+          <button onClick={() => void sair()} className="mx-auto block py-2 text-[13px] text-suave underline underline-offset-2">
+            Sair da mesa
+          </button>
+        )}
+      </div>
+
+      {aberta && (
+        <div className="fixed inset-x-0 bottom-[calc(64px+env(safe-area-inset-bottom))] z-30 mx-auto max-w-xl px-4 pb-3">
+          <button className="botao-principal h-12 w-full rounded-full text-[15px] shadow-lg" onClick={() => setPedindo(true)}>
+            <Plus className="h-5 w-5" />
+            Fazer pedido
+          </button>
+        </div>
+      )}
+
+      {pedindo && (
+        <FolhaPedido
+          comanda={comanda.id}
+          estab={comanda.estabelecimento.id}
+          usuario={eu}
+          fechar={() => setPedindo(false)}
+          enviado={() => {
+            setPedindo(false);
+            void carregar();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function FolhaPedido({ comanda, estab, usuario, fechar, enviado }: { comanda: string; estab: string; usuario: string; fechar: () => void; enviado: () => void }) {
+  const [itens, setItens] = useState<ItemParaPedido[] | null>(null);
+  const [cupons, setCupons] = useState<Cupom[]>([]);
+  const [carrinho, setCarrinho] = useState<Carrinho>({});
+  const [observacao, setObservacao] = useState("");
+  const [cupom, setCupom] = useState("");
+  const [etapa, setEtapa] = useState<"itens" | "revisar">("itens");
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    carregarItensParaPedido(estab).then(setItens);
+    buscarCarteira(usuario).then((c) =>
+      setCupons(c.cupons.filter((x) => x.estabelecimento?.id === estab && x.situacao === "disponivel" && Date.parse(x.validade) > Date.now())),
+    );
+  }, [estab, usuario]);
+
+  const lista = itens ?? [];
+  const total = totalDoCarrinho(carrinho, lista);
+  const qtd = qtdNoCarrinho(carrinho);
+  const escolhido = cupons.find((c) => c.id === cupom);
+  const desconto = estimarDesconto(escolhido, total, carrinho, lista);
+
+  const enviar = async () => {
+    setEnviando(true);
+    setErro("");
+    const { error } = await supabase.rpc("fazer_pedido", {
+      p_comanda: comanda,
+      p_itens: carrinhoParaBanco(carrinho),
+      p_observacao: observacao.trim() || null,
+      p_cupom: cupom || null,
+    });
+    setEnviando(false);
+    if (error) return setErro(mensagemDeErro(error));
+    enviado();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex flex-col bg-fundo" role="dialog" aria-modal="true" aria-label="Fazer pedido">
+      <header className="mx-auto flex w-full max-w-xl items-center gap-2 border-b border-borda px-2 py-2.5">
+        <button onClick={etapa === "revisar" ? () => setEtapa("itens") : fechar} className="rounded-full p-2 hover:bg-elevado" aria-label="Voltar">
+          {etapa === "revisar" ? <ArrowLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
+        </button>
+        <h2 className="font-semibold">{etapa === "itens" ? "Escolha no cardápio" : "Revisar pedido"}</h2>
+      </header>
+
+      <div className="mx-auto w-full max-w-xl flex-1 overflow-y-auto px-4 py-4">
+        {!itens ? (
+          <Carregando />
+        ) : etapa === "itens" ? (
+          <MontarPedido itens={lista} carrinho={carrinho} mudar={setCarrinho} />
+        ) : (
+          <div className="space-y-5">
+            <ul className="cartao divide-y divide-borda text-sm">
+              {Object.entries(carrinho).map(([idItem, e]) => {
+                const i = lista.find((x) => x.id === idItem);
+                if (!i) return null;
+                return (
+                  <li key={idItem} className="flex justify-between gap-3 px-4 py-2.5">
+                    <span>
+                      {e.quantidade}× {i.nome}
+                      {e.observacao.trim() && <span className="block text-[12px] text-suave">{e.observacao}</span>}
+                    </span>
+                    <span className="codigo">{reais((i.preco ?? 0) * e.quantidade)}</span>
+                  </li>
+                );
+              })}
+            </ul>
+            <label className="block">
+              <span className="rotulo mb-1 block">Observação para a equipe (opcional)</span>
+              <textarea rows={2} maxLength={300} className="entrada" value={observacao} onChange={(e) => setObservacao(e.target.value)} />
+            </label>
+            <fieldset>
+              <legend className="rotulo mb-1.5">Cupom (um por pedido)</legend>
+              {cupons.length === 0 ? (
+                <p className="text-sm text-suave">Você não tem cupons deste lugar.</p>
+              ) : (
+                <div className="space-y-2">
+                  {[{ id: "", titulo: "Sem cupom" } as Cupom, ...cupons].map((c) => (
+                    <label key={c.id || "nenhum"} className={clsx("cartao flex cursor-pointer items-start gap-3 px-4 py-3", cupom === c.id && "border-marca")}>
+                      <input type="radio" name="cupom" className="mt-1 accent-[rgb(var(--marca))]" checked={cupom === c.id} onChange={() => setCupom(c.id)} />
+                      <span className="min-w-0 flex-1 text-sm">
+                        {c.id ? (
+                          <>
+                            <span className="block font-semibold text-magenta">{descreverBeneficio(c)}</span>
+                            <span className="block">{c.titulo}</span>
+                            {descreverRegras(c) && <span className="block text-[12px] text-suave">Vale {descreverRegras(c)}</span>}
+                          </>
+                        ) : (
+                          "Sem cupom"
+                        )}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </fieldset>
+            <section className="cartao divide-y divide-borda text-sm">
+              <p className="flex justify-between px-4 py-2.5">
+                <span className="text-suave">Itens</span>
+                <span className="codigo">{reais(total)}</span>
+              </p>
+              {escolhido && (
+                <p className="flex justify-between px-4 py-2.5 text-ok">
+                  <span>Desconto (estimado)</span>
+                  <span className="codigo">−{reais(desconto)}</span>
+                </p>
+              )}
+              <p className="flex justify-between px-4 py-3 font-semibold">
+                <span>Total deste pedido</span>
+                <span className="codigo">{reais(Math.max(0, total - desconto))}</span>
+              </p>
+            </section>
+            {erro && <p className="rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
+          </div>
+        )}
+      </div>
+
+      <footer className="mx-auto w-full max-w-xl border-t border-borda px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))]">
+        {etapa === "itens" ? (
+          <button className="botao-principal h-12 w-full rounded-full text-[15px]" disabled={qtd === 0} onClick={() => setEtapa("revisar")}>
+            {qtd === 0 ? "Escolha os itens" : `Revisar · ${qtd} ${qtd === 1 ? "item" : "itens"} · ${reais(total)}`}
+          </button>
+        ) : (
+          <button className="botao-principal h-12 w-full rounded-full text-[15px]" disabled={enviando} onClick={() => void enviar()}>
+            {enviando ? "Enviando..." : "Enviar pedido"}
+          </button>
+        )}
+      </footer>
+    </div>
+  );
+}

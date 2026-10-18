@@ -14,6 +14,8 @@ import { EventoPagina } from "./app/EventoPagina";
 import { CardapioPagina } from "./app/CardapioPagina";
 import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
 import { Carteira } from "./app/Carteira";
+import { MesaPagina } from "./app/MesaPagina";
+import { ComandaPagina } from "./app/ComandaPagina";
 
 export default function App() {
   return (
@@ -34,6 +36,8 @@ export default function App() {
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />
         <Route path="evento/:id" element={<EventoPagina />} />
         <Route path="carteira" element={<Carteira />} />
+        <Route path="mesa/:codigo" element={<MesaPagina />} />
+        <Route path="comanda/:id" element={<ComandaPagina />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

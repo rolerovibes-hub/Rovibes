@@ -11,6 +11,7 @@ interface Categoria {
   id: string;
   nome: string;
   ordem: number;
+  setor: "cozinha" | "bar";
 }
 
 interface Item {
@@ -38,6 +39,7 @@ export function Cardapio() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState<Rascunho | null>(null);
   const [novaCategoria, setNovaCategoria] = useState<string | null>(null);
+  const [novoSetor, setNovoSetor] = useState<"cozinha" | "bar">("cozinha");
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const seletorFoto = useRef<HTMLInputElement>(null);
@@ -45,7 +47,7 @@ export function Cardapio() {
   const carregar = useCallback(async () => {
     if (!id) return;
     const [c, i] = await Promise.all([
-      supabase.from("cardapio_categorias").select("id, nome, ordem").eq("estabelecimento_id", id).order("ordem"),
+      supabase.from("cardapio_categorias").select("id, nome, ordem, setor").eq("estabelecimento_id", id).order("ordem"),
       supabase
         .from("cardapio_itens")
         .select("id, categoria_id, nome, descricao, preco, foto_url, disponivel, destaque, ordem")
@@ -107,12 +109,20 @@ export function Cardapio() {
     void executar(async () => {
       const { error } = await supabase
         .from("cardapio_categorias")
-        .insert({ estabelecimento_id: id, nome: novaCategoria.trim(), ordem: categorias.length });
+        .insert({ estabelecimento_id: id, nome: novaCategoria.trim(), ordem: categorias.length, setor: novoSetor });
       if (error) throw error;
       setNovaCategoria(null);
       await carregar();
     });
   };
+
+  const trocarSetor = (c: Categoria) =>
+    void executar(async () => {
+      const setor = c.setor === "bar" ? "cozinha" : "bar";
+      const { error } = await supabase.from("cardapio_categorias").update({ setor }).eq("id", c.id);
+      if (error) throw error;
+      await carregar();
+    }, `Os pedidos de "${c.nome}" agora vão para ${c.setor === "bar" ? "a Cozinha" : "o Bar"}.`);
 
   const excluirCategoria = (c: Categoria) =>
     void executar(async () => {
@@ -201,6 +211,12 @@ export function Cardapio() {
         <form onSubmit={salvarCategoria} className="cartao flex flex-wrap items-end gap-3 p-4">
           <Campo rotulo="Nome da categoria" className="min-w-[220px] flex-1">
             <input autoFocus className="entrada" placeholder="Ex.: Drinks, Petiscos" value={novaCategoria} onChange={(e) => setNovaCategoria(e.target.value)} />
+          </Campo>
+          <Campo rotulo="Pedidos vão para" className="w-40">
+            <select className="entrada" value={novoSetor} onChange={(e) => setNovoSetor(e.target.value as "cozinha" | "bar")}>
+              <option value="cozinha">Cozinha</option>
+              <option value="bar">Bar</option>
+            </select>
           </Campo>
           <button type="submit" className="botao-principal h-10" disabled={ocupado || !novaCategoria.trim()}>
             Criar
@@ -308,6 +324,18 @@ export function Cardapio() {
             >
               {c.nome}
             </button>
+            {filtro === c.id && c.id !== "todas" && c.id !== "sem" && (
+              <button
+                onClick={() => {
+                  const cat = categorias.find((x) => x.id === c.id);
+                  if (cat) trocarSetor(cat);
+                }}
+                className="rounded px-1.5 py-0.5 text-[12px] text-suave hover:bg-elevado hover:text-texto"
+                title="Trocar o setor que recebe os pedidos desta categoria"
+              >
+                {categorias.find((x) => x.id === c.id)?.setor === "bar" ? "→ Bar" : "→ Cozinha"}
+              </button>
+            )}
             {filtro === c.id && c.id !== "todas" && c.id !== "sem" && (
               <button
                 onClick={() => {
