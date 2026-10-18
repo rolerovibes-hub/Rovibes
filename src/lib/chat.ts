@@ -197,7 +197,10 @@ export async function enviarMensagem(conversa: string, texto: string, arquivo?: 
     const { error } = await supabase.storage.from("chat").upload(foto, blob, { contentType: "image/jpeg" });
     if (error) throw error;
   }
-  const { error } = await supabase.rpc("enviar_mensagem", { p_conversa: conversa, p_texto: texto, p_foto: foto, p_lugar: lugar ?? null });
+  // p_lugar só vai quando há lugar (assim texto e foto funcionam mesmo antes da atualização 015 do banco).
+  const args: Record<string, unknown> = { p_conversa: conversa, p_texto: texto, p_foto: foto };
+  if (lugar) args.p_lugar = lugar;
+  const { error } = await supabase.rpc("enviar_mensagem", args);
   if (error) {
     if (foto) await supabase.storage.from("chat").remove([foto]);
     throw error;
