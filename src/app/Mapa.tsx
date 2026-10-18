@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { CircleMarker } from "react-leaflet";
-import { LocateFixed, X } from "lucide-react";
+import { LocateFixed, Navigation, X } from "lucide-react";
+import { Navegacao } from "./Navegacao";
 import { MapaBase, PinMapa, Recentralizar, TamanhoPin, UBERLANDIA, corDoTema } from "@/components/MapaBase";
 import { abertoAgora, resumoHorario } from "@/lib/horarios";
 import { MedidorMovimento } from "@/components/Marca";
@@ -17,6 +18,7 @@ export function Mapa() {
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [eu, setEu] = useState<[number, number] | null>(null);
   const [aviso, setAviso] = useState("");
+  const [navegando, setNavegando] = useState(false);
 
   const comLocal = lugares.filter((l) => l.latitude != null && l.longitude != null);
   const lugar = comLocal.find((l) => l.id === selecionado) ?? null;
@@ -83,7 +85,7 @@ export function Mapa() {
       <button
         onClick={() => void localizar()}
         className="botao absolute bottom-4 right-4 z-[500] h-11 w-11 px-0 shadow-sm"
-        style={lugar ? { bottom: "11.5rem" } : undefined}
+        style={lugar ? { bottom: "12.5rem" } : undefined}
         aria-label="Mostrar minha localização"
       >
         <LocateFixed className="h-[18px] w-[18px]" />
@@ -123,9 +125,15 @@ export function Mapa() {
               ))}
             </div>
           )}
-          <Link to={`/lugar/${lugar.id}`} className="botao-principal mt-3 w-full">
-            Ver lugar
-          </Link>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <button onClick={() => setNavegando(true)} className="botao">
+              <Navigation className="h-4 w-4" />
+              Como chegar
+            </button>
+            <Link to={`/lugar/${lugar.id}`} className="botao-principal">
+              Ver lugar
+            </Link>
+          </div>
         </div>
       ) : (
         comLocal.length === 0 && (
@@ -134,6 +142,7 @@ export function Mapa() {
           </p>
         )
       )}
+      {navegando && lugar && <Navegacao destino={{ nome: lugar.nome, lat: lugar.latitude!, lng: lugar.longitude! }} fechar={() => setNavegando(false)} />}
     </div>
   );
 }

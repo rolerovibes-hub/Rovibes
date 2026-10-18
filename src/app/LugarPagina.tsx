@@ -16,6 +16,7 @@ import { supabase } from "@/lib/supabase";
 import { NotaCompacta, SecaoAvaliacoes } from "./Avaliacoes";
 import { MedidorMovimento } from "@/components/Marca";
 import { BeneficiosLugar } from "./BeneficiosLugar";
+import { Navegacao } from "./Navegacao";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
 
@@ -70,6 +71,7 @@ export function LugarPagina() {
   const usuario = sessao?.user.id ?? "";
   const [stories, setStories] = useState<GrupoStories[]>([]);
   const [visorAberto, setVisorAberto] = useState(false);
+  const [navegando, setNavegando] = useState(false);
 
   useEffect(() => {
     if (!usuario) return;
@@ -207,10 +209,17 @@ export function LugarPagina() {
             </Link>
           )}
           <div className="grid grid-cols-3 gap-2">
-            <a href={rota} target="_blank" rel="noreferrer" className="botao flex-col gap-1 py-2.5 text-[13px]">
-              <Navigation className="h-4 w-4" />
-              Como chegar
-            </a>
+            {ponto ? (
+              <button onClick={() => setNavegando(true)} className="botao flex-col gap-1 py-2.5 text-[13px]">
+                <Navigation className="h-4 w-4" />
+                Como chegar
+              </button>
+            ) : (
+              <a href={rota} target="_blank" rel="noreferrer" className="botao flex-col gap-1 py-2.5 text-[13px]">
+                <Navigation className="h-4 w-4" />
+                Como chegar
+              </a>
+            )}
             <button
               onClick={() => exigirLogin() && void relacao.alternarSalvo()}
               aria-pressed={relacao.salvo}
@@ -375,6 +384,7 @@ export function LugarPagina() {
           }}
         />
       )}
+      {navegando && ponto && <Navegacao destino={{ nome: lugar.nome, lat: ponto[0], lng: ponto[1] }} fechar={() => setNavegando(false)} />}
       {visorAberto && stories.length > 0 && (
         <VisorStories
           grupos={stories}
