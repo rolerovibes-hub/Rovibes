@@ -29,6 +29,30 @@ sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-p
 grep -q ACCESS_FINE_LOCATION $MANIFESTO
 grep -q android.permission.CAMERA $MANIFESTO
 
+# Links: rovibes://... e https://rovibes.vercel.app/... abrem o app direto na tela do link (evento, lista, lugar, perfil).
+python3 - "$MANIFESTO" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p).read()
+filtros = """
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rovibes" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="rovibes.vercel.app" />
+            </intent-filter>
+        </activity>"""
+s = s.replace("</activity>", filtros, 1)
+open(p, "w").write(s)
+PY
+grep -q 'android:scheme="rovibes"' $MANIFESTO
+
 sed -i "s/versionCode [0-9]*/versionCode ${NUM}/; s/versionName \"[^\"]*\"/versionName \"1.0.${NUM}\"/" android/app/build.gradle
 
 cd android

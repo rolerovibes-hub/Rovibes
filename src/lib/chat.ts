@@ -67,8 +67,9 @@ export interface Mensagem {
   id: string;
   conversa_id: string;
   autor_id: string | null;
-  tipo: "texto" | "foto" | "sistema" | "lugar" | "plano";
+  tipo: "texto" | "foto" | "sistema" | "lugar" | "plano" | "evento" | "lista";
   texto: string | null;
+  dados?: { id: string; evento: string | null; ref: string | null } | null;
   foto: string | null;
   estabelecimento_id: string | null;
   plano_id: string | null;
@@ -88,7 +89,9 @@ export interface MembroConversa {
   lida_em: string;
 }
 
-const CAMPOS = "id, conversa_id, autor_id, tipo, texto, foto, estabelecimento_id, plano_id, como_estab, apagada, criado_em";
+const CAMPOS_BASE = "id, conversa_id, autor_id, tipo, texto, foto, estabelecimento_id, plano_id, como_estab, apagada, criado_em";
+// "dados" chegou com a atualização 026 (cartões de evento e de lista).
+let CAMPOS = `${CAMPOS_BASE}, dados`;
 const PAGINA = 60;
 
 export const faltaBanco = (msg: string) => /function|schema cache|does not exist|relation/i.test(msg);
@@ -135,13 +138,23 @@ export function useChatNaoLidas(ativo: boolean) {
   return { ...n, recarregar: carregar };
 }
 
+/** Busca mensagens; se o banco ainda não tem a coluna "dados", repete sem ela. */
+async function consultarMensagens(montar: (campos: string) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<{ data: Mensagem[] | null }> {
+  let r = await montar(CAMPOS);
+  if (r.error && /dados/.test(r.error.message) && CAMPOS !== CAMPOS_BASE) {
+    CAMPOS = CAMPOS_BASE;
+    r = await montar(CAMPOS);
+  }
+  return { data: (r.data as Mensagem[] | null) ?? null };
+}
+
 /** Mensagens de uma conversa, em ordem, com tempo real. */
 export function useMensagens(conversa: string, ativo = true) {
   const [mensagens, setMensagens] = useState<Mensagem[] | null>(null);
   const [temMais, setTemMais] = useState(false);
 
   const carregar = useCallback(async () => {
-    const { data } = await supabase.from("mensagens").select(CAMPOS).eq("conversa_id", conversa).order("criado_em", { ascending: false }).limit(PAGINA);
+    const { data } = await consultarMensagens((c) => supabase.from("mensagens").select(c).eq("conversa_id", conversa).order("criado_em", { ascending: false }).limit(PAGINA));
     const lista = ((data ?? []) as Mensagem[]).reverse();
     setMensagens((atual) => {
       // mantém as antigas já carregadas com "ver anteriores"
@@ -155,13 +168,9 @@ export function useMensagens(conversa: string, ativo = true) {
   const anteriores = useCallback(async () => {
     const primeira = mensagens?.[0];
     if (!primeira) return;
-    const { data } = await supabase
-      .from("mensagens")
-      .select(CAMPOS)
-      .eq("conversa_id", conversa)
-      .lt("criado_em", primeira.criado_em)
-      .order("criado_em", { ascending: false })
-      .limit(PAGINA);
+    const { data } = await consultarMensagens((c) =>
+      supabase.from("mensagens").select(c).eq("conversa_id", conversa).lt("criado_em", primeira.criado_em).order("criado_em", { ascending: false }).limit(PAGINA),
+    );
     const lista = ((data ?? []) as Mensagem[]).reverse();
     setMensagens((m) => [...lista, ...(m ?? [])]);
     setTemMais(lista.length === PAGINA);

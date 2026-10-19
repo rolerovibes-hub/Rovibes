@@ -1,6 +1,7 @@
 import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
+import { CartaoDivulgacao } from "./CartaoDivulgacao";
 import { AlertCircle, Ban, Check, CheckCheck, Clock3, Copy, Flag, Image as ImagemIcone, MapPin, PartyPopper, Plus, RotateCw, Send, Store, Trash2, Users, X } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { Carregando } from "./Carregando";
@@ -268,7 +269,14 @@ export function CorpoConversa({
                                     <span className="block h-48 w-56 animate-pulse bg-borda" />
                                   ))}
                                 {m.tipo === "lugar" && <PreviaLugar lugar={m.estabelecimento_id ? lugarPorId.get(m.estabelecimento_id) : undefined} minha={eMinha} />}
-                                {m.texto && <span className="block whitespace-pre-wrap break-words px-3.5 py-2">{m.texto}</span>}
+                                {(m.tipo === "evento" || m.tipo === "lista") && m.dados?.id && (
+                                  <span className="block p-1.5" onClick={(e) => e.stopPropagation()}>
+                                    <CartaoDivulgacao tipo={m.tipo} id={m.dados.id} codigo={m.dados.ref} minha={eMinha} />
+                                  </span>
+                                )}
+                                {m.texto && !((m.tipo === "evento" || m.tipo === "lista") && m.dados?.id && /^(Evento|Lista): /.test(m.texto)) && (
+                                  <span className="block whitespace-pre-wrap break-words px-3.5 py-2">{m.texto}</span>
+                                )}
                               </>
                             )}
                           </button>

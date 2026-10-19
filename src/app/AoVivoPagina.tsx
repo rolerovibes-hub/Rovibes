@@ -8,6 +8,7 @@ import {
   Camera,
   Clock3,
   Lock,
+  Megaphone,
   MapPin,
   MicOff,
   Music2,
@@ -49,6 +50,8 @@ import {
   urlFotoAoVivo,
 } from "@/lib/aoVivo";
 import { EscolherPessoas } from "./NovoRole";
+import { CartaoDivulgacao } from "@/components/CartaoDivulgacao";
+import { ListaGerir, rpc } from "@/lib/promoters";
 
 function FotoAoVivo({ caminho, abrir }: { caminho: string; abrir: (url: string) => void }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -136,7 +139,7 @@ export function AoVivoPagina() {
   const [erro, setErro] = useState("");
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
-  const [folha, setFolha] = useState<null | "mais" | "musica" | "ambiente" | "enquete" | "convidar">(null);
+  const [folha, setFolha] = useState<null | "mais" | "musica" | "ambiente" | "enquete" | "convidar" | "divulgar">(null);
   const [menu, setMenu] = useState<MensagemAoVivo | null>(null);
   const [ampliada, setAmpliada] = useState<string | null>(null);
   const [agora, setAgora] = useState(Date.now());
@@ -437,6 +440,22 @@ export function AoVivoPagina() {
                     </li>
                   );
                 }
+                if (m.tipo === "divulgacao" && m.dados.id && (m.dados.alvo === "evento" || m.dados.alvo === "lista")) {
+                  return (
+                    <li key={m.id} className="my-3 flex flex-col items-center gap-1">
+                      <span className="flex items-center gap-1.5 text-[12px] text-suave">
+                        <Megaphone className="h-3.5 w-3.5 text-destaque" />
+                        <strong className="text-texto">{minha ? "Você" : m.nome ?? "Equipe"}</strong> divulgou
+                      </span>
+                      <button type="button" onClick={abrirMenu} onContextMenu={(e) => (e.preventDefault(), abrirMenu())} className="text-left">
+                        <span onClick={(e) => e.stopPropagation()}>
+                          <CartaoDivulgacao tipo={m.dados.alvo} id={m.dados.id} codigo={m.dados.ref} />
+                        </span>
+                      </button>
+                      {m.texto && m.texto !== m.dados.titulo && <span className="max-w-[80%] text-center text-[13px]">{m.texto}</span>}
+                    </li>
+                  );
+                }
                 if (m.tipo === "musica" || m.tipo === "ambiente") {
                   return (
                     <li key={m.id} className="my-1.5 flex justify-center">
@@ -547,7 +566,12 @@ export function AoVivoPagina() {
             { icone: Camera, nome: "Foto", acao: () => seletor.current?.click() },
             { icone: Music2, nome: "Avaliar a música", acao: () => setFolha("musica") },
             { icone: Sparkles, nome: "Avaliar o ambiente", acao: () => setFolha("ambiente") },
-            ...(moderador ? [{ icone: BarChart3, nome: "Criar enquete", acao: () => setFolha("enquete") }] : []),
+            ...(moderador
+              ? [
+                  { icone: BarChart3, nome: "Criar enquete", acao: () => setFolha("enquete") },
+                  { icone: Megaphone, nome: "Divulgar evento ou lista", acao: () => setFolha("divulgar") },
+                ]
+              : []),
             { icone: UserPlus, nome: "Convidar pessoas", acao: () => setFolha("convidar") },
           ].map((o) => (
             <button key={o.nome} type="button" onClick={o.acao} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado">
@@ -564,6 +588,13 @@ export function AoVivoPagina() {
         <NovaEnquete
           fechar={() => setFolha(null)}
           criar={(pergunta, opcoes, minutos) => acao(() => rpcAoVivo("criar_enquete_ao_vivo", { p_sala: sala, p_pergunta: pergunta, p_opcoes: opcoes, p_minutos: minutos }).then(() => setFolha(null)))}
+        />
+      )}
+      {folha === "divulgar" && sala && (
+        <DivulgarAoVivo
+          estab={estab}
+          fechar={() => setFolha(null)}
+          divulgar={(tipo, id, texto) => acao(() => rpcAoVivo("divulgar_ao_vivo", { p_sala: sala, p_tipo: tipo, p_id: id, p_texto: texto }).then(() => setFolha(null)))}
         />
       )}
       {folha === "convidar" && entrada && (
@@ -732,6 +763,58 @@ function NovaEnquete({ fechar, criar }: { fechar: () => void; criar: (pergunta: 
         <button type="button" className="botao-principal h-11 w-full" disabled={pergunta.trim().length < 3 || validas < 2} onClick={() => void criar(pergunta.trim(), opcoes, minutos)}>
           Publicar enquete
         </button>
+      </div>
+    </Folha>
+  );
+}
+
+/** Equipe e Promoters divulgam no chat ao vivo só eventos e listas DESTE lugar. */
+function DivulgarAoVivo({ estab, fechar, divulgar }: { estab: string; fechar: () => void; divulgar: (tipo: "evento" | "lista", id: string, texto: string | null) => Promise<void> }) {
+  const [eventos, setEventos] = useState<{ id: string; nome: string; inicio: string }[]>([]);
+  const [listas, setListas] = useState<ListaGerir[]>([]);
+  const [texto, setTexto] = useState("");
+  useEffect(() => {
+    supabase
+      .from("eventos")
+      .select("id, nome, inicio")
+      .eq("estabelecimento_id", estab)
+      .eq("situacao", "publicado")
+      .gte("inicio", new Date(Date.now() - 8 * 3600000).toISOString())
+      .order("inicio")
+      .limit(20)
+      .then(({ data }) => setEventos((data ?? []) as { id: string; nome: string; inicio: string }[]));
+    rpc<ListaGerir[]>("listas_para_gerir", { p_estab: estab })
+      .then((l) => setListas((l ?? []).filter((x) => x.ativa)))
+      .catch(() => setListas([]));
+  }, [estab]);
+  return (
+    <Folha titulo="Divulgar no chat ao vivo" fechar={fechar}>
+      <div className="space-y-3 px-5 pb-2">
+        <p className="text-[13px] text-suave">No chat ao vivo só vale divulgar este lugar e os eventos e listas dele.</p>
+        <input value={texto} onChange={(e) => setTexto(e.target.value.slice(0, 200))} placeholder="Mensagem (opcional)" className="entrada" />
+        {eventos.length > 0 && <p className="rotulo">Eventos</p>}
+        <ul className="divide-y divide-borda rounded-lg border border-borda empty:hidden">
+          {eventos.map((e) => (
+            <li key={e.id}>
+              <button type="button" className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm hover:bg-elevado" onClick={() => void divulgar("evento", e.id, texto.trim() || null)}>
+                <span className="min-w-0 truncate font-medium">{e.nome}</span>
+                <span className="shrink-0 text-[12px] text-suave">{hora(e.inicio)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {listas.length > 0 && <p className="rotulo">Listas de presença</p>}
+        <ul className="divide-y divide-borda rounded-lg border border-borda empty:hidden">
+          {listas.map((l) => (
+            <li key={l.id}>
+              <button type="button" className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm hover:bg-elevado" onClick={() => void divulgar("lista", l.id, texto.trim() || null)}>
+                <span className="min-w-0 truncate font-medium">{l.nome}</span>
+                <span className="shrink-0 text-[12px] text-suave">{l.evento?.nome ?? ""}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {!eventos.length && !listas.length && <p className="py-4 text-center text-sm text-suave">Nenhum evento ou lista aberta para divulgar.</p>}
       </div>
     </Folha>
   );

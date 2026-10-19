@@ -1,18 +1,22 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Clock, Store, Ticket } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Share2, Store, Ticket } from "lucide-react";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { QrCode } from "@/components/Qr";
 import { codigoLegivel, fimDoEvento, qrDoIngresso, ResumoIngresso, resumoIngressos } from "./carteira";
 import { Carregando } from "@/components/Carregando";
 import { buscarEvento, EventoResumo, quando } from "./dados";
 import { ListasPresenca } from "@/components/ListasPresenca";
-import { capturarRef } from "@/lib/promoters";
+import { capturarRef, meuCodigoPromoter } from "@/lib/promoters";
+import { CompartilharNoChat } from "@/components/CompartilharNoChat";
 
 export function EventoPagina() {
   const { id = "" } = useParams();
   const navegar = useNavigate();
   const [evento, setEvento] = useState<EventoResumo | null | undefined>(undefined);
+  const [compartilhar, setCompartilhar] = useState(false);
+  const [codigo, setCodigo] = useState<string | null>(null);
+  const [aviso, setAviso] = useState("");
 
   useEffect(() => {
     setEvento(undefined);
@@ -22,6 +26,7 @@ export function EventoPagina() {
 
   useEffect(() => {
     if (evento) document.title = `${evento.nome} · RoVibes`;
+    if (evento?.estabelecimento) void meuCodigoPromoter(evento.estabelecimento.id).then(setCodigo);
   }, [evento]);
 
   if (evento === undefined) return <Carregando />;
@@ -50,10 +55,15 @@ export function EventoPagina() {
             <CalendarDays className="h-8 w-8" />
           </div>
         )}
-        <button onClick={() => navegar(-1)} className="absolute left-3 top-3 rounded-full bg-superficie/90 p-2 shadow-sm" aria-label="Voltar">
+        <button onClick={() => (window.history.length > 1 ? navegar(-1) : navegar("/"))} className="absolute left-3 top-3 rounded-full bg-superficie/90 p-2 shadow-sm" aria-label="Voltar">
           <ArrowLeft className="h-5 w-5" />
         </button>
+        <button onClick={() => setCompartilhar(true)} className="absolute right-3 top-3 rounded-full bg-superficie/90 p-2 shadow-sm" aria-label="Compartilhar evento">
+          <Share2 className="h-5 w-5" />
+        </button>
       </div>
+      {aviso && <p className="mx-4 mt-3 rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{aviso}</p>}
+      {compartilhar && <CompartilharNoChat tipo="evento" id={evento.id} titulo={evento.nome} codigo={codigo} fechar={() => setCompartilhar(false)} enviado={setAviso} />}
 
       <div className="space-y-6 px-4 pt-4">
         <header>

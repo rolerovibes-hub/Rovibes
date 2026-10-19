@@ -31,7 +31,7 @@ export function AppLayout() {
 
   // O App é só para quem tem conta: sem login, vai para a tela de entrar e volta depois.
   if (carregando) return <Carregando />;
-  if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(local.pathname)}`} replace />;
+  if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(local.pathname + local.search)}`} replace />;
 
   return (
     <AcessoRapidoProvider>

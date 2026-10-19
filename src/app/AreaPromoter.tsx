@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { ArrowLeft, Check, ClipboardList, Copy, Gift, LogOut, Megaphone, Plus, Radio, Share2, Store, Users, X } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { mensagemDeErro } from "@/lib/supabase";
+import { CompartilharNoChat } from "@/components/CompartilharNoChat";
 import { compartilhar, linkDivulgacao, ListaGerir, MinhaArea, NomeLista, nomeTipoBeneficio, rpc, textoBeneficio } from "@/lib/promoters";
 
 const dataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -120,6 +121,7 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
   const [listas, setListas] = useState<ListaGerir[] | null>(null);
   const [nova, setNova] = useState(false);
   const [vendo, setVendo] = useState<ListaGerir | null>(null);
+  const [enviar, setEnviar] = useState<{ tipo: "evento" | "lista"; id: string; titulo: string } | null>(null);
 
   const carregarListas = useCallback(() => {
     rpc<ListaGerir[]>("listas_para_gerir", { p_estab: p.estab.id }).then((l) => setListas(l ?? [])).catch(() => setListas([]));
@@ -129,6 +131,7 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
   }, [carregarListas]);
 
   const divulgar = async (alvo: "lugar" | "evento", id: string, titulo: string) => {
+    if (alvo === "evento") return setEnviar({ tipo: "evento", id, titulo });
     const r = await compartilhar(titulo, linkDivulgacao(alvo, id, p.codigo));
     avisar(r === "copiado" ? "Link copiado. Cole onde quiser divulgar." : "Link compartilhado.");
   };
@@ -218,6 +221,11 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
                         {l.limite ? `/${l.limite}` : ""} nomes · {l.chegaram} chegaram {l.ativa ? "" : "· encerrada"}
                       </span>
                     </button>
+                    {l.ativa && (
+                      <button className="botao h-8 px-2.5 text-[12px]" onClick={() => setEnviar({ tipo: "lista", id: l.id, titulo: l.nome })} aria-label={`Divulgar ${l.nome}`}>
+                        <Share2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     <button
                       className="botao h-8 px-2.5 text-[12px]"
                       onClick={() => void acao(() => rpc("encerrar_lista_presenca", { p_lista: l.id, p_ativa: !l.ativa }).then(carregarListas))}
@@ -270,6 +278,7 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
         />
       )}
       {vendo && <NomesLista lista={vendo} fechar={() => setVendo(null)} />}
+      {enviar && <CompartilharNoChat tipo={enviar.tipo} id={enviar.id} titulo={enviar.titulo} codigo={p.codigo} fechar={() => setEnviar(null)} enviado={avisar} />}
     </section>
   );
 }

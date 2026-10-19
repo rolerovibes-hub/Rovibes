@@ -15,7 +15,9 @@ function maiorDeIdade(data: string) {
 
 export function Entrar() {
   const [params] = useSearchParams();
-  const voltar = params.get("voltar") || "/";
+  const pedido = params.get("voltar") || "/";
+  // Só caminhos internos (evita mandar para outro site).
+  const voltar = pedido.startsWith("/") && !pedido.startsWith("//") ? pedido : "/";
   const navegar = useNavigate();
   const { sessao } = useSessao();
   const [modo, setModo] = useState<"entrar" | "criar">(params.get("modo") === "criar" ? "criar" : "entrar");

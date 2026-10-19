@@ -22,13 +22,16 @@ import { Retirada } from "./app/Retirada";
 import { ListaConexoes, PessoaPagina } from "./app/PessoaPagina";
 import { AoVivoPagina } from "./app/AoVivoPagina";
 import { AreaPromoter } from "./app/AreaPromoter";
+import { ListaPagina } from "./app/ListaPagina";
 import { ConversaPagina } from "./app/ConversaPagina";
+import { LinksDoApp } from "./components/LinksDoApp";
 import { BotaoVoltarAparelho } from "./components/BotaoVoltarAparelho";
 
 export default function App() {
   return (
     <>
     <BotaoVoltarAparelho />
+    <LinksDoApp />
     <Routes>
       <Route path="/business" element={<BusinessLayout />}>
         <Route index element={<AreaDeTrabalho />} />
@@ -49,6 +52,7 @@ export default function App() {
         <Route path="chat/:id" element={<ConversaPagina />} />
         <Route path="ao-vivo/:estab" element={<AoVivoPagina />} />
         <Route path="promoter" element={<AreaPromoter />} />
+        <Route path="lista/:id" element={<ListaPagina />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="lugar/:id" element={<LugarPagina />} />
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />

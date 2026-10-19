@@ -109,10 +109,15 @@ export async function rpc<T = unknown>(nome: string, args: Record<string, unknow
 // Link de divulgação: /lugar/ID?ref=CODIGO ou /evento/ID?ref=CODIGO
 // ------------------------------------------------------------
 const CHAVE_REF = "rovibes:ref";
-export const linkDivulgacao = (alvo: "lugar" | "evento", id: string, codigo: string) => `${window.location.origin}/${alvo}/${id}?ref=${codigo}`;
+/** Endereço público do RoVibes (no app o endereço interno é outro; o link precisa abrir para quem recebe). */
+export const URL_PUBLICA = "https://rovibes.vercel.app";
+export const linkDivulgacao = (alvo: "lugar" | "evento" | "lista", id: string, codigo?: string | null) => `${URL_PUBLICA}/${alvo}/${id}${codigo ? `?ref=${codigo}` : ""}`;
 
 /** Guarda o código do promoter que trouxe a pessoa e registra a visita. */
 export function capturarRef(alvo: "lugar" | "evento", id: string) {
+  guardarRef(alvo, id);
+}
+function guardarRef(alvo: "lugar" | "evento", id: string) {
   const codigo = new URLSearchParams(window.location.search).get("ref");
   if (!codigo) return;
   try {
@@ -146,4 +151,40 @@ export async function compartilhar(titulo: string, url: string) {
     window.prompt("Copie o link:", url);
     return "copiado";
   }
+}
+
+/** Guarda o código do promoter de um link de lista (o clique conta para o evento ou o lugar da lista). */
+export function capturarRefLista(alvo: "lugar" | "evento", id: string) {
+  guardarRef(alvo, id);
+}
+
+export async function meuCodigoPromoter(estab: string): Promise<string | null> {
+  const { data } = await supabase.rpc("meu_codigo_promoter", { p_estab: estab });
+  return (data as string | null) ?? null;
+}
+
+export async function enviarCartao(conversa: string, tipo: "evento" | "lista", id: string, texto: string | null) {
+  const { error } = await supabase.rpc("enviar_cartao", { p_conversa: conversa, p_tipo: tipo, p_id: id, p_texto: texto });
+  if (error) throw erroPromoter(error);
+}
+
+export interface ListaPublica {
+  id: string;
+  nome: string;
+  beneficio: string | null;
+  limite: number | null;
+  encerra_em: string | null;
+  aberta: boolean;
+  inscritos: number;
+  eu_estou: boolean;
+  meus_acompanhantes: number | null;
+  promoter: string | null;
+  promoter_codigo: string | null;
+  estab: { id: string; nome: string; logo_url: string | null; bairro: string | null };
+  evento: { id: string; nome: string; inicio: string; capa_url: string | null } | null;
+}
+export async function listaPublica(id: string): Promise<ListaPublica | null> {
+  const { data, error } = await supabase.rpc("lista_publica", { p_lista: id });
+  if (error) throw erroPromoter(error);
+  return (data as ListaPublica | null) ?? null;
 }

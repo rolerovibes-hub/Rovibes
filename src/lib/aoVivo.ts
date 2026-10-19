@@ -21,10 +21,10 @@ export interface MensagemAoVivo {
   usuario: string | null;
   foto_url: string | null;
   moderador: boolean;
-  tipo: "texto" | "foto" | "musica" | "ambiente" | "enquete" | "sistema";
+  tipo: "texto" | "foto" | "musica" | "ambiente" | "enquete" | "sistema" | "divulgacao";
   texto: string | null;
   foto_path: string | null;
-  dados: { voto?: number; musica?: string | null; movimento?: string; vibe?: number; enquete_id?: string };
+  dados: { voto?: number; musica?: string | null; movimento?: string; vibe?: number; enquete_id?: string; alvo?: "evento" | "lista" | "lugar"; id?: string; titulo?: string; ref?: string | null };
   criado_em: string;
   apagada: boolean;
 }
