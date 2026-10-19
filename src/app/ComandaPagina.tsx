@@ -22,7 +22,7 @@ import {
   PagamentoComanda,
   Pedido,
   Totais,
-  useAoVivo,, buscarRegraEntrega, RegraEntrega } from "@/lib/salao";
+  useAoVivo, buscarRegraEntrega, RegraEntrega } from "@/lib/salao";
 import { buscarCarteira, Cupom } from "./carteira";
 
 interface Comanda {
