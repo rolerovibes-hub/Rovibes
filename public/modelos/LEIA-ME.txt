@@ -1,0 +1,5 @@
+u2netp.onnx — modelo U^2-Net (versão leve) para separar o produto do fundo.
+Autores: Xuebin Qin et al., "U^2-Net: Going Deeper with Nested U-Structure for Salient Object Detection" (2020).
+Licença: Apache License 2.0 — https://github.com/xuebinqin/U-2-Net
+Arquivo ONNX distribuído pelo projeto rembg (MIT) — https://github.com/danielgatis/rembg
+Usado pela Central da Biblioteca RoVibes para remover o fundo das fotos no próprio navegador.

@@ -50,8 +50,8 @@ export async function incluirNoEstoque(estab: string, biblioteca: string): Promi
 }
 
 /** Foto do produto: reduzida no aparelho e guardada na pasta de quem enviou. */
-export async function enviarFotoBiblioteca(usuario: string, arquivo: File): Promise<string> {
-  const blob = await reduzirImagem(arquivo, 1000);
+export async function enviarFotoBiblioteca(usuario: string, arquivo: File | Blob, jaTratada = false): Promise<string> {
+  const blob = jaTratada ? arquivo : await reduzirImagem(arquivo as File, 1000);
   const caminho = `${usuario}/${crypto.randomUUID()}.jpg`;
   const { error } = await supabase.storage.from("biblioteca").upload(caminho, blob, { contentType: "image/jpeg" });
   if (error) throw error;
@@ -78,3 +78,10 @@ export const dadosVazios = (inicial?: Partial<DadosBiblioteca>): DadosBiblioteca
   industrializado: true,
   ...inicial,
 });
+
+/** Caminho da foto dentro do armazenamento da biblioteca (para apagar). */
+export function caminhoFotoBiblioteca(url: string | null | undefined) {
+  if (!url) return null;
+  const i = url.indexOf("/biblioteca/");
+  return i >= 0 ? url.slice(i + "/biblioteca/".length).split("?")[0] : null;
+}

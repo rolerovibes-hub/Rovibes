@@ -64,7 +64,9 @@ export function NovoItemCardapio({
 
   const escolher = (p: ProdutoEstoque) => {
     setProduto(p);
-    setNome(p.nome);
+    // A descrição da biblioteca é o nome amigável (o nome da NF costuma vir abreviado).
+    const amigavel = p.descricao?.trim() ?? "";
+    setNome(amigavel && amigavel.length <= 80 ? amigavel : p.nome);
     setCamera(false);
     setErro("");
     // Sugere o local onde o produto tem saldo e que não é depósito (ex.: refrigerador do bar).
@@ -105,6 +107,7 @@ export function NovoItemCardapio({
       disponivel: true,
       produto_id: produto.id,
       local_consumo_id: local || null,
+      foto_url: produto.foto_url ?? null,
     });
     setOcupado(false);
     if (error) return setErro(/produto_id|local_consumo_id/.test(error.message) ? "Falta aplicar a atualização 020 do banco." : mensagemDeErro(error));

@@ -130,23 +130,7 @@ export function BuscaBiblioteca({ estab, escolhido, fechar }: { estab: string; e
                 <ul className="mt-3 divide-y divide-borda rounded-lg border border-borda">
                   {lista.map((b) => (
                     <li key={b.id}>
-                      <button type="button" disabled={ocupado} onClick={() => void escolher(b)} className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-elevado">
-                        {b.foto_url ? (
-                          <img src={b.foto_url} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
-                        ) : (
-                          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
-                            <Package className="h-5 w-5" />
-                          </span>
-                        )}
-                        <span className="min-w-0 flex-1">
-                          <span className="block truncate font-medium">{b.nome}</span>
-                          <span className="codigo block truncate text-[12px] text-suave">{[b.ean, b.marca].filter(Boolean).join(" · ")}</span>
-                        </span>
-                        <span className="shrink-0 text-right text-[11px]">
-                          {b.produto_id ? <span className="font-semibold text-ok">No seu estoque</span> : <span className="font-semibold text-destaque">Incluir</span>}
-                          {b.situacao === "pendente" && <span className="block text-alerta">Em análise</span>}
-                        </span>
-                      </button>
+                      <LinhaBiblioteca item={b} disabled={ocupado} aoEscolher={() => void escolher(b)} />
                     </li>
                   ))}
                   {lista.length === 0 && <li className="px-3 py-4 text-center text-sm text-suave">Nenhum produto encontrado na biblioteca.</li>}
@@ -177,5 +161,36 @@ export function BuscaBiblioteca({ estab, escolhido, fechar }: { estab: string; e
         )}
       </div>
     </div>
+  );
+}
+
+/** Linha de resultado da busca na biblioteca (também usada na prévia da equipe RoVibes). */
+export function LinhaBiblioteca({
+  item: b,
+  disabled,
+  aoEscolher,
+}: {
+  item: Pick<ItemBiblioteca, "nome" | "ean" | "marca" | "foto_url" | "produto_id" | "situacao">;
+  disabled?: boolean;
+  aoEscolher?: () => void;
+}) {
+  return (
+    <button type="button" disabled={disabled} onClick={aoEscolher} className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-elevado">
+      {b.foto_url ? (
+        <img src={b.foto_url} alt="" className="h-11 w-11 shrink-0 rounded-lg bg-white object-cover" />
+      ) : (
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
+          <Package className="h-5 w-5" />
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate font-medium">{b.nome}</span>
+        <span className="codigo block truncate text-[12px] text-suave">{[b.ean, b.marca].filter(Boolean).join(" · ")}</span>
+      </span>
+      <span className="shrink-0 text-right text-[11px]">
+        {b.produto_id ? <span className="font-semibold text-ok">No seu estoque</span> : <span className="font-semibold text-destaque">Incluir</span>}
+        {b.situacao === "pendente" && <span className="block text-alerta">Em análise</span>}
+      </span>
+    </button>
   );
 }

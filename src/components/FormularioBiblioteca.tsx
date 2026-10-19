@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import clsx from "clsx";
-import { Camera, ScanBarcode } from "lucide-react";
+import { Camera, ScanBarcode, Trash2, Wand2 } from "lucide-react";
+import { EditorImagem } from "./EditorImagem";
 import { LeitorBarras } from "./LeitorBarras";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro } from "@/lib/supabase";
@@ -16,29 +17,48 @@ export function FormularioBiblioteca({ dados, mudar }: { dados: DadosBiblioteca;
   const seletor = useRef<HTMLInputElement>(null);
   const set = <K extends keyof DadosBiblioteca>(k: K, v: DadosBiblioteca[K]) => mudar({ ...dados, [k]: v });
 
-  const foto = async (l: FileList | null) => {
+  // Toda foto passa pelo editor (enquadra em quadrado com fundo branco e mostra os alertas de qualidade).
+  const [editar, setEditar] = useState<File | string | null>(null);
+  const escolherArquivo = (l: FileList | null) => {
     const f = l?.[0];
     if (seletor.current) seletor.current.value = "";
-    if (!f || !sessao) return;
+    if (f) setEditar(f);
+  };
+  const usarFoto = async (blob: Blob) => {
+    if (!sessao) return;
     setEnviandoFoto(true);
     setErroFoto("");
     try {
-      set("foto_url", await enviarFotoBiblioteca(sessao.user.id, f));
+      set("foto_url", await enviarFotoBiblioteca(sessao.user.id, blob, true));
+      setEditar(null);
     } catch (e) {
       setErroFoto(/bucket/i.test(String((e as Error).message)) ? "Falta aplicar a atualização 021 do banco." : mensagemDeErro(e));
+      throw e;
+    } finally {
+      setEnviandoFoto(false);
     }
-    setEnviandoFoto(false);
   };
 
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-[96px_minmax(0,1fr)] gap-3">
         <div>
-          <input ref={seletor} type="file" accept="image/*" className="hidden" onChange={(e) => void foto(e.target.files)} />
+          <input ref={seletor} type="file" accept="image/*" className="hidden" onChange={(e) => escolherArquivo(e.target.files)} />
           <button type="button" onClick={() => seletor.current?.click()} className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-borda bg-fundo text-suave hover:bg-elevado" aria-label="Foto do produto">
             {dados.foto_url ? <img src={dados.foto_url} alt="" className="h-full w-full object-cover" /> : enviandoFoto ? <span className="text-[12px]">Enviando...</span> : <Camera className="h-6 w-6" />}
           </button>
-          <span className="mt-1 block text-center text-[11px] text-suave">Foto</span>
+          {dados.foto_url ? (
+            <span className="mt-1 flex justify-center gap-1">
+              <button type="button" onClick={() => setEditar(dados.foto_url)} className="rounded-md p-1.5 text-suave hover:bg-elevado hover:text-texto" aria-label="Tratar a foto" title="Tratar a foto">
+                <Wand2 className="h-4 w-4" />
+              </button>
+              <button type="button" onClick={() => set("foto_url", null)} className="rounded-md p-1.5 text-suave hover:bg-elevado hover:text-perigo" aria-label="Tirar a foto" title="Tirar a foto">
+                <Trash2 className="h-4 w-4" />
+              </button>
+            </span>
+          ) : (
+            <span className="mt-1 block text-center text-[11px] text-suave">Foto</span>
+          )}
         </div>
         <div className="space-y-2">
           <label className="flex items-center gap-2 text-sm">
@@ -65,6 +85,7 @@ export function FormularioBiblioteca({ dados, mudar }: { dados: DadosBiblioteca;
         />
       )}
       {erroFoto && <p className="text-sm text-perigo">{erroFoto}</p>}
+      {editar && <EditorImagem origem={editar} fechar={() => setEditar(null)} usar={usarFoto} />}
       <label className="block">
         <span className="rotulo mb-1 block">Nome conforme a nota fiscal</span>
         <input value={dados.nome} onChange={(e) => set("nome", e.target.value.slice(0, 160))} placeholder="Ex.: REFRIG COCA COLA LT 350ML" className="entrada" />

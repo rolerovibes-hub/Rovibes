@@ -9,7 +9,8 @@
   - Escuro confortável: grafite azulado, nunca preto puro.
   Valores em "R G B" para permitir transparência no Tailwind.
 */
-:root {
+:root,
+.claro {
   --fundo: 244 245 248;
   --superficie: 255 255 255;
   --elevado: 238 240 245;
