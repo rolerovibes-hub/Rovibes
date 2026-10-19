@@ -1,5 +1,6 @@
 import { FormEvent, useMemo, useState } from "react";
 import clsx from "clsx";
+import { Link } from "react-router-dom";
 import { ArrowDownToLine, ArrowRightLeft, ClipboardCheck, PackageX, X } from "lucide-react";
 import { mensagemDeErro } from "@/lib/supabase";
 import { formatarQtd, lerNumero, LocalEstoque, movimentar, ProdutoEstoque, TipoMovimento } from "@/lib/estoque";
@@ -131,7 +132,16 @@ export function MovimentarEstoque({
                     </button>
                   </li>
                 ))}
-                {opcoes.length === 0 && <li className="px-3 py-3 text-sm text-suave">Nenhum produto encontrado.</li>}
+                {opcoes.length === 0 && (
+                  <li className="px-3 py-3 text-sm text-suave">
+                    Nenhum produto encontrado.
+                    {gestao && (
+                      <Link to="/business/app/G4003" className="ml-1 font-semibold text-destaque">
+                        Cadastrar produto
+                      </Link>
+                    )}
+                  </li>
+                )}
               </ul>
             </div>
           )}

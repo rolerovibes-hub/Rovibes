@@ -7,6 +7,8 @@ import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { apagarFoto, caminhoDaUrl, enviarFoto } from "@/lib/imagens";
 import { useBusiness } from "@/lib/acessos";
 import { ReceitaItem } from "./ReceitaItem";
+import { NovoItemCardapio } from "./NovoItemCardapio";
+import { LocalEstoque } from "@/lib/estoque";
 
 interface Categoria {
   id: string;
@@ -25,6 +27,8 @@ interface Item {
   disponivel: boolean;
   destaque: boolean;
   ordem: number;
+  produto_id?: string | null;
+  local_consumo_id?: string | null;
 }
 
 type Rascunho = Omit<Item, "id" | "ordem"> & { id?: string };
@@ -44,6 +48,8 @@ export function Cardapio() {
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const seletorFoto = useRef<HTMLInputElement>(null);
+  const [novoDoEstoque, setNovoDoEstoque] = useState(false);
+  const [locais, setLocais] = useState<LocalEstoque[]>([]);
 
   const carregar = useCallback(async () => {
     if (!id) return;
@@ -51,10 +57,23 @@ export function Cardapio() {
       supabase.from("cardapio_categorias").select("id, nome, ordem, setor").eq("estabelecimento_id", id).order("ordem"),
       supabase
         .from("cardapio_itens")
-        .select("id, categoria_id, nome, descricao, preco, foto_url, disponivel, destaque, ordem")
+        .select("id, categoria_id, nome, descricao, preco, foto_url, disponivel, destaque, ordem, produto_id, local_consumo_id")
         .eq("estabelecimento_id", id)
-        .order("ordem"),
+        .order("ordem")
+        .then(async (r) =>
+          r.error
+            ? // Antes da atualização 020 do banco não há produto/local no item.
+              await supabase.from("cardapio_itens").select("id, categoria_id, nome, descricao, preco, foto_url, disponivel, destaque, ordem").eq("estabelecimento_id", id).order("ordem")
+            : r,
+        ),
     ]);
+    supabase
+      .from("estoque_locais")
+      .select("id, nome, tipo, consumo_setor, ativo, ordem")
+      .eq("estabelecimento_id", id)
+      .eq("ativo", true)
+      .order("ordem")
+      .then(({ data }) => setLocais((data ?? []) as LocalEstoque[]));
     setCategorias((c.data ?? []) as Categoria[]);
     setItens(((i.data ?? []) as Item[]).map((x) => ({ ...x, preco: x.preco == null ? null : Number(x.preco) })));
   }, [id]);
@@ -94,6 +113,7 @@ export function Cardapio() {
         foto_url: rascunho.foto_url,
         disponivel: rascunho.disponivel,
         destaque: rascunho.destaque,
+        ...(locais.length ? { local_consumo_id: rascunho.local_consumo_id || null } : {}),
       };
       const { error } = rascunho.id
         ? await supabase.from("cardapio_itens").update(valores).eq("id", rascunho.id)
@@ -176,7 +196,7 @@ export function Cardapio() {
     <TelaUniversal
       acoes={
         <>
-          <button className="botao-principal col-span-2 sm:col-span-1" onClick={() => setRascunho({ ...VAZIO, categoria_id: filtro !== "todas" && filtro !== "sem" ? filtro : null })}>
+          <button className="botao-principal col-span-2 sm:col-span-1" onClick={() => setNovoDoEstoque(true)}>
             <Plus className="h-4 w-4" />
             Novo item
           </button>
@@ -227,6 +247,25 @@ export function Cardapio() {
             Cancelar
           </button>
         </form>
+      )}
+
+      {novoDoEstoque && (
+        <NovoItemCardapio
+          estab={id}
+          categorias={categorias}
+          categoriaInicial={filtro !== "todas" && filtro !== "sem" ? filtro : null}
+          jaNoCardapio={new Set(itens.map((x) => x.produto_id).filter((x): x is string => !!x))}
+          fechar={() => setNovoDoEstoque(false)}
+          criado={(t) => {
+            setNovoDoEstoque(false);
+            setAviso({ tipo: "ok", texto: t });
+            void carregar();
+          }}
+          montado={() => {
+            setNovoDoEstoque(false);
+            setRascunho({ ...VAZIO, categoria_id: filtro !== "todas" && filtro !== "sem" ? filtro : null });
+          }}
+        />
       )}
 
       {rascunho && (
@@ -289,6 +328,18 @@ export function Cardapio() {
                 />
                 Mostrar em "Os mais pedidos"
               </label>
+              {locais.length > 0 && (
+                <Campo rotulo="De qual estoque sai na venda?" className="sm:col-span-2">
+                  <select className="entrada" value={rascunho.local_consumo_id ?? ""} onChange={(e) => setRascunho({ ...rascunho, local_consumo_id: e.target.value || null })}>
+                    <option value="">Automático (ponto de consumo do setor da categoria)</option>
+                    {locais.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.nome}
+                      </option>
+                    ))}
+                  </select>
+                </Campo>
+              )}
             </div>
             <div>
               <span className="rotulo mb-1 block">Foto</span>
