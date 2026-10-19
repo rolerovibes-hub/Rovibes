@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, Ban, Flag, Lock, MessageCircle, MoreHorizontal, UserMinus, UserRound } from "lucide-react";
+import { ArrowLeft, Ban, Flag, Lock, Megaphone, MessageCircle, MoreHorizontal, UserMinus, UserRound } from "lucide-react";
 import { abrirConversa } from "@/lib/chat";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
@@ -172,6 +172,7 @@ export function PessoaPagina() {
           {p.nome}
           {p.privado && <Lock className="h-3.5 w-3.5 text-suave" aria-label="Perfil privado" />}
         </h2>
+        <SelosPromoter pessoa={p.id} />
         {p.bio && <p className="mt-0.5 whitespace-pre-line text-[15px]">{p.bio}</p>}
         {p.me_segue && !p.eu_bloqueei && <p className="mt-1 text-[13px] text-suave">Segue você</p>}
 
@@ -348,6 +349,25 @@ export function ListaConexoes() {
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+/** Selo "Promoter · Lugar" no perfil da pessoa. */
+function SelosPromoter({ pessoa }: { pessoa: string }) {
+  const [selos, setSelos] = useState<{ estabelecimento_id: string; nome: string }[]>([]);
+  useEffect(() => {
+    supabase.rpc("selos_promoter", { p_usuario: pessoa }).then(({ data }) => setSelos((data ?? []) as { estabelecimento_id: string; nome: string }[]));
+  }, [pessoa]);
+  if (!selos.length) return null;
+  return (
+    <div className="mt-1 flex flex-wrap gap-1.5">
+      {selos.map((s) => (
+        <Link key={s.estabelecimento_id} to={`/lugar/${s.estabelecimento_id}`} className="inline-flex items-center gap-1 rounded-full bg-destaque-suave px-2.5 py-0.5 text-[12px] font-semibold text-destaque">
+          <Megaphone className="h-3 w-3" />
+          Promoter · {s.nome}
+        </Link>
+      ))}
     </div>
   );
 }

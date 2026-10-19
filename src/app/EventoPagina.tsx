@@ -6,6 +6,8 @@ import { QrCode } from "@/components/Qr";
 import { codigoLegivel, fimDoEvento, qrDoIngresso, ResumoIngresso, resumoIngressos } from "./carteira";
 import { Carregando } from "@/components/Carregando";
 import { buscarEvento, EventoResumo, quando } from "./dados";
+import { ListasPresenca } from "@/components/ListasPresenca";
+import { capturarRef } from "@/lib/promoters";
 
 export function EventoPagina() {
   const { id = "" } = useParams();
@@ -15,6 +17,7 @@ export function EventoPagina() {
   useEffect(() => {
     setEvento(undefined);
     buscarEvento(id).then(setEvento);
+    capturarRef("evento", id);
   }, [id]);
 
   useEffect(() => {
@@ -82,6 +85,8 @@ export function EventoPagina() {
         </ul>
 
         {!cancelado && <IngressoDoEvento eventoId={evento.id} encerrado={fimDoEvento(evento) <= Date.now()} />}
+
+        {!cancelado && evento.estabelecimento && fimDoEvento(evento) > Date.now() && <ListasPresenca estab={evento.estabelecimento.id} evento={evento.id} />}
 
         {evento.descricao && <p className="whitespace-pre-line text-[15px] leading-relaxed">{evento.descricao}</p>}
       </div>

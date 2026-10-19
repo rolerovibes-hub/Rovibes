@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, BadgePercent, Bell, CalendarDays, Newspaper, Ticket, Truck } from "lucide-react";
+import { ArrowLeft, BadgePercent, Bell, CalendarDays, Newspaper, Ticket, Truck, Megaphone } from "lucide-react";
 import { tempoAtras } from "./conteudo";
 import { useAcessoRapido } from "./estadoAcesso";
 import { Notificacao } from "./dadosNotificacoes";
 
-const ICONE: Record<Notificacao["tipo"], typeof Bell> = { pedido: Truck, cupom: BadgePercent, ingresso: Ticket, evento: CalendarDays, publicacao: Newspaper };
+const ICONE: Record<Notificacao["tipo"], typeof Bell> = { pedido: Truck, cupom: BadgePercent, ingresso: Ticket, evento: CalendarDays, publicacao: Newspaper, promoter: Megaphone };
 
 export function Notificacoes() {
   const { notificacoes, marcarLidas, visto } = useAcessoRapido();

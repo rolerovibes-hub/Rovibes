@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Bookmark, Briefcase, ChevronRight, Lock, LogOut, MapPinned, Store, UserPlus, Wallet } from "lucide-react";
+import { Bookmark, Briefcase, ChevronRight, Lock, LogOut, MapPinned, Megaphone, Store, UserPlus, Wallet } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
@@ -174,6 +174,8 @@ function Cabecalho() {
 export function Perfil() {
   const { sessao, email, sair } = useSessao();
   const [equipe, setEquipe] = useState(false);
+  const [promoter, setPromoter] = useState(0);
+  const [convitesPromoter, setConvitesPromoter] = useState(0);
   useEffect(() => {
     if (!sessao) return;
     supabase
@@ -183,6 +185,15 @@ export function Perfil() {
       .eq("ativo", true)
       .limit(1)
       .then(({ data }) => setEquipe(!!data?.length));
+    supabase
+      .from("promoters")
+      .select("situacao")
+      .eq("usuario_id", sessao.user.id)
+      .in("situacao", ["convidado", "ativo"])
+      .then(({ data }) => {
+        setPromoter(data?.length ?? 0);
+        setConvitesPromoter((data ?? []).filter((x) => x.situacao === "convidado").length);
+      });
   }, [sessao]);
 
   return (
@@ -205,6 +216,17 @@ export function Perfil() {
       )}
 
       {sessao && <MinhasListas usuario={sessao.user.id} />}
+
+      {promoter > 0 && (
+        <Link to="/promoter" className="cartao flex items-center gap-3 border-marca px-4 py-3.5 hover:bg-elevado">
+          <Megaphone className="h-5 w-5 text-destaque" />
+          <span className="flex-1">
+            <span className="block font-medium">Área do Promoter</span>
+            <span className="block text-[13px] text-suave">{convitesPromoter ? `${convitesPromoter} convite(s) esperando resposta` : "Links, listas de presença e benefícios"}</span>
+          </span>
+          <ChevronRight className="h-4 w-4 text-suave" />
+        </Link>
+      )}
 
       {equipe && (
         <Link to="/job" className="cartao flex items-center gap-3 border-marca px-4 py-3.5 hover:bg-elevado">

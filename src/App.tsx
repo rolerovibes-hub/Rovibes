@@ -21,6 +21,7 @@ import { Notificacoes } from "./app/Notificacoes";
 import { Retirada } from "./app/Retirada";
 import { ListaConexoes, PessoaPagina } from "./app/PessoaPagina";
 import { AoVivoPagina } from "./app/AoVivoPagina";
+import { AreaPromoter } from "./app/AreaPromoter";
 import { ConversaPagina } from "./app/ConversaPagina";
 import { BotaoVoltarAparelho } from "./components/BotaoVoltarAparelho";
 
@@ -47,6 +48,7 @@ export default function App() {
         <Route path="chats" element={<Chats />} />
         <Route path="chat/:id" element={<ConversaPagina />} />
         <Route path="ao-vivo/:estab" element={<AoVivoPagina />} />
+        <Route path="promoter" element={<AreaPromoter />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="lugar/:id" element={<LugarPagina />} />
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />

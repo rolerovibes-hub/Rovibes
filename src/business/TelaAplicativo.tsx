@@ -20,6 +20,7 @@ import { Pagamentos } from "./Pagamentos";
 import { Produtos } from "./Produtos";
 import { BibliotecaAdmin } from "./BibliotecaAdmin";
 import { ChatAoVivo } from "./ChatAoVivo";
+import { Portaria } from "@/job/Portaria";
 import { EstoqueEquipe } from "@/job/EstoqueEquipe";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
@@ -105,6 +106,11 @@ export function TelaAplicativo() {
         <EstoqueEquipe estab={estab} />
       </div>
     );
+  }
+  if (app.codigo === "T5005") {
+    const atual = acessos.atual;
+    if (!atual) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
+    return <Portaria key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />;
   }
   if (app.codigo === "T2002") {
     const atual = acessos.atual;

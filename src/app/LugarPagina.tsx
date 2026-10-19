@@ -18,6 +18,8 @@ import { NotaCompacta, SecaoAvaliacoes } from "./Avaliacoes";
 import { MedidorMovimento } from "@/components/Marca";
 import { BeneficiosLugar } from "./BeneficiosLugar";
 import { Navegacao } from "./Navegacao";
+import { ListasPresenca } from "@/components/ListasPresenca";
+import { capturarRef } from "@/lib/promoters";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
 
@@ -80,6 +82,7 @@ export function LugarPagina() {
   useEffect(() => {
     if (!usuario) return;
     supabase.rpc("sala_ao_vivo", { p_estab: id }).then(({ data }) => setAoVivo(!!data));
+    capturarRef("lugar", id);
   }, [id, usuario]);
   useEffect(() => {
     if (params.get("checkin")) setParams({}, { replace: true });
@@ -277,6 +280,7 @@ export function LugarPagina() {
         {lugar.descricao && <p className="px-4 text-[15px] leading-relaxed">{lugar.descricao}</p>}
 
         <BeneficiosLugar estabelecimentoId={lugar.id} versao={versao} />
+        {usuario && <ListasPresenca estab={lugar.id} evento={null} className="px-4" />}
 
         {destaques.length > 0 && (
           <section>

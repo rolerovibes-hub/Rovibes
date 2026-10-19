@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
 import { Check, Pencil, UserMinus, UserPlus, Users, X } from "lucide-react";
+import { PromotersEstab } from "./Promoters";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { Avatar } from "@/components/Avatar";
@@ -356,6 +357,8 @@ export function Equipe() {
           </div>
         )}
       </section>
+
+      {id && <PromotersEstab estab={id} />}
     </TelaUniversal>
   );
 }

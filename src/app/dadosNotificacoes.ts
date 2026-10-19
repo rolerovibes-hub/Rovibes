@@ -4,7 +4,7 @@ import { gravar, ler } from "@/lib/armazenamento";
 
 export interface Notificacao {
   id: string;
-  tipo: "pedido" | "cupom" | "ingresso" | "evento" | "publicacao";
+  tipo: "pedido" | "cupom" | "ingresso" | "evento" | "publicacao" | "promoter";
   titulo: string;
   texto: string;
   quando: string;
@@ -103,6 +103,22 @@ export function useNotificacoes(usuario: string | undefined, pedido: { comanda: 
         texto: (x.texto ?? "Nova foto").slice(0, 90),
         quando: x.criado_em,
         link: x.estabelecimento ? `/lugar/${x.estabelecimento.id}` : "/",
+      });
+    }
+    // Convites para ser promoter.
+    const { data: conv } = await supabase
+      .from("promoters")
+      .select("id, convidado_em, estabelecimento:estabelecimentos(nome)")
+      .eq("usuario_id", usuario)
+      .eq("situacao", "convidado");
+    for (const x of (conv ?? []) as unknown as { id: string; convidado_em: string; estabelecimento: Nome }[]) {
+      itens.push({
+        id: `promoter-${x.id}`,
+        tipo: "promoter",
+        titulo: "Convite para ser promoter",
+        texto: `${x.estabelecimento?.nome ?? "Um lugar"} convidou você. Toque para responder.`,
+        quando: x.convidado_em,
+        link: "/promoter",
       });
     }
     itens.sort((a, b) => b.quando.localeCompare(a.quando));
