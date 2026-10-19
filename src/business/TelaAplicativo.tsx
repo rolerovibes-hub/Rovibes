@@ -17,6 +17,8 @@ import { MeuPerfil } from "./MeuPerfil";
 import { Denuncias } from "./Denuncias";
 import { MensagensEstab } from "./Mensagens";
 import { Pagamentos } from "./Pagamentos";
+import { Produtos } from "./Produtos";
+import { EstoqueEquipe } from "@/job/EstoqueEquipe";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
 import { ProgramaPontos } from "./ProgramaPontos";
@@ -91,6 +93,16 @@ export function TelaAplicativo() {
   if (app.codigo === "A1004") return <VibesCategorias />;
   if (app.codigo === "A1003") return <Denuncias />;
   if (app.codigo === "G1003") return <Pagamentos />;
+  if (app.codigo === "G4003") return <Produtos />;
+  if (app.codigo === "T4004") {
+    const estab = acessos.atual?.estabelecimento_id;
+    if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
+    return (
+      <div className="mx-auto max-w-3xl">
+        <EstoqueEquipe estab={estab} />
+      </div>
+    );
+  }
   if (app.codigo === "T2001") {
     const atual = acessos.atual;
     if (!atual) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;

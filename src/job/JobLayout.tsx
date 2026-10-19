@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { Armchair, Briefcase, ChefHat, ChevronDown, LayoutDashboard, LogOut, Menu, MessagesSquare, PackageCheck, Smartphone, X } from "lucide-react";
+import { Armchair, Boxes, Briefcase, ChefHat, ChevronDown, LayoutDashboard, LogOut, Menu, MessagesSquare, PackageCheck, Smartphone, X } from "lucide-react";
 import { MensagensEstab } from "@/business/Mensagens";
+import { EstoqueEquipe } from "./EstoqueEquipe";
 import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { SeletorTema } from "@/components/SeletorTema";
@@ -26,6 +27,7 @@ const MODULOS: Modulo[] = [
   { id: "garcom", nome: "Mesas", descricao: "Garçom: mesas, venda e comandas", icone: Armchair, codigo: "T7001" },
   { id: "preparo", nome: "Preparo", descricao: "Cozinha e bar", icone: ChefHat, codigo: "T7002" },
   { id: "entregas", nome: "Entregas", descricao: "Cumim: levar e confirmar", icone: PackageCheck, codigo: "T7003" },
+  { id: "estoque", nome: "Estoque", descricao: "Saldos dos locais e transferências", icone: Boxes, codigo: "T4004" },
   { id: "mensagens", nome: "Mensagens", descricao: "Responder os clientes pelo chat", icone: MessagesSquare, codigo: "T2001" },
   { id: "geral", nome: "Supervisão", descricao: "Ocorrências, atrasos e visão da operação", icone: LayoutDashboard },
 ];
@@ -131,6 +133,8 @@ function Job() {
           <FilaPreparo key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
         ) : ativo.id === "entregas" ? (
           <FilaEntregas key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
+        ) : ativo.id === "estoque" ? (
+          <EstoqueEquipe key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
         ) : ativo.id === "mensagens" ? (
           <MensagensEstab
             key={atual.estabelecimento_id}

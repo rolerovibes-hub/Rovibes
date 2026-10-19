@@ -6,6 +6,7 @@ import { Aviso, Campo, reais, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { apagarFoto, caminhoDaUrl, enviarFoto } from "@/lib/imagens";
 import { useBusiness } from "@/lib/acessos";
+import { ReceitaItem } from "./ReceitaItem";
 
 interface Categoria {
   id: string;
@@ -309,6 +310,11 @@ export function Cardapio() {
               </button>
             </div>
           </form>
+          {rascunho.id && id ? (
+            <ReceitaItem estab={id} item={rascunho.id} nomeItem={rascunho.nome} />
+          ) : (
+            <p className="mt-4 text-[13px] text-suave">Depois de salvar o item, você liga ele ao estoque (produto vendido direto ou receita).</p>
+          )}
         </Secao>
       )}
 
