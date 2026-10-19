@@ -10,6 +10,7 @@ import { Chats } from "./app/Chats";
 import { Perfil } from "./app/Perfil";
 import { Entrar } from "./Entrar";
 import { MarcarRole } from "./app/MarcarRole";
+import { PrimeiraVibe } from "./app/PrimeiraVibe";
 import { LugarPagina } from "./app/LugarPagina";
 import { EventoPagina } from "./app/EventoPagina";
 import { CardapioPagina } from "./app/CardapioPagina";
@@ -60,6 +61,7 @@ export default function App() {
         <Route path="lugar/:id" element={<LugarPagina />} />
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />
         <Route path="lugar/:id/role" element={<MarcarRole />} />
+        <Route path="primeira-vibe" element={<PrimeiraVibe />} />
         <Route path="evento/:id" element={<EventoPagina />} />
         <Route path="carteira" element={<Carteira />} />
         <Route path="mesa/:codigo" element={<MesaPagina />} />

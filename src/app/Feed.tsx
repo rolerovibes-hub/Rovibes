@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, Heart, LocateFixed, MapPin, Newspaper, Plus, Store } from "lucide-react";
+import { CalendarDays, ChevronRight, Heart, LocateFixed, MapPin, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
 import { useSessao } from "@/lib/sessao";
@@ -10,6 +10,7 @@ import { useResumos } from "./presenca";
 import { alternarCurtida, buscarFeed, buscarStories, seguirLugar, buscarStoriesPessoas, GrupoStories, PublicacaoApp, tempoAtras } from "./conteudo";
 import { NovoStory } from "./NovoStory";
 import { AnelStory, VisorStories } from "./VisorStories";
+import { ParaVoceAgora } from "./ParaVoce";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
 function usePosicaoSilenciosa() {
@@ -189,6 +190,8 @@ export function Feed() {
         </>
       )}
 
+      {!carregando && <ParaVoceAgora lugares={lugares} pos={pos} usuario={usuario} />}
+
       {/* Publicações */}
       <section className="mt-5">
         <h2 className="px-4 text-[17px] font-semibold">Publicações</h2>
@@ -259,10 +262,21 @@ export function Feed() {
                       </span>
                     </Link>
                   )}
-                  <button onClick={() => void curtir(p)} aria-pressed={p.curti} className="-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
-                    <Heart className={clsx("h-5 w-5", p.curti ? "fill-current text-magenta" : "text-suave")} />
-                    <span className={p.curti ? "font-medium" : "text-suave"}>{p.curtidas}</span>
-                  </button>
+                  <div className="flex items-center justify-between">
+                    <button onClick={() => void curtir(p)} aria-pressed={p.curti} className="-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
+                      <Heart className={clsx("h-5 w-5", p.curti ? "fill-current text-magenta" : "text-suave")} />
+                      <span className={p.curti ? "font-medium" : "text-suave"}>{p.curtidas}</span>
+                    </button>
+                    {(p.tipo !== "pessoa" || p.local) && (
+                      <Link
+                        to={`/lugar/${p.tipo === "pessoa" ? p.local!.id : p.estabelecimento.id}/role`}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-borda px-3 py-1.5 text-[13px] font-medium hover:bg-elevado"
+                      >
+                        <PartyPopper className="h-4 w-4 text-magenta" />
+                        Marcar rolê
+                      </Link>
+                    )}
+                  </div>
                 </div>
               </li>
             ))}

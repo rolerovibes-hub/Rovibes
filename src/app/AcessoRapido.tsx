@@ -1,7 +1,8 @@
 import { CSSProperties, PointerEvent as EventoPonteiro, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Bell, Briefcase, Megaphone, QrCode, ScanLine, Store, Wallet } from "lucide-react";
+import { Bell, Briefcase, ChevronRight, CreditCard, Megaphone, PartyPopper, QrCode, ScanLine, Store, Ticket, UtensilsCrossed, Wallet } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { useAcessoRapido } from "./estadoAcesso";
 
 /** Logo "RoV" do menu flutuante. */
@@ -52,7 +53,7 @@ const lerPosicao = (): Posicao => {
  * toque abre os atalhos; 10 s sem mexer recolhe (nítido); 3 s recolhido vira marca d'água.
  */
 export function MenuFlutuante() {
-  const { mesa, naoLidas, setLendo, equipe, promoter, convitesPromoter } = useAcessoRapido();
+  const { mesa, naoLidas, setLendo, equipe, promoter, convitesPromoter, ondeEstou } = useAcessoRapido();
   const navegar = useNavigate();
   const local = useLocation();
   const [pos, setPos] = useState<Posicao>(lerPosicao);
@@ -62,6 +63,27 @@ export function MenuFlutuante() {
   const toque = useRef<{ id: number; x: number; y: number; px: number; py: number; moveu: boolean } | null>(null);
   const relogio = useRef<number>();
   const [interacao, setInteracao] = useState(0);
+
+  // Contexto do hub: o lugar aberto na tela tem prioridade; senão, onde a pessoa está (check-in ou comanda aberta).
+  const idRota = local.pathname.match(/^\/lugar\/([^/]+)/)?.[1] ?? null;
+  const [lugarRota, setLugarRota] = useState<{ id: string; nome: string; logo_url: string | null } | null>(null);
+  useEffect(() => {
+    if (!idRota) return setLugarRota(null);
+    if (ondeEstou?.id === idRota) return setLugarRota(ondeEstou);
+    let vivo = true;
+    supabase
+      .from("estabelecimentos")
+      .select("id, nome, logo_url")
+      .eq("id", idRota)
+      .maybeSingle()
+      .then(({ data }) => vivo && setLugarRota((data as { id: string; nome: string; logo_url: string | null } | null) ?? null));
+    return () => {
+      vivo = false;
+    };
+  }, [idRota, ondeEstou]);
+  const foco = lugarRota ?? ondeEstou ?? (mesa?.estabelecimento_id ? { id: mesa.estabelecimento_id, nome: mesa.lugar, logo_url: null } : null);
+  const estouNele = !!foco && (foco.id === ondeEstou?.id || foco.id === mesa?.estabelecimento_id);
+  const comandaAqui = !!mesa && !!foco && mesa.estabelecimento_id === foco.id;
 
   // Temporizadores de recolher e de esmaecer: qualquer interação reinicia.
   const mexeu = useCallback(() => {
@@ -126,8 +148,21 @@ export function MenuFlutuante() {
     navegar(para);
   };
 
+  const lerQr = () => {
+    setAberto(false);
+    setLendo(true);
+  };
+  const acoesLugar = foco
+    ? [
+        { nome: "Cardápio", icone: UtensilsCrossed, acao: () => ir(`/lugar/${foco.id}/cardapio`) },
+        { nome: "Pedir", icone: ScanLine, acao: () => (comandaAqui && mesa ? ir(`/comanda/${mesa.id}`) : lerQr()) },
+        { nome: "Pagar", icone: CreditCard, acao: () => (comandaAqui && mesa ? ir(`/comanda/${mesa.id}`) : lerQr()) },
+        { nome: "Ingressos", icone: Ticket, acao: () => ir(`/lugar/${foco.id}?aba=programacao`) },
+      ]
+    : [];
+
   const atalhos = [
-    { nome: "Ler QR da mesa", sub: "Pedir pelo cardápio", icone: ScanLine, selo: 0, acao: () => (setAberto(false), setLendo(true)) },
+    ...(foco ? [] : [{ nome: "Ler QR da mesa", sub: "Pedir pelo cardápio", icone: ScanLine, selo: 0, acao: lerQr }]),
     { nome: "Notificações", sub: "Novidades", icone: Bell, selo: naoLidas, acao: () => ir("/notificacoes") },
     { nome: "Retiradas", sub: "QR dos pedidos", icone: QrCode, selo: mesa?.prontos ?? 0, acao: () => ir("/retirada") },
     { nome: "Carteira", sub: "Cupons e ingressos", icone: Wallet, selo: 0, acao: () => ir("/carteira") },
@@ -159,6 +194,41 @@ export function MenuFlutuante() {
           onPointerDown={mexeu}
           onScroll={mexeu}
         >
+          {foco && (
+            <div className="mb-3 rounded-2xl border border-borda bg-fundo/70 p-3">
+              <button onClick={() => ir(`/lugar/${foco.id}`)} className="flex w-full items-center gap-2.5 text-left">
+                {foco.logo_url ? (
+                  <img src={foco.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                ) : (
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-elevado text-suave">
+                    <Store className="h-4 w-4" />
+                  </span>
+                )}
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[15px] font-semibold leading-tight">{foco.nome}</span>
+                  <span className={clsx("block text-[11px]", estouNele ? "font-medium text-ok" : "text-suave")}>
+                    {estouNele ? (comandaAqui ? `Você está aqui · ${mesa?.rotulo}` : "Você está aqui") : "Ações deste lugar"}
+                  </span>
+                </span>
+                <ChevronRight className="h-4 w-4 text-suave" />
+              </button>
+              <div className="mt-3 grid grid-cols-4 gap-1.5">
+                {acoesLugar.map((a) => (
+                  <button key={a.nome} onClick={a.acao} className="flex flex-col items-center gap-1 rounded-xl py-2 text-[12px] font-medium hover:bg-elevado">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-elevado text-destaque">
+                      <a.icone className="h-5 w-5" strokeWidth={1.8} />
+                    </span>
+                    {a.nome}
+                  </button>
+                ))}
+              </div>
+              <button onClick={() => ir(`/lugar/${foco.id}/role`)} className="mt-2 flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left text-sm hover:bg-elevado">
+                <PartyPopper className="h-4 w-4 text-magenta" />
+                <span className="flex-1">Marcar rolê aqui</span>
+                <ChevronRight className="h-4 w-4 text-suave" />
+              </button>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-2">
             {atalhos.map((a) => (
               <button key={a.nome} onClick={a.acao} className="relative flex flex-col items-start gap-1.5 rounded-2xl border border-borda bg-fundo/70 p-3 text-left hover:bg-elevado">
@@ -182,7 +252,7 @@ export function MenuFlutuante() {
         onPointerCancel={aoSoltar}
         className={clsx(
           "fixed z-[48] flex select-none items-center justify-center rounded-full border shadow-lg backdrop-blur transition-[opacity,transform,background-color] duration-500",
-          aberto ? "border-[#8B5CF6]/70 bg-superficie" : "border-borda bg-superficie/80",
+          aberto ? "border-[#8B5CF6]/70 bg-superficie" : estouNele ? "border-ok/70 bg-superficie/80" : "border-borda bg-superficie/80",
           arrastando ? "scale-110 opacity-100 duration-0" : nitido || aberto ? "opacity-100" : "opacity-30",
         )}
         aria-label={aberto ? "Fechar acesso rápido" : "Abrir acesso rápido (arraste para mudar de lugar)"}

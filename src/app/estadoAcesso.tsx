@@ -9,6 +9,7 @@ export interface MesaAberta {
   id: string;
   rotulo: string;
   lugar: string;
+  estabelecimento_id: string | null;
   aviso: string | null;
   /** Itens da pessoa prontos ou a caminho (QR de retirada). */
   prontos: number;
@@ -26,6 +27,8 @@ interface Contexto {
   /** Lugares onde a pessoa é promoter (ou tem convite). */
   promoter: number;
   convitesPromoter: number;
+  /** Lugar do check-in ativo (para o hub "no rolê"). */
+  ondeEstou: { id: string; nome: string; logo_url: string | null } | null;
 }
 
 const Ctx = createContext<Contexto | null>(null);
@@ -41,6 +44,17 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
   const [equipe, setEquipe] = useState(false);
   const [promoter, setPromoter] = useState(0);
   const [convitesPromoter, setConvitesPromoter] = useState(0);
+  const [ondeEstou, setOndeEstou] = useState<Contexto["ondeEstou"]>(null);
+
+  // Check-in ativo: só muda quando a pessoa faz check-in ou toca em "Saí" (não pelo GPS).
+  useEffect(() => {
+    if (!usuario) return;
+    supabase.rpc("onde_estou").then(({ data, error }) => {
+      if (error) return;
+      const r = ((data ?? []) as { estabelecimento_id: string; nome: string; logo_url: string | null }[])[0];
+      setOndeEstou(r ? { id: r.estabelecimento_id, nome: r.nome, logo_url: r.logo_url } : null);
+    });
+  }, [usuario, local.pathname]);
 
   useAoVivo("barra-mesa", { pedidos: mesa ? `comanda_id=eq.${mesa.id}` : undefined }, () => setVersao((v) => v + 1), !!mesa);
 
@@ -68,7 +82,7 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
     if (!usuario) return;
     supabase
       .from("comanda_pessoas")
-      .select("entrou_em, comanda:comandas(id, situacao, nome, mesa:mesas(numero), estabelecimento:estabelecimentos(nome), pedidos(modalidade, usuario_id, itens:pedido_itens(situacao)))")
+      .select("entrou_em, comanda:comandas(id, situacao, nome, mesa:mesas(numero), estabelecimento:estabelecimentos(id, nome), pedidos(modalidade, usuario_id, itens:pedido_itens(situacao)))")
       .eq("usuario_id", usuario)
       .order("entrou_em", { ascending: false })
       .limit(5)
@@ -79,7 +93,7 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
             situacao: string;
             nome: string | null;
             mesa: { numero: string } | null;
-            estabelecimento: { nome: string } | null;
+            estabelecimento: { id: string; nome: string } | null;
             pedidos: { modalidade: string; usuario_id: string | null; itens: { situacao: string }[] }[];
           } | null;
         };
@@ -93,6 +107,7 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
           id: c.id,
           rotulo: c.mesa ? `Mesa ${c.mesa.numero}` : c.nome ?? "comanda",
           lugar: c.estabelecimento?.nome ?? "",
+          estabelecimento_id: c.estabelecimento?.id ?? null,
           aviso: aCaminho ? "Seu pedido saiu para entrega" : retirar ? "Seu pedido está pronto para retirar" : null,
           prontos,
         });
@@ -102,7 +117,7 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
   const n = useNotificacoes(usuario, mesa ? { comanda: mesa.id, aviso: mesa.aviso, lugar: mesa.lugar } : null);
 
   return (
-    <Ctx.Provider value={{ mesa, notificacoes: n.notificacoes, naoLidas: n.naoLidas, marcarLidas: n.marcarLidas, visto: n.visto, lendo, setLendo, equipe, promoter, convitesPromoter }}>
+    <Ctx.Provider value={{ mesa, notificacoes: n.notificacoes, naoLidas: n.naoLidas, marcarLidas: n.marcarLidas, visto: n.visto, lendo, setLendo, equipe, promoter, convitesPromoter, ondeEstou }}>
       {children}
     </Ctx.Provider>
   );

@@ -44,6 +44,7 @@ import { CompartilharNoChat } from "@/components/CompartilharNoChat";
 import { capturarRef, compartilhar, linkDivulgacao } from "@/lib/promoters";
 import { mudarPresenca, posicaoSeLiberada, sairDoLugar, useAgora, useMinhaPresenca, Visibilidade, VISIBILIDADES } from "@/lib/agora";
 import { AmigosAqui, CartaoComoEsta, FolhaComoEsta } from "./AgoraLugar";
+import { registrarSinal } from "@/lib/sinais";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
 
@@ -132,14 +133,25 @@ export function LugarPagina() {
     capturarRef("lugar", id);
   }, [id, usuario]);
   useEffect(() => {
-    if (params.get("checkin") || params.get("aba")) setParams({}, { replace: true });
     posicaoSeLiberada().then(setPos);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  // ?aba= e ?checkin=1 (links e hub): aplica e limpa o endereço.
+  const abaPedida = params.get("aba");
+  const checkinPedido = params.get("checkin");
+  useEffect(() => {
+    if (abaPedida && ["destaques", "programacao", "cardapio", "fotos"].includes(abaPedida)) {
+      setAba(abaPedida as Aba);
+      window.setTimeout(() => document.getElementById("abas-lugar")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+    }
+    if (checkinPedido === "1") setCheckinAberto(true);
+    if (abaPedida || checkinPedido) setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [abaPedida, checkinPedido]);
 
   useEffect(() => {
     if (!usuario) return;
     void supabase.rpc("registrar_visita", { p_estab: id });
+    registrarSinal(id, "abriu");
     buscarStories(usuario, id).then(setStories);
   }, [id, usuario]);
 
@@ -206,7 +218,11 @@ export function LugarPagina() {
             <Share2 className="h-5 w-5" />
           </button>
           <button
-            onClick={() => exigirLogin() && void relacao.alternarSalvo().then(() => setAviso(relacao.salvo ? "Tirado dos salvos." : "Salvo. Está no seu perfil, em Salvos."))}
+            onClick={() => exigirLogin() && void relacao.alternarSalvo().then(() => {
+                if (!relacao.salvo) registrarSinal(lugar.id, "salvou");
+                setAviso(relacao.salvo ? "Tirado dos salvos." : "Salvo. Está no seu perfil, em Salvos.");
+              })
+            }
             aria-pressed={relacao.salvo}
             className="rounded-full bg-black/45 p-2 text-white backdrop-blur"
             aria-label={relacao.salvo ? "Tirar dos salvos" : "Salvar"}
@@ -303,7 +319,11 @@ export function LugarPagina() {
             Marcar rolê
           </button>
           <button
-            onClick={() => exigirLogin() && void relacao.alternarSeguir().then(recarregar)}
+            onClick={() => exigirLogin() && void relacao.alternarSeguir().then(() => {
+                if (!relacao.seguindo) registrarSinal(lugar.id, "seguiu");
+                void recarregar();
+              })
+            }
             aria-pressed={relacao.seguindo}
             className={clsx("botao h-11 rounded-full px-5", relacao.seguindo ? "bg-elevado" : "border-marca text-destaque")}
           >
@@ -334,7 +354,7 @@ export function LugarPagina() {
       </div>
 
       {/* Nível 2: explorar */}
-      <nav id="abas-lugar" className="sticky top-0 z-20 mt-5 scroll-mt-0 border-b border-borda bg-fundo/95 backdrop-blur" aria-label="Seções do lugar">
+      <nav id="abas-lugar" className="sticky top-14 z-20 mt-5 scroll-mt-14 border-b border-borda bg-fundo/95 backdrop-blur" aria-label="Seções do lugar">
         <div className="flex gap-1 overflow-x-auto px-2 [scrollbar-width:none]">
           {abas.map((a) => (
             <button
@@ -371,9 +391,15 @@ export function LugarPagina() {
       {/* Nível 3: sob demanda */}
       {mais && (
         <Folha titulo={lugar.nome} fechar={() => setMais(false)}>
-          <ItemFolha icone={MessageCircle} texto="Mandar mensagem" acao={() => (setMais(false), abrirMensagem())} />
+          <ItemFolha icone={MessageCircle} texto="Mandar mensagem" acao={() => {
+              setMais(false);
+              abrirMensagem();
+            }} />
           {ponto ? (
-            <ItemFolha icone={Navigation} texto="Como chegar" acao={() => (setMais(false), setNavegando(true))} />
+            <ItemFolha icone={Navigation} texto="Como chegar" acao={() => {
+                setMais(false);
+                setNavegando(true);
+              }} />
           ) : (
             <a href={rota} target="_blank" rel="noreferrer" className="flex w-full items-center gap-3 px-5 py-3.5 hover:bg-elevado">
               <Navigation className="h-5 w-5 text-destaque" />
@@ -381,9 +407,19 @@ export function LugarPagina() {
             </a>
           )}
           {presenca ? (
-            <ItemFolha icone={LogOut} texto="Saí deste lugar" acao={() => void sairDoLugar(lugar.id).then(() => (setMais(false), recarregarPresenca(), recarregarAgora()))} />
+            <ItemFolha icone={LogOut} texto="Saí deste lugar" acao={() =>
+                void sairDoLugar(lugar.id).then(() => {
+                  setMais(false);
+                  void recarregarPresenca();
+                  void recarregarAgora();
+                })
+              } />
           ) : (
-            <ItemFolha icone={MapPinned} texto="Fazer check-in" detalhe="Conta para o movimento e mostra aos amigos que você está aqui" acao={() => exigirLogin() && (setMais(false), setCheckinAberto(true))} />
+            <ItemFolha icone={MapPinned} texto="Fazer check-in" detalhe="Conta para o movimento e mostra aos amigos que você está aqui" acao={() => {
+                if (!exigirLogin()) return;
+                setMais(false);
+                setCheckinAberto(true);
+              }} />
           )}
           <ItemFolha
             icone={Bookmark}
@@ -427,7 +463,18 @@ export function LugarPagina() {
           aoMudar={() => void recarregarAgora()}
         />
       )}
-      {compartilhando && <CompartilharNoChat tipo="lugar" id={lugar.id} titulo={lugar.nome} fechar={() => setCompartilhando(false)} enviado={setAviso} />}
+      {compartilhando && (
+        <CompartilharNoChat
+          tipo="lugar"
+          id={lugar.id}
+          titulo={lugar.nome}
+          fechar={() => setCompartilhando(false)}
+          enviado={(t) => {
+            registrarSinal(lugar.id, "compartilhou");
+            setAviso(t);
+          }}
+        />
+      )}
       {checkinAberto && (
         <FolhaCheckin
           estabelecimentoId={lugar.id}

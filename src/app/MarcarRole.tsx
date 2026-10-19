@@ -14,6 +14,7 @@ import { distanciaKm, km } from "./dados";
 import { LugarNaoEncontrado, useLugar } from "./LugarPagina";
 import { EscolherPessoas } from "./NovoRole";
 import { useExigirLogin } from "./presenca";
+import { registrarSinal } from "@/lib/sinais";
 
 type Dia = "hoje" | "amanha" | "outro";
 type Faixa = "agora" | "noite" | "personalizado";
@@ -121,6 +122,7 @@ export function MarcarRole() {
       });
       if (error) throw error;
       const conversa = data as string;
+      registrarSinal(lugar.id, "role");
       if (comentar && mensagem.trim()) await enviarMensagem(conversa, mensagem.trim()).catch(() => undefined);
       if (reserva) {
         const c = await abrirConversaEstab(lugar.id);
@@ -139,7 +141,7 @@ export function MarcarRole() {
 
   return (
     <div className="mx-auto max-w-xl pb-28">
-      <header className="sticky top-0 z-20 flex items-center gap-2 border-b border-borda bg-fundo/95 px-2 py-2 backdrop-blur">
+      <header className="sticky top-14 z-20 flex items-center gap-2 border-b border-borda bg-fundo/95 px-2 py-2 backdrop-blur">
         <button onClick={() => navegar(-1)} className="rounded-full p-2 hover:bg-elevado" aria-label="Voltar">
           <ArrowLeft className="h-5 w-5" />
         </button>

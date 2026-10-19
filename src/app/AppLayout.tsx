@@ -7,6 +7,7 @@ import { codigoDaMesa } from "@/lib/salao";
 import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { useSessao } from "@/lib/sessao";
+import { ler } from "@/lib/armazenamento";
 import { AcessoRapidoProvider, useAcessoRapido } from "./estadoAcesso";
 import { MenuFlutuante } from "./AcessoRapido";
 import { NovoStory } from "./NovoStory";
@@ -21,7 +22,7 @@ const ABAS = [
 ];
 
 // Telas em que o menu flutuante atrapalharia (têm botões próprios no canto de baixo).
-const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada", "/chat/", "/ao-vivo/"];
+const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada", "/chat/", "/ao-vivo/", "/primeira-vibe"];
 
 export function AppLayout() {
   const { carregando, sessao } = useSessao();
@@ -48,7 +49,13 @@ function Estrutura() {
   const [publicar, setPublicar] = useState(false);
   const chat = useChatNaoLidas(true);
   const seloChat = chat.conversas + chat.pedidos;
+  const { perfil } = useSessao();
   const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !/^\/lugar\/[^/]+\/role/.test(local.pathname);
+
+  // Primeira vez no App: mostra a "Primeira vibe" (uma vez; dá para pular).
+  if (local.pathname === "/" && perfil && perfil.vibe_inicial_em === null && !ler<boolean>("vibe_inicial_feita", false)) {
+    return <Navigate to="/primeira-vibe" replace />;
+  }
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col border-borda sm:border-x">

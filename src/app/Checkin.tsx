@@ -7,6 +7,7 @@ import { pedirLocalizacao } from "./dados";
 import { NOME_MOVIMENTO } from "./presenca";
 import { Visibilidade, VISIBILIDADES } from "@/lib/agora";
 import { ler, gravar } from "@/lib/armazenamento";
+import { registrarSinal } from "@/lib/sinais";
 
 const NIVEIS: Movimento[] = ["tranquilo", "moderado", "cheio"];
 
@@ -55,6 +56,7 @@ export function FolhaCheckin({
       if (error && /function|schema cache/i.test(error.message)) ({ error } = await supabase.rpc("fazer_checkin", base));
       if (error) throw error;
       gravar("visibilidade_checkin", visibilidade);
+      registrarSinal(estabelecimentoId, "checkin");
       setFeito(true);
       concluido();
     } catch (e) {

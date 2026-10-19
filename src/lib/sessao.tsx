@@ -12,6 +12,8 @@ export interface Perfil {
   bio?: string | null;
   privado?: boolean;
   suspenso?: boolean;
+  /** null = ainda não passou pela Primeira vibe (undefined = banco sem a atualização 031). */
+  vibe_inicial_em?: string | null;
 }
 
 interface SessaoContexto {

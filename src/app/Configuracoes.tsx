@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Lock, LogOut, Shield, UserX, X } from "lucide-react";
+import { ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -54,6 +54,17 @@ export function Configuracoes({ fechar }: { fechar: () => void }) {
         <section className="px-5 pb-4">
           <h3 className="rotulo mb-2">Tema</h3>
           <SeletorTema />
+        </section>
+
+        <section className="border-t border-borda">
+          <Link to="/primeira-vibe?editar=1" onClick={fechar} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado">
+            <Sparkles className="h-4 w-4 text-destaque" />
+            <span className="flex-1">
+              <span className="block">Meus gostos</span>
+              <span className="block text-[13px] text-suave">Músicas, ambientes, bebidas... o feed usa para recomendar</span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-suave" />
+          </Link>
         </section>
 
         <section className="border-t border-borda">
