@@ -4,14 +4,14 @@ import { ler, gravar } from "./armazenamento";
 export type Tema = "escuro" | "claro" | "sistema";
 
 const TemaContexto = createContext<{ tema: Tema; escuro: boolean; definir: (t: Tema) => void }>({
-  tema: "escuro",
-  escuro: true,
+  tema: "claro",
+  escuro: false,
   definir: () => {},
 });
 
 export function TemaProvider({ children }: { children: ReactNode }) {
-  const [tema, setTema] = useState<Tema>(() => ler<Tema>("tema", "escuro"));
-  const [escuro, setEscuro] = useState(true);
+  const [tema, setTema] = useState<Tema>(() => ler<Tema>("tema", "claro"));
+  const [escuro, setEscuro] = useState(() => document.documentElement.classList.contains("dark"));
 
   useEffect(() => {
     const raiz = document.documentElement;

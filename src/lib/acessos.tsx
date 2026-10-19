@@ -20,6 +20,12 @@ interface Uso {
   ultimo_em: string;
 }
 
+/** Cor e ícone que a pessoa escolheu para um app da tela inicial (null = padrão). */
+export interface EstiloApp {
+  cor: string | null;
+  icone: string | null;
+}
+
 interface BusinessContexto {
   carregando: boolean;
   vinculos: Vinculo[];
@@ -34,6 +40,9 @@ interface BusinessContexto {
   foiSolicitado: (codigo: string) => boolean;
   alternarFavorito: (codigo: string) => Promise<void>;
   moverFavorito: (codigo: string, direcao: -1 | 1) => Promise<void>;
+  ordenarFavoritos: (visiveis: string[]) => Promise<void>;
+  estiloDe: (codigo: string) => EstiloApp;
+  definirEstilo: (codigo: string, estilo: Partial<EstiloApp> | null) => Promise<void>;
   registrarUso: (codigo: string) => void;
   solicitarAcesso: (codigo: string) => Promise<void>;
   recarregar: () => Promise<void>;
@@ -52,6 +61,9 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [liberados, setLiberados] = useState<Set<string>>(new Set());
   const [favoritos, setFavoritos] = useState<string[]>([]);
   const [usos, setUsos] = useState<Uso[]>([]);
+  const [estilos, setEstilos] = useState<Record<string, EstiloApp>>(() => ler<Record<string, EstiloApp>>("estilos_apps", {}));
+  // false enquanto a atualização 030 não foi aplicada: aí o estilo fica só neste aparelho.
+  const [estiloNoBanco, setEstiloNoBanco] = useState(true);
   const [solicitados, setSolicitados] = useState<string[]>([]);
 
   const atual = vinculos.find((v) => v.estabelecimento_id === atualId) ?? vinculos[0] ?? null;
@@ -64,12 +76,24 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         .select("estabelecimento_id, papel, cargo, estabelecimento:estabelecimentos(id, nome, situacao, motivo_situacao)")
         .eq("usuario_id", usuario)
         .eq("ativo", true),
-      supabase.from("favoritos").select("codigo, ordem").eq("usuario_id", usuario).order("ordem"),
+      supabase
+        .from("favoritos")
+        .select("codigo, ordem, cor, icone")
+        .eq("usuario_id", usuario)
+        .order("ordem")
+        .then(async (r) => {
+          if (!r.error) return { ...r, novo: true };
+          const velho = await supabase.from("favoritos").select("codigo, ordem").eq("usuario_id", usuario).order("ordem");
+          return { ...velho, novo: false };
+        }),
       supabase.from("usos_aplicativo").select("codigo, vezes, ultimo_em").eq("usuario_id", usuario),
       supabase.from("solicitacoes_acesso").select("codigo").eq("usuario_id", usuario).eq("situacao", "pendente"),
     ]);
     setVinculos(((v.data ?? []) as unknown as Vinculo[]).filter((x) => x.estabelecimento));
-    setFavoritos((f.data ?? []).map((x) => x.codigo as string));
+    const linhas = (f.data ?? []) as { codigo: string; cor?: string | null; icone?: string | null }[];
+    setFavoritos(linhas.map((x) => x.codigo));
+    setEstiloNoBanco(f.novo);
+    if (f.novo) setEstilos(Object.fromEntries(linhas.filter((x) => x.cor || x.icone).map((x) => [x.codigo, { cor: x.cor ?? null, icone: x.icone ?? null }])));
     setUsos((u.data ?? []) as Uso[]);
     setSolicitados((s.data ?? []).map((x) => x.codigo as string));
     setCarregando(false);
@@ -108,6 +132,11 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       if (!usuario) return;
       if (favoritos.includes(codigo)) {
         setFavoritos((f) => f.filter((c) => c !== codigo));
+        setEstilos((e) => {
+          const n = { ...e };
+          delete n[codigo];
+          return n;
+        });
         await supabase.from("favoritos").delete().eq("usuario_id", usuario).eq("codigo", codigo);
       } else {
         setFavoritos((f) => [...f, codigo]);
@@ -129,6 +158,38 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       await supabase.from("favoritos").upsert(novo.map((c, ordem) => ({ usuario_id: usuario, codigo: c, ordem })));
     },
     [usuario, favoritos],
+  );
+
+  const ordenarFavoritos = useCallback(
+    async (visiveis: string[]) => {
+      if (!usuario) return;
+      // Só os apps visíveis mudam de lugar; os demais ficam onde estavam.
+      let k = 0;
+      const novo = favoritos.map((c) => (visiveis.includes(c) ? visiveis[k++] : c));
+      setFavoritos(novo);
+      const { error } = await supabase.rpc("ordenar_favoritos", { p_codigos: novo });
+      if (error) await supabase.from("favoritos").upsert(novo.map((c, ordem) => ({ usuario_id: usuario, codigo: c, ordem })));
+    },
+    [usuario, favoritos],
+  );
+
+  const definirEstilo = useCallback(
+    async (codigo: string, estilo: Partial<EstiloApp> | null) => {
+      if (!usuario) return;
+      const atualEstilo = estilos[codigo] ?? { cor: null, icone: null };
+      const novo: EstiloApp = estilo === null ? { cor: null, icone: null } : { ...atualEstilo, ...estilo };
+      const proximos = { ...estilos };
+      if (!novo.cor && !novo.icone) delete proximos[codigo];
+      else proximos[codigo] = novo;
+      setEstilos(proximos);
+      if (estiloNoBanco) {
+        const { error } = await supabase.from("favoritos").update({ cor: novo.cor, icone: novo.icone }).eq("usuario_id", usuario).eq("codigo", codigo);
+        if (!error) return;
+        setEstiloNoBanco(false);
+      }
+      gravar("estilos_apps", proximos);
+    },
+    [usuario, estilos, estiloNoBanco],
   );
 
   const registrarUso = useCallback(
@@ -190,12 +251,15 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       foiSolicitado: (c) => solicitados.includes(c),
       alternarFavorito,
       moverFavorito,
+      ordenarFavoritos,
+      estiloDe: (c) => estilos[c] ?? { cor: null, icone: null },
+      definirEstilo,
       registrarUso,
       solicitarAcesso,
       recarregar,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carregando, vinculos, atual, temAcesso, favoritos, usos, solicitados, alternarFavorito, moverFavorito, registrarUso, solicitarAcesso, recarregar],
+    [carregando, vinculos, atual, temAcesso, favoritos, usos, solicitados, alternarFavorito, moverFavorito, ordenarFavoritos, estilos, definirEstilo, registrarUso, solicitarAcesso, recarregar],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

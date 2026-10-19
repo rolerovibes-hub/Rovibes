@@ -6,7 +6,15 @@
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
-    <meta name="theme-color" content="#1A1F2B" />
+    <meta name="theme-color" content="#F4F5F8" />
+    <script>
+      // Aplica o tema salvo antes de desenhar a tela (sem piscar). Sem escolha salva, o padrão é o claro.
+      try {
+        var t = JSON.parse(localStorage.getItem("rovibes:tema") || '"claro"');
+        var e = t === "escuro" || (t === "sistema" && matchMedia("(prefers-color-scheme: dark)").matches);
+        if (e) document.documentElement.classList.add("dark");
+      } catch (_) {}
+    </script>
     <title>RoVibes</title>
   </head>
   <body>

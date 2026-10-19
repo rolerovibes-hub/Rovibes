@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronLeft, ChevronRight, History, Lock, MoreVertical, Search, Star, StarOff, X, Zap } from "lucide-react";
+import { CalendarDays, History, Lock, Search, Star, X, Zap } from "lucide-react";
 import { Aplicativo, Area, buscar, CATALOGO } from "@/lib/catalogo";
 import { NOME_PAPEL, NOME_SITUACAO, useBusiness } from "@/lib/acessos";
 import { useSessao } from "@/lib/sessao";
+import { GradeApps, visualApp } from "./GradeApps";
 
 /** Cor sólida de cada área nos blocos da Área de Trabalho. */
 export const COR_AREA: Record<Area, string> = {
@@ -145,19 +146,7 @@ export function AreaDeTrabalho() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-                  {acessos.favoritos.map((a, i) => (
-                    <Bloco
-                      key={a.codigo}
-                      app={a}
-                      primeiro={i === 0}
-                      ultimo={i === acessos.favoritos.length - 1}
-                      onAbrir={() => abrir(a)}
-                      onMover={(d) => acessos.moverFavorito(a.codigo, d)}
-                      onRemover={() => acessos.alternarFavorito(a.codigo)}
-                    />
-                  ))}
-                </div>
+                <GradeApps apps={acessos.favoritos} corArea={COR_AREA} onAbrir={abrir} />
               )}
             </section>
           )}
@@ -225,66 +214,6 @@ export function AreaDeTrabalho() {
   );
 }
 
-function Bloco({
-  app,
-  primeiro,
-  ultimo,
-  onAbrir,
-  onMover,
-  onRemover,
-}: {
-  app: Aplicativo;
-  primeiro: boolean;
-  ultimo: boolean;
-  onAbrir: () => void;
-  onMover: (d: -1 | 1) => void;
-  onRemover: () => void;
-}) {
-  const Icone = app.icone;
-  const [menu, setMenu] = useState(false);
-  const caixa = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!menu) return;
-    const fora = (e: MouseEvent) => !caixa.current?.contains(e.target as Node) && setMenu(false);
-    document.addEventListener("mousedown", fora);
-    return () => document.removeEventListener("mousedown", fora);
-  }, [menu]);
-
-  return (
-    <div ref={caixa} className={clsx("relative rounded-cartao text-white shadow-sm", COR_AREA[app.area])}>
-      <button onClick={onAbrir} className="flex h-[108px] w-full flex-col justify-between rounded-cartao p-3.5 text-left transition-[filter] hover:brightness-110">
-        <span>
-          <Icone className="h-5 w-5 opacity-90" />
-          <span className="mt-2 block text-[15px] font-semibold leading-snug">{app.nome}</span>
-        </span>
-        <span className="codigo truncate text-[12px] opacity-80">
-          {app.codigo} · {app.area}
-        </span>
-      </button>
-      <button onClick={() => setMenu((m) => !m)} className="absolute right-1.5 top-1.5 rounded p-1 opacity-80 hover:bg-white/15 hover:opacity-100" aria-label={`Opções de ${app.nome}`}>
-        <MoreVertical className="h-4 w-4" />
-      </button>
-      {menu && (
-        <div className="absolute right-1.5 top-8 z-20 w-48 overflow-hidden rounded-lg border border-borda bg-superficie py-1 text-sm text-texto shadow-lg">
-          <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-elevado disabled:opacity-40" disabled={primeiro} onClick={() => { onMover(-1); setMenu(false); }}>
-            <ChevronLeft className="h-4 w-4" />
-            Mover para trás
-          </button>
-          <button className="flex w-full items-center gap-2 px-3 py-2 hover:bg-elevado disabled:opacity-40" disabled={ultimo} onClick={() => { onMover(1); setMenu(false); }}>
-            <ChevronRight className="h-4 w-4" />
-            Mover para frente
-          </button>
-          <button className="flex w-full items-center gap-2 px-3 py-2 text-perigo hover:bg-elevado" onClick={() => { onRemover(); setMenu(false); }}>
-            <StarOff className="h-4 w-4" />
-            Tirar da tela inicial
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function LinhaResultado({
   app,
   liberado,
@@ -302,10 +231,11 @@ function LinhaResultado({
   onFavoritar: () => void;
   onSolicitar: () => void;
 }) {
-  const Icone = app.icone;
+  const { estiloDe } = useBusiness();
+  const { Icone, classe, estilo } = visualApp(app, favorito ? estiloDe(app.codigo) : { cor: null, icone: null }, COR_AREA);
   return (
     <div className="flex items-center gap-3 px-4 py-3">
-      <span className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white", liberado ? COR_AREA[app.area] : "bg-elevado text-suave")}>
+      <span className={clsx("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white", liberado ? classe : "bg-elevado text-suave")} style={liberado ? estilo : undefined}>
         <Icone className="h-[18px] w-[18px]" />
       </span>
       <div className="min-w-0 flex-1">
