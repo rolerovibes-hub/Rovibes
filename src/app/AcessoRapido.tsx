@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { CSSProperties, PointerEvent as EventoPonteiro, useCallback, useEffect, useRef, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Bell, Briefcase, ChevronRight, LayoutGrid, LogOut, MessageCircle, QrCode, ReceiptText, ScanLine, Settings2, Store, Wallet, X } from "lucide-react";
-import { SeletorTema } from "@/components/SeletorTema";
-import { useSessao } from "@/lib/sessao";
+import { Bell, Briefcase, Megaphone, QrCode, ScanLine, Store, Wallet } from "lucide-react";
 import { useAcessoRapido } from "./estadoAcesso";
 
 /** Logo "RoV" do menu flutuante. */
@@ -16,19 +14,112 @@ export function LogoRov({ className }: { className?: string }) {
 function Selo({ n }: { n: number }) {
   if (!n) return null;
   return (
-    <span className="absolute right-2.5 top-2.5 flex h-5 min-w-5 items-center justify-center rounded-full bg-magenta px-1 text-[11px] font-semibold text-white">{n > 9 ? "9+" : n}</span>
+    <span className="absolute right-2 top-2 flex h-5 min-w-5 items-center justify-center rounded-full bg-magenta px-1 text-[11px] font-semibold text-white">{n > 9 ? "9+" : n}</span>
   );
 }
 
-/** Menu flutuante: recolhido é só a logo, discreta; aberto mostra os atalhos. */
+const TAMANHO = 52;
+const MARGEM = 12;
+const BARRA = 76; // altura da navegação de baixo
+const CHAVE = "rovibes:hub";
+const TEMPO_ABERTO = 10000; // aberto sem interação: recolhe
+const TEMPO_NITIDO = 3000; // recolhido sem interação: vira marca d'água
+
+type Posicao = { x: number; y: number };
+
+const limites = () => ({
+  maxX: window.innerWidth - TAMANHO - MARGEM,
+  maxY: window.innerHeight - TAMANHO - BARRA - MARGEM,
+  minY: 64,
+});
+const prender = (p: Posicao): Posicao => {
+  const l = limites();
+  return { x: Math.min(Math.max(MARGEM, p.x), l.maxX), y: Math.min(Math.max(l.minY, p.y), l.maxY) };
+};
+const lerPosicao = (): Posicao => {
+  try {
+    const p = JSON.parse(localStorage.getItem(CHAVE) ?? "null") as Posicao | null;
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) return prender(p);
+  } catch {
+    /* sem armazenamento */
+  }
+  const l = limites();
+  return { x: l.maxX, y: l.maxY };
+};
+
+/**
+ * Hub flutuante (pode ser arrastado para qualquer lugar da tela):
+ * toque abre os atalhos; 10 s sem mexer recolhe (nítido); 3 s recolhido vira marca d'água.
+ */
 export function MenuFlutuante() {
-  const { mesa, naoLidas } = useAcessoRapido();
-  const [aberto, setAberto] = useState(false);
-  const [outros, setOutros] = useState(false);
+  const { mesa, naoLidas, setLendo, equipe, promoter, convitesPromoter } = useAcessoRapido();
   const navegar = useNavigate();
   const local = useLocation();
+  const [pos, setPos] = useState<Posicao>(lerPosicao);
+  const [aberto, setAberto] = useState(false);
+  const [nitido, setNitido] = useState(true);
+  const [arrastando, setArrastando] = useState(false);
+  const toque = useRef<{ id: number; x: number; y: number; px: number; py: number; moveu: boolean } | null>(null);
+  const relogio = useRef<number>();
+  const [interacao, setInteracao] = useState(0);
+
+  // Temporizadores de recolher e de esmaecer: qualquer interação reinicia.
+  const mexeu = useCallback(() => {
+    setNitido(true);
+    setInteracao((n) => n + 1);
+  }, []);
+  useEffect(() => {
+    window.clearTimeout(relogio.current);
+    if (arrastando) return;
+    if (aberto) relogio.current = window.setTimeout(() => setAberto(false), TEMPO_ABERTO);
+    else if (nitido) relogio.current = window.setTimeout(() => setNitido(false), TEMPO_NITIDO);
+    return () => window.clearTimeout(relogio.current);
+  }, [aberto, nitido, arrastando, interacao]);
 
   useEffect(() => setAberto(false), [local.pathname]);
+  useEffect(() => {
+    const aoGirar = () => setPos((p) => prender(p));
+    window.addEventListener("resize", aoGirar);
+    return () => window.removeEventListener("resize", aoGirar);
+  }, []);
+
+  const aoApertar = (e: EventoPonteiro<HTMLButtonElement>) => {
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    toque.current = { id: e.pointerId, x: e.clientX, y: e.clientY, px: pos.x, py: pos.y, moveu: false };
+    mexeu();
+  };
+  const aoMover = (e: EventoPonteiro<HTMLButtonElement>) => {
+    const t = toque.current;
+    if (!t || t.id !== e.pointerId) return;
+    const dx = e.clientX - t.x;
+    const dy = e.clientY - t.y;
+    if (!t.moveu && Math.hypot(dx, dy) < 6) return;
+    if (!t.moveu) {
+      t.moveu = true;
+      setArrastando(true);
+      setAberto(false);
+    }
+    setPos(prender({ x: t.px + dx, y: t.py + dy }));
+  };
+  const aoSoltar = (e: EventoPonteiro<HTMLButtonElement>) => {
+    const t = toque.current;
+    toque.current = null;
+    if (!t || t.id !== e.pointerId) return;
+    if (t.moveu) {
+      setArrastando(false);
+      // Encosta na lateral mais próxima, na altura escolhida.
+      setPos((p) => {
+        const l = limites();
+        const final = prender({ x: p.x + TAMANHO / 2 < window.innerWidth / 2 ? MARGEM : l.maxX, y: p.y });
+        try {
+          localStorage.setItem(CHAVE, JSON.stringify(final));
+        } catch {
+          /* sem armazenamento */
+        }
+        return final;
+      });
+    } else setAberto((a) => !a);
+  };
 
   const ir = (para: string) => {
     setAberto(false);
@@ -36,128 +127,70 @@ export function MenuFlutuante() {
   };
 
   const atalhos = [
-    { nome: "QR Code", sub: "Retiradas", icone: QrCode, cor: "text-[#8B5CF6]", selo: mesa?.prontos ?? 0, acao: () => ir("/retirada") },
-    { nome: "Chat", sub: "Conversas", icone: MessageCircle, cor: "text-[#60A5FA]", selo: 0, acao: () => ir("/chats") },
-    { nome: "Carteira", sub: "Pagamentos", icone: Wallet, cor: "text-[#A78BFA]", selo: 0, acao: () => ir("/carteira") },
-    { nome: "Notificações", sub: "Novidades", icone: Bell, cor: "text-[#A78BFA]", selo: naoLidas, acao: () => ir("/notificacoes") },
-    { nome: "Outros", sub: "Mais opções", icone: LayoutGrid, cor: "text-[#A78BFA]", selo: 0, acao: () => { setAberto(false); setOutros(true); } },
+    { nome: "Ler QR da mesa", sub: "Pedir pelo cardápio", icone: ScanLine, selo: 0, acao: () => (setAberto(false), setLendo(true)) },
+    { nome: "Notificações", sub: "Novidades", icone: Bell, selo: naoLidas, acao: () => ir("/notificacoes") },
+    { nome: "Retiradas", sub: "QR dos pedidos", icone: QrCode, selo: mesa?.prontos ?? 0, acao: () => ir("/retirada") },
+    { nome: "Carteira", sub: "Cupons e ingressos", icone: Wallet, selo: 0, acao: () => ir("/carteira") },
+    ...(promoter > 0 ? [{ nome: "Promoter", sub: "Links, listas e benefícios", icone: Megaphone, selo: convitesPromoter, acao: () => ir("/promoter") }] : []),
+    ...(equipe ? [{ nome: "Modo trabalho", sub: "RoVibes Job", icone: Briefcase, selo: 0, acao: () => ir("/job") }] : []),
+    { nome: "Business", sub: "Meu estabelecimento", icone: Store, selo: 0, acao: () => ir("/business") },
   ];
-  const total = (mesa?.prontos ?? 0) + naoLidas;
+  const total = (mesa?.prontos ?? 0) + naoLidas + convitesPromoter;
+
+  // O painel abre para o lado e a altura onde há espaço.
+  const largura = Math.min(320, window.innerWidth - 2 * MARGEM);
+  const naDireita = pos.x + TAMANHO / 2 > window.innerWidth / 2;
+  const emCima = pos.y > window.innerHeight / 2;
+  const painel: CSSProperties = {
+    width: largura,
+    left: naDireita ? Math.max(MARGEM, pos.x + TAMANHO - largura) : pos.x,
+    ...(emCima ? { bottom: window.innerHeight - pos.y + 10 } : { top: pos.y + TAMANHO + 10 }),
+  };
 
   return (
     <>
-      {aberto && <div className="fixed inset-0 z-[45] bg-black/50 backdrop-blur-[2px]" onClick={() => setAberto(false)} />}
-      <div className="pointer-events-none fixed inset-x-0 bottom-[calc(76px+env(safe-area-inset-bottom))] z-[46] mx-auto flex max-w-xl justify-end px-4">
-        {aberto ? (
-          <div className="pointer-events-auto w-full max-w-[340px] rounded-[22px] border border-borda bg-superficie/95 p-4 shadow-2xl backdrop-blur" role="dialog" aria-label="Acesso rápido">
-            <p className="mb-3 px-1 font-semibold">Acesso rápido</p>
-            <div className="grid grid-cols-2 gap-2.5">
-              {atalhos.map((a) => (
-                <button key={a.nome} onClick={a.acao} className="relative flex flex-col items-start gap-2 rounded-2xl border border-borda bg-fundo/70 p-3.5 text-left hover:bg-elevado">
-                  <a.icone className={clsx("h-7 w-7", a.cor)} strokeWidth={1.6} />
-                  <span>
-                    <span className="block text-[15px] font-medium">{a.nome}</span>
-                    <span className="block text-[12px] text-suave">{a.sub}</span>
-                  </span>
-                  <Selo n={a.selo} />
-                </button>
-              ))}
-            </div>
-            <div className="mt-3 flex justify-center border-t border-borda pt-3">
-              <button onClick={() => setAberto(false)} className="flex h-12 w-12 items-center justify-center rounded-full border-2 border-[#8B5CF6]/70 bg-fundo" aria-label="Fechar acesso rápido">
-                <LogoRov className="text-[17px]" />
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            onClick={() => setAberto(true)}
-            className="pointer-events-auto relative flex h-12 w-12 items-center justify-center rounded-full border border-borda bg-superficie/60 opacity-75 shadow-md backdrop-blur transition-opacity hover:opacity-100"
-            aria-label="Abrir acesso rápido"
-          >
-            <LogoRov className="text-[16px]" />
-            {total > 0 && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-fundo bg-magenta" />}
-          </button>
-        )}
-      </div>
-      {outros && <MenuMais fechar={() => setOutros(false)} />}
-    </>
-  );
-}
-
-/** "Mais opções": usado no ⋯ do topo e no atalho Outros. */
-export function MenuMais({ fechar }: { fechar: () => void }) {
-  const { mesa, naoLidas, setLendo, equipe } = useAcessoRapido();
-  const { sair } = useSessao();
-  const navegar = useNavigate();
-  const linha = "flex w-full items-center gap-3 px-4 py-3 text-left text-[15px] hover:bg-elevado";
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/50 sm:items-center" role="dialog" aria-modal="true" aria-label="Mais opções" onClick={fechar}>
-      <div className="max-h-[85vh] w-full max-w-sm overflow-y-auto rounded-t-2xl bg-superficie pb-[max(12px,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-4 py-3">
-          <p className="font-semibold">Mais opções</p>
-          <button onClick={fechar} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="divide-y divide-borda border-y border-borda">
-          <button
-            className={linha}
-            onClick={() => {
-              fechar();
-              setLendo(true);
-            }}
-          >
-            <ScanLine className="h-5 w-5 text-destaque" />
-            <span className="flex-1">Ler QR code da mesa</span>
-          </button>
-          {mesa && (
-            <Link to={`/comanda/${mesa.id}`} onClick={fechar} className={linha}>
-              <ReceiptText className="h-5 w-5 text-destaque" />
-              <span className="flex-1">Minha comanda · {mesa.rotulo}</span>
-              <ChevronRight className="h-4 w-4 text-suave" />
-            </Link>
-          )}
-          <Link to="/notificacoes" onClick={fechar} className={linha}>
-            <Bell className="h-5 w-5 text-destaque" />
-            <span className="flex-1">Notificações</span>
-            {naoLidas > 0 && <span className="rounded-full bg-magenta px-2 text-[12px] font-semibold text-white">{naoLidas}</span>}
-          </Link>
-          <Link to="/carteira" onClick={fechar} className={linha}>
-            <Wallet className="h-5 w-5 text-destaque" />
-            <span className="flex-1">Carteira</span>
-          </Link>
-          {equipe && (
-            <Link to="/job" onClick={fechar} className={linha}>
-              <Briefcase className="h-5 w-5 text-destaque" />
-              <span className="flex-1">Modo trabalho (RoVibes Job)</span>
-            </Link>
-          )}
-          <Link to="/business" onClick={fechar} className={linha}>
-            <Store className="h-5 w-5 text-destaque" />
-            <span className="flex-1">RoVibes Business</span>
-          </Link>
-          <Link to="/perfil" onClick={fechar} className={linha}>
-            <Settings2 className="h-5 w-5 text-destaque" />
-            <span className="flex-1">Meu perfil</span>
-          </Link>
-        </div>
-        <div className="px-4 py-4">
-          <p className="rotulo mb-2">Tema</p>
-          <SeletorTema />
-        </div>
-        <button
-          className={clsx(linha, "border-t border-borda text-perigo")}
-          onClick={async () => {
-            await sair();
-            navegar("/entrar");
-          }}
+      {aberto && <div className="fixed inset-0 z-[45] bg-black/40" onClick={() => setAberto(false)} onPointerDown={mexeu} />}
+      {aberto && (
+        <div
+          style={painel}
+          className="surgir fixed z-[47] max-h-[70vh] overflow-y-auto rounded-[22px] border border-borda bg-superficie/95 p-3 shadow-2xl backdrop-blur"
+          role="dialog"
+          aria-label="Acesso rápido"
+          onPointerDown={mexeu}
+          onScroll={mexeu}
         >
-          <LogOut className="h-5 w-5" />
-          Sair
-        </button>
-      </div>
-    </div>
+          <div className="grid grid-cols-2 gap-2">
+            {atalhos.map((a) => (
+              <button key={a.nome} onClick={a.acao} className="relative flex flex-col items-start gap-1.5 rounded-2xl border border-borda bg-fundo/70 p-3 text-left hover:bg-elevado">
+                <a.icone className="h-6 w-6 text-destaque" strokeWidth={1.7} />
+                <span>
+                  <span className="block text-[14px] font-medium leading-tight">{a.nome}</span>
+                  <span className="block text-[11px] text-suave">{a.sub}</span>
+                </span>
+                <Selo n={a.selo} />
+              </button>
+            ))}
+          </div>
+          <p className="mt-2 text-center text-[11px] text-suave">Arraste o botão RoV para mudar de lugar</p>
+        </div>
+      )}
+      <button
+        style={{ left: pos.x, top: pos.y, width: TAMANHO, height: TAMANHO, touchAction: "none" }}
+        onPointerDown={aoApertar}
+        onPointerMove={aoMover}
+        onPointerUp={aoSoltar}
+        onPointerCancel={aoSoltar}
+        className={clsx(
+          "fixed z-[48] flex select-none items-center justify-center rounded-full border shadow-lg backdrop-blur transition-[opacity,transform,background-color] duration-500",
+          aberto ? "border-[#8B5CF6]/70 bg-superficie" : "border-borda bg-superficie/80",
+          arrastando ? "scale-110 opacity-100 duration-0" : nitido || aberto ? "opacity-100" : "opacity-30",
+        )}
+        aria-label={aberto ? "Fechar acesso rápido" : "Abrir acesso rápido (arraste para mudar de lugar)"}
+        aria-expanded={aberto}
+      >
+        <LogoRov className="text-[17px]" />
+        {total > 0 && !aberto && <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-fundo bg-magenta" />}
+      </button>
+    </>
   );
 }

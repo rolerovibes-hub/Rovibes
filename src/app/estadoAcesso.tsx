@@ -23,6 +23,9 @@ interface Contexto {
   lendo: boolean;
   setLendo: (v: boolean) => void;
   equipe: boolean;
+  /** Lugares onde a pessoa é promoter (ou tem convite). */
+  promoter: number;
+  convitesPromoter: number;
 }
 
 const Ctx = createContext<Contexto | null>(null);
@@ -36,6 +39,8 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
   const [versao, setVersao] = useState(0);
   const [lendo, setLendo] = useState(false);
   const [equipe, setEquipe] = useState(false);
+  const [promoter, setPromoter] = useState(0);
+  const [convitesPromoter, setConvitesPromoter] = useState(0);
 
   useAoVivo("barra-mesa", { pedidos: mesa ? `comanda_id=eq.${mesa.id}` : undefined }, () => setVersao((v) => v + 1), !!mesa);
 
@@ -48,7 +53,16 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
       .eq("ativo", true)
       .limit(1)
       .then(({ data }) => setEquipe(!!data?.length));
-  }, [usuario]);
+    supabase
+      .from("promoters")
+      .select("situacao")
+      .eq("usuario_id", usuario)
+      .in("situacao", ["convidado", "ativo"])
+      .then(({ data }) => {
+        setPromoter(data?.length ?? 0);
+        setConvitesPromoter((data ?? []).filter((x) => x.situacao === "convidado").length);
+      });
+  }, [usuario, local.pathname === "/promoter"]);
 
   useEffect(() => {
     if (!usuario) return;
@@ -88,7 +102,7 @@ export function AcessoRapidoProvider({ children }: { children: ReactNode }) {
   const n = useNotificacoes(usuario, mesa ? { comanda: mesa.id, aviso: mesa.aviso, lugar: mesa.lugar } : null);
 
   return (
-    <Ctx.Provider value={{ mesa, notificacoes: n.notificacoes, naoLidas: n.naoLidas, marcarLidas: n.marcarLidas, visto: n.visto, lendo, setLendo, equipe }}>
+    <Ctx.Provider value={{ mesa, notificacoes: n.notificacoes, naoLidas: n.naoLidas, marcarLidas: n.marcarLidas, visto: n.visto, lendo, setLendo, equipe, promoter, convitesPromoter }}>
       {children}
     </Ctx.Provider>
   );

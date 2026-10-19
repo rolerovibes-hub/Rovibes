@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Armchair, Bell, ChevronRight, Home, Map, MessageCircle, MoreHorizontal, Search, UserRound, X } from "lucide-react";
+import { Armchair, Bell, ChevronRight, Home, Map, MessageCircle, PlusSquare, Search, UserRound, X } from "lucide-react";
 import { LeitorQr } from "@/components/Qr";
 import { codigoDaMesa } from "@/lib/salao";
 import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { useSessao } from "@/lib/sessao";
 import { AcessoRapidoProvider, useAcessoRapido } from "./estadoAcesso";
-import { MenuFlutuante, MenuMais } from "./AcessoRapido";
+import { MenuFlutuante } from "./AcessoRapido";
+import { NovoStory } from "./NovoStory";
 import { useChatNaoLidas } from "@/lib/chat";
 
 const ABAS = [
@@ -44,7 +45,7 @@ function Estrutura() {
   const local = useLocation();
   const navegar = useNavigate();
   const { mesa, lendo, setLendo } = useAcessoRapido();
-  const [mais, setMais] = useState(false);
+  const [publicar, setPublicar] = useState(false);
   const chat = useChatNaoLidas(true);
   const seloChat = chat.conversas + chat.pedidos;
   const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r));
@@ -55,8 +56,8 @@ function Estrutura() {
         <Link to="/" aria-label="RoVibes, início">
           <Marca />
         </Link>
-        <button onClick={() => setMais(true)} className="rounded-full p-2 text-texto hover:bg-elevado" aria-label="Mais opções">
-          <MoreHorizontal className="h-6 w-6" />
+        <button onClick={() => setPublicar(true)} className="rounded-full p-2 text-texto hover:bg-elevado" aria-label="Nova publicação ou story">
+          <PlusSquare className="h-6 w-6" />
         </button>
       </header>
 
@@ -105,7 +106,17 @@ function Estrutura() {
       </main>
 
       {comMenu && <MenuFlutuante />}
-      {mais && <MenuMais fechar={() => setMais(false)} />}
+      {publicar && (
+        <NovoStory
+          destinoInicial="feed"
+          fechar={() => setPublicar(false)}
+          publicado={(destino) => {
+            setPublicar(false);
+            window.dispatchEvent(new CustomEvent("rovibes:publicou", { detail: destino }));
+            if (local.pathname !== "/" && destino === "feed") navegar("/perfil");
+          }}
+        />
+      )}
 
       <nav aria-label="Navegação principal" className="pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-borda bg-superficie sm:border-x">
         <ul className="grid grid-cols-5">

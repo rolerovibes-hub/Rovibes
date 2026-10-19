@@ -39,6 +39,10 @@ export interface PublicacaoApp {
   sigo?: boolean;
   /** Por que apareceu (lugares que ainda não segue). */
   motivo?: string | null;
+  /** Publicação de pessoa (feed misto): quem publicou e o lugar marcado. */
+  tipo?: "lugar" | "pessoa";
+  pessoa?: { id: string; nome: string; usuario: string; foto_url: string | null } | null;
+  local?: { id: string; nome: string } | null;
 }
 
 /** Stories no ar, agrupados por lugar; quem ainda tem story não visto vem primeiro. */
@@ -124,10 +128,11 @@ export async function buscarPublicacoes(usuario: string, modo: "seguindo" | "tod
   return lista.map((p) => ({ ...p, curtidas: mapa.get(p.id)?.total ?? 0, curti: mapa.get(p.id)?.eu ?? false }));
 }
 
-export async function alternarCurtida(publicacaoId: string, usuario: string, curtiu: boolean) {
+export async function alternarCurtida(publicacaoId: string, usuario: string, curtiu: boolean, dePessoa = false) {
+  const tabela = dePessoa ? "curtidas_pessoas" : "curtidas";
   return curtiu
-    ? supabase.from("curtidas").delete().eq("publicacao_id", publicacaoId).eq("usuario_id", usuario)
-    : supabase.from("curtidas").insert({ publicacao_id: publicacaoId });
+    ? supabase.from(tabela).delete().eq("publicacao_id", publicacaoId).eq("usuario_id", usuario)
+    : supabase.from(tabela).insert({ publicacao_id: publicacaoId });
 }
 
 export function tempoAtras(iso: string) {
@@ -142,6 +147,16 @@ export function tempoAtras(iso: string) {
 
 /** Feed único: publicações ordenadas pela interação da pessoa, misturando lugares que ainda não segue. */
 export async function buscarFeed(usuario: string): Promise<PublicacaoApp[]> {
+  // Feed misto (lugares + pessoas que você segue), da atualização 027.
+  const misto = await supabase.rpc("feed_geral", { p_limite: 50 });
+  if (!misto.error) {
+    type Linha = Omit<PublicacaoApp, "estabelecimento" | "pessoa"> & { tipo: "lugar" | "pessoa"; autor: Record<string, string | null> };
+    return ((misto.data ?? []) as Linha[]).map((x) => ({
+      ...x,
+      estabelecimento: x.tipo === "lugar" ? (x.autor as unknown as PublicacaoApp["estabelecimento"]) : { id: x.local?.id ?? "", nome: x.local?.nome ?? "", logo_url: null },
+      pessoa: x.tipo === "pessoa" ? (x.autor as unknown as PublicacaoApp["pessoa"]) : null,
+    }));
+  }
   const { data, error } = await supabase.rpc("feed_publicacoes", { p_limite: 40 });
   if (!error) return (data ?? []) as PublicacaoApp[];
   // Antes da atualização 016 do banco: todas as publicações, marcando quais lugares a pessoa segue.

@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, Heart, LocateFixed, Newspaper, Plus, Store } from "lucide-react";
+import { CalendarDays, ChevronRight, Heart, LocateFixed, MapPin, Newspaper, Plus, Store } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
 import { useSessao } from "@/lib/sessao";
@@ -54,7 +54,14 @@ export function Feed() {
   }, [carregarStories]);
   useEffect(() => {
     buscarFeed(usuario).then(setPubs);
-  }, [usuario]);
+    // Nova publicação ou story feitos pelo "+" do topo.
+    const atualizar = () => {
+      buscarFeed(usuario).then(setPubs);
+      void carregarStories();
+    };
+    window.addEventListener("rovibes:publicou", atualizar);
+    return () => window.removeEventListener("rovibes:publicou", atualizar);
+  }, [usuario, carregarStories]);
 
   const dist = useCallback((l: Lugar) => (pos && l.latitude != null && l.longitude != null ? distanciaKm(pos, [l.latitude, l.longitude]) : null), [pos]);
 
@@ -91,7 +98,7 @@ export function Feed() {
 
   const curtir = async (p: PublicacaoApp) => {
     setPubs((l) => l?.map((x) => (x.id === p.id ? { ...x, curti: !p.curti, curtidas: x.curtidas + (p.curti ? -1 : 1) } : x)) ?? null);
-    const { error } = await alternarCurtida(p.id, usuario, p.curti);
+    const { error } = await alternarCurtida(p.id, usuario, p.curti, p.tipo === "pessoa");
     if (error) setPubs((l) => l?.map((x) => (x.id === p.id ? p : x)) ?? null);
   };
 
@@ -193,33 +200,53 @@ export function Feed() {
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destaque-suave text-destaque">
               <Newspaper className="h-5 w-5" />
             </span>
-            <p className="mt-3 text-sm text-suave">Nenhuma publicação ainda. Assim que os lugares publicarem, aparece aqui.</p>
+            <p className="mt-3 text-sm text-suave">Nenhuma publicação ainda. Publique pelo + no topo ou siga lugares e pessoas.</p>
           </div>
         ) : (
           <ul className="space-y-4 px-4 pt-3">
             {pubs.map((p) => (
               <li key={p.id} className="cartao overflow-hidden">
-                <div className="flex items-center gap-2.5 px-3.5 py-3">
-                  <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                    {p.estabelecimento.logo_url ? (
-                      <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
-                    ) : (
-                      <Avatar nome={p.estabelecimento.nome} />
-                    )}
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
-                      <span className="block truncate text-[12px] text-suave">
-                        {p.motivo && !p.sigo ? `${p.motivo} · ` : ""}
-                        {tempoAtras(p.criado_em)}
+                {p.tipo === "pessoa" && p.pessoa ? (
+                  <div className="flex items-center gap-2.5 px-3.5 py-3">
+                    <Link to={p.pessoa.id === usuario ? "/perfil" : `/p/${p.pessoa.usuario}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+                      <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} />
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{p.pessoa.nome}</span>
+                        <span className="block truncate text-[12px] text-suave">
+                          {p.local ? (
+                            <>
+                              <MapPin className="mr-0.5 inline h-3 w-3" />
+                              {p.local.nome} ·{" "}
+                            </>
+                          ) : null}
+                          {tempoAtras(p.criado_em)}
+                        </span>
                       </span>
-                    </span>
-                  </Link>
-                  {p.sigo === false && (
-                    <button onClick={() => void seguir(p.estabelecimento.id)} className="shrink-0 rounded-full bg-marca px-3.5 py-1.5 text-[13px] font-semibold text-marca-texto">
-                      Seguir
-                    </button>
-                  )}
-                </div>
+                    </Link>
+                  </div>
+                ) : (
+                <div className="flex items-center gap-2.5 px-3.5 py-3">
+                    <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+                      {p.estabelecimento.logo_url ? (
+                        <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                      ) : (
+                        <Avatar nome={p.estabelecimento.nome} />
+                      )}
+                      <span className="min-w-0">
+                        <span className="block truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
+                        <span className="block truncate text-[12px] text-suave">
+                          {p.motivo && !p.sigo ? `${p.motivo} · ` : ""}
+                          {tempoAtras(p.criado_em)}
+                        </span>
+                      </span>
+                    </Link>
+                    {p.sigo === false && (
+                      <button onClick={() => void seguir(p.estabelecimento.id)} className="shrink-0 rounded-full bg-marca px-3.5 py-1.5 text-[13px] font-semibold text-marca-texto">
+                        Seguir
+                      </button>
+                    )}
+                  </div>
+                )}
                 {p.foto_url && <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />}
                 <div className="space-y-2.5 px-3.5 py-3">
                   {p.texto && <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.texto}</p>}

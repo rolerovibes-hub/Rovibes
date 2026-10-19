@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/lib/supabase";
-import { Bookmark, Briefcase, ChevronRight, Lock, LogOut, MapPinned, Megaphone, Store, UserPlus, Wallet } from "lucide-react";
+import { Bookmark, ChevronRight, Grid3x3, Lock, MapPinned, MoreVertical, UserPlus } from "lucide-react";
+import clsx from "clsx";
+import { GradePublicacoes } from "@/components/GradePublicacoes";
+import { Configuracoes } from "./Configuracoes";
 import { Avatar } from "@/components/Avatar";
-import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
 import { buscarPerfilPessoa, PerfilPessoa } from "@/lib/pessoas";
 import { Contadores } from "./PessoaPagina";
@@ -17,7 +19,7 @@ interface ItemLista {
   detalhe: string;
 }
 
-function MinhasListas({ usuario }: { usuario: string }) {
+function MinhasListas({ usuario, so }: { usuario: string; so: "salvos" | "checkins" }) {
   const [salvos, setSalvos] = useState<ItemLista[]>([]);
   const [checkins, setCheckins] = useState<ItemLista[]>([]);
 
@@ -80,12 +82,9 @@ function MinhasListas({ usuario }: { usuario: string }) {
     </section>
   );
 
-  return (
-    <>
-      {lista("Salvos", Bookmark, salvos, "Toque em Salvar na página de um lugar para guardá-lo aqui.")}
-      {lista("Meus check-ins", MapPinned, checkins, "Seus check-ins aparecem aqui.")}
-    </>
-  );
+  return so === "salvos"
+    ? lista("Lugares salvos", Bookmark, salvos, "Toque em Salvar na página de um lugar para guardá-lo aqui.")
+    : lista("Meus check-ins", MapPinned, checkins, "Seus check-ins aparecem aqui.");
 }
 
 function Cabecalho() {
@@ -129,11 +128,7 @@ function Cabecalho() {
         </button>
         {dados ? <Contadores pessoa={dados} /> : <span className="flex-1" />}
       </div>
-      <h1 className="mt-3 flex items-center gap-1.5 text-lg font-semibold">
-        {perfil.nome}
-        {perfil.privado && <Lock className="h-3.5 w-3.5 text-suave" aria-label="Perfil privado" />}
-      </h1>
-      {perfil.usuario && <p className="text-sm text-suave">@{perfil.usuario}</p>}
+      <h1 className="mt-3 text-lg font-semibold">{perfil.nome}</h1>
       {perfil.bio && <p className="mt-1 whitespace-pre-line text-[15px]">{perfil.bio}</p>}
       {perfil.suspenso && <p className="mt-2 rounded-lg bg-perigo/10 px-3 py-2 text-sm text-perigo">Sua conta está suspensa pela moderação do RoVibes.</p>}
       <button className="botao mt-4 w-full" onClick={() => setEditando(true)}>
@@ -171,106 +166,59 @@ function Cabecalho() {
   );
 }
 
+type Aba = "publicacoes" | "salvos" | "checkins";
+
 export function Perfil() {
-  const { sessao, email, sair } = useSessao();
-  const [equipe, setEquipe] = useState(false);
-  const [promoter, setPromoter] = useState(0);
-  const [convitesPromoter, setConvitesPromoter] = useState(0);
-  useEffect(() => {
-    if (!sessao) return;
-    supabase
-      .from("membros")
-      .select("estabelecimento_id")
-      .eq("usuario_id", sessao.user.id)
-      .eq("ativo", true)
-      .limit(1)
-      .then(({ data }) => setEquipe(!!data?.length));
-    supabase
-      .from("promoters")
-      .select("situacao")
-      .eq("usuario_id", sessao.user.id)
-      .in("situacao", ["convidado", "ativo"])
-      .then(({ data }) => {
-        setPromoter(data?.length ?? 0);
-        setConvitesPromoter((data ?? []).filter((x) => x.situacao === "convidado").length);
-      });
-  }, [sessao]);
+  const { sessao, perfil } = useSessao();
+  const [config, setConfig] = useState(false);
+  const [aba, setAba] = useState<Aba>("publicacoes");
+  if (!sessao || !perfil) return null;
 
   return (
-    <div className="space-y-6 px-4 py-6">
-      {sessao ? (
+    <div className="pb-6">
+      <div className="flex items-center justify-between px-4 pt-2">
+        <p className="flex items-center gap-1.5 truncate text-[17px] font-semibold">
+          {perfil.usuario ?? perfil.nome}
+          {perfil.privado && <Lock className="h-3.5 w-3.5 text-suave" aria-label="Perfil privado" />}
+        </p>
+        <button onClick={() => setConfig(true)} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Configurações">
+          <MoreVertical className="h-5 w-5" />
+        </button>
+      </div>
+      <div className="px-4 pt-2">
         <Cabecalho />
+      </div>
+
+      <div className="mt-5 grid grid-cols-3 border-b border-borda" role="tablist" aria-label="Conteúdo do perfil">
+        {(
+          [
+            ["publicacoes", Grid3x3, "Publicações"],
+            ["salvos", Bookmark, "Salvos"],
+            ["checkins", MapPinned, "Check-ins"],
+          ] as const
+        ).map(([id, Icone, nome]) => (
+          <button
+            key={id}
+            role="tab"
+            aria-selected={aba === id}
+            onClick={() => setAba(id)}
+            className={clsx("flex items-center justify-center gap-1.5 border-b-2 py-2.5 text-sm", aba === id ? "border-texto font-semibold" : "border-transparent text-suave")}
+          >
+            <Icone className="h-4 w-4" />
+            {nome}
+          </button>
+        ))}
+      </div>
+
+      {aba === "publicacoes" ? (
+        <GradePublicacoes pessoa={sessao.user.id} autor={{ nome: perfil.nome, usuario: perfil.usuario ?? null, foto_url: perfil.foto_url ?? null }} />
       ) : (
-        <div className="cartao space-y-4 p-5 text-center">
-          <h1 className="text-lg font-semibold">Entre no RoVibes</h1>
-          <p className="text-sm text-suave">Salve lugares, confirme presença em eventos e converse com quem vai.</p>
-          <div className="grid grid-cols-2 gap-2">
-            <Link to="/entrar?voltar=/perfil" className="botao">
-              Entrar
-            </Link>
-            <Link to="/entrar?voltar=/perfil&modo=criar" className="botao-principal">
-              Criar conta
-            </Link>
-          </div>
+        <div className="px-4 pt-4">
+          <MinhasListas usuario={sessao.user.id} so={aba} />
         </div>
       )}
 
-      {sessao && <MinhasListas usuario={sessao.user.id} />}
-
-      {promoter > 0 && (
-        <Link to="/promoter" className="cartao flex items-center gap-3 border-marca px-4 py-3.5 hover:bg-elevado">
-          <Megaphone className="h-5 w-5 text-destaque" />
-          <span className="flex-1">
-            <span className="block font-medium">Área do Promoter</span>
-            <span className="block text-[13px] text-suave">{convitesPromoter ? `${convitesPromoter} convite(s) esperando resposta` : "Links, listas de presença e benefícios"}</span>
-          </span>
-          <ChevronRight className="h-4 w-4 text-suave" />
-        </Link>
-      )}
-
-      {equipe && (
-        <Link to="/job" className="cartao flex items-center gap-3 border-marca px-4 py-3.5 hover:bg-elevado">
-          <Briefcase className="h-5 w-5 text-destaque" />
-          <span className="flex-1">
-            <span className="block font-medium">Modo trabalho</span>
-            <span className="block text-[13px] text-suave">RoVibes Job: mesas, preparo e entregas</span>
-          </span>
-          <ChevronRight className="h-4 w-4 text-suave" />
-        </Link>
-      )}
-
-      <Link to="/carteira" className="cartao flex items-center gap-3 px-4 py-3.5 hover:bg-elevado">
-        <Wallet className="h-5 w-5 text-destaque" />
-        <span className="flex-1">
-          <span className="block">Carteira</span>
-          <span className="block text-[13px] text-suave">Cupons, ingressos e pontos</span>
-        </span>
-        <ChevronRight className="h-4 w-4 text-suave" />
-      </Link>
-
-      <section className="space-y-2">
-        <h2 className="rotulo">Tema</h2>
-        <SeletorTema />
-      </section>
-
-      <Link to="/business" className="cartao flex items-center gap-3 px-4 py-3.5 hover:bg-elevado">
-        <Store className="h-5 w-5 text-destaque" />
-        <span className="flex-1">
-          <span className="block font-medium">Tem um estabelecimento?</span>
-          <span className="block text-[13px] text-suave">Abrir o RoVibes Business</span>
-        </span>
-        <ChevronRight className="h-4 w-4 text-suave" />
-      </Link>
-
-      {sessao && (
-        <>
-          <p className="text-center text-[13px] text-suave">Conectado como {email}</p>
-          <button onClick={() => void sair()} className="botao w-full text-perigo">
-          <LogOut className="h-4 w-4" />
-          Sair
-          </button>
-        </>
-      )}
+      {config && <Configuracoes fechar={() => setConfig(false)} />}
     </div>
   );
 }

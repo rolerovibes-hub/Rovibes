@@ -1,18 +1,12 @@
-import { FormEvent, useEffect, useRef, useState } from "react";
-import { Camera, Lock, X } from "lucide-react";
+import { FormEvent, useRef, useState } from "react";
+import { Camera, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { reduzirImagem } from "@/lib/imagens";
-import { desbloquearPessoa, limparUsuario } from "@/lib/pessoas";
+import { limparUsuario } from "@/lib/pessoas";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 
-interface Bloqueado {
-  id: string;
-  nome: string;
-  usuario: string;
-}
-
-/** Editar o próprio perfil: foto, nome, @usuário, bio, privacidade e bloqueados. */
+/** Editar o próprio perfil: foto, nome, @usuário e bio. (Privacidade e bloqueados ficam em Configurações.) */
 export function EditarPerfil({ fechar }: { fechar: () => void }) {
   const { sessao, perfil, recarregar } = useSessao();
   const eu = sessao!.user.id;
@@ -20,19 +14,9 @@ export function EditarPerfil({ fechar }: { fechar: () => void }) {
   const [nome, setNome] = useState(perfil?.nome ?? "");
   const [usuario, setUsuario] = useState(perfil?.usuario ?? "");
   const [bio, setBio] = useState(perfil?.bio ?? "");
-  const [privado, setPrivado] = useState(!!perfil?.privado);
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
-  const [bloqueados, setBloqueados] = useState<Bloqueado[]>([]);
 
-  const carregarBloqueados = async () => {
-    const { data } = await supabase.rpc("meus_bloqueados");
-    setBloqueados((data ?? []) as Bloqueado[]);
-  };
-  useEffect(() => {
-    void carregarBloqueados();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const trocarFoto = async (lista: FileList | null) => {
     const arquivo = lista?.[0];
@@ -64,7 +48,7 @@ export function EditarPerfil({ fechar }: { fechar: () => void }) {
     if (nome.trim().length < 2) return setErro("Informe seu nome.");
     if (u.length < 3) return setErro("O @usuário precisa ter pelo menos 3 caracteres.");
     setSalvando(true);
-    const { error } = await supabase.from("perfis").update({ nome: nome.trim(), usuario: u, bio: bio.trim() || null, privado }).eq("id", eu);
+    const { error } = await supabase.from("perfis").update({ nome: nome.trim(), usuario: u, bio: bio.trim() || null }).eq("id", eu);
     setSalvando(false);
     if (error) {
       if (/perfis_usuario_unico|duplicate key/i.test(error.message)) return setErro(`@${u} já está em uso. Escolha outro.`);
@@ -127,48 +111,11 @@ export function EditarPerfil({ fechar }: { fechar: () => void }) {
           <span className="block text-right text-[12px] text-suave">{bio.length}/160</span>
         </label>
 
-        <label className="mt-2 flex cursor-pointer items-start gap-3 rounded-lg border border-borda px-3 py-3">
-          <input type="checkbox" checked={privado} onChange={(e) => setPrivado(e.target.checked)} className="mt-1 h-4 w-4 accent-[rgb(var(--marca))]" />
-          <span>
-            <span className="flex items-center gap-1.5 text-sm font-medium">
-              <Lock className="h-3.5 w-3.5" />
-              Perfil privado
-            </span>
-            <span className="block text-[12px] text-suave">Quem quiser seguir você precisa da sua aprovação. Seus stories só aparecem para seguidores.</span>
-          </span>
-        </label>
-
         {erro && <p className="mt-3 text-sm text-perigo">{erro}</p>}
         <button type="submit" className="botao-principal mt-4 h-11 w-full" disabled={salvando}>
           {salvando ? "Salvando..." : "Salvar"}
         </button>
 
-        {bloqueados.length > 0 && (
-          <section className="mt-6 border-t border-borda pt-4">
-            <h3 className="rotulo mb-2">Pessoas bloqueadas</h3>
-            <ul className="divide-y divide-borda">
-              {bloqueados.map((b) => (
-                <li key={b.id} className="flex items-center gap-3 py-2">
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{b.usuario}</span>
-                    <span className="block truncate text-[12px] text-suave">{b.nome}</span>
-                  </span>
-                  <button
-                    type="button"
-                    className="botao h-8 px-3 text-[13px]"
-                    onClick={() =>
-                      void desbloquearPessoa(b.id)
-                        .then(carregarBloqueados)
-                        .catch((e) => setErro(mensagemDeErro(e)))
-                    }
-                  >
-                    Desbloquear
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
       </form>
     </div>
   );

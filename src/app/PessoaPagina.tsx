@@ -6,6 +6,7 @@ import { abrirConversa } from "@/lib/chat";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
 import { JanelaDenuncia } from "@/components/Denunciar";
+import { GradePublicacoes } from "@/components/GradePublicacoes";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import {
@@ -207,7 +208,12 @@ export function PessoaPagina() {
         {erro && <p className="mt-2 text-sm text-perigo">{erro}</p>}
       </section>
 
-      <section className="mt-6 border-t border-borda px-6 py-12 text-center">
+      {p.pode_ver && !p.eu_bloqueei && (
+        <div className="mt-6 border-t border-borda">
+          <GradePublicacoes pessoa={p.id} autor={{ nome: p.nome, usuario: p.usuario, foto_url: p.foto_url }} />
+        </div>
+      )}
+      <section className={clsx("mt-6 border-t border-borda px-6 py-12 text-center", p.pode_ver && !p.eu_bloqueei && "hidden")}>
         {p.eu_bloqueei ? (
           <p className="text-sm text-suave">Você bloqueou esta pessoa.</p>
         ) : !p.pode_ver ? (
@@ -216,11 +222,9 @@ export function PessoaPagina() {
               <Lock className="h-5 w-5" />
             </span>
             <p className="mt-3 font-semibold">Este perfil é privado</p>
-            <p className="mt-1 text-sm text-suave">Siga para ver os stories e as conexões de {p.nome.split(" ")[0]}.</p>
+            <p className="mt-1 text-sm text-suave">Siga para ver as publicações, os stories e as conexões de {p.nome.split(" ")[0]}.</p>
           </>
-        ) : (
-          <p className="text-sm text-suave">{temStory ? "Toque na foto para ver o story." : "Nenhum story nas últimas 24 horas."}</p>
-        )}
+        ) : null}
       </section>
 
       {visor && sessao && (

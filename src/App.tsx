@@ -23,6 +23,7 @@ import { ListaConexoes, PessoaPagina } from "./app/PessoaPagina";
 import { AoVivoPagina } from "./app/AoVivoPagina";
 import { AreaPromoter } from "./app/AreaPromoter";
 import { ListaPagina } from "./app/ListaPagina";
+import { Privacidade } from "./app/Privacidade";
 import { ConversaPagina } from "./app/ConversaPagina";
 import { LinksDoApp } from "./components/LinksDoApp";
 import { BotaoVoltarAparelho } from "./components/BotaoVoltarAparelho";
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="ao-vivo/:estab" element={<AoVivoPagina />} />
         <Route path="promoter" element={<AreaPromoter />} />
         <Route path="lista/:id" element={<ListaPagina />} />
+        <Route path="privacidade" element={<Privacidade />} />
         <Route path="perfil" element={<Perfil />} />
         <Route path="lugar/:id" element={<LugarPagina />} />
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />
