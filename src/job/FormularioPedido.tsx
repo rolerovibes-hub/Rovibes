@@ -4,7 +4,7 @@ import { Send } from "lucide-react";
 import { reais } from "@/components/Formulario";
 import { Carrinho, carrinhoParaBanco, carregarItensParaPedido, ItemParaPedido, MontarPedido, qtdNoCarrinho, totalDoCarrinho } from "@/components/MontarPedido";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { Modalidade, NOME_MODALIDADE } from "@/lib/salao";
+import { buscarRegraEntrega, Modalidade, NOME_MODALIDADE, RegraEntrega } from "@/lib/salao";
 
 /** Venda direta pela equipe: monta o pedido e envia para os setores. */
 export function FormularioPedido({ estab, comanda, comMesa, enviado, lateral = true }: { estab: string; comanda: string; comMesa: boolean; enviado: () => void; lateral?: boolean }) {
@@ -12,12 +12,18 @@ export function FormularioPedido({ estab, comanda, comMesa, enviado, lateral = t
   const [carrinho, setCarrinho] = useState<Carrinho>({});
   const [obs, setObs] = useState("");
   const [modalidade, setModalidade] = useState<Modalidade>(comMesa ? "mesa" : "retirada");
+  const [regra, setRegra] = useState<RegraEntrega>("cliente");
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
 
   useEffect(() => {
     carregarItensParaPedido(estab).then(setItens);
-  }, [estab]);
+    // Começa pela regra do lugar; a equipe pode abrir exceção.
+    buscarRegraEntrega(estab).then((r) => {
+      setRegra(r);
+      if (comMesa && r !== "cliente") setModalidade(r);
+    });
+  }, [estab, comMesa]);
 
   const qtd = qtdNoCarrinho(carrinho);
   const enviar = async () => {
@@ -44,6 +50,7 @@ export function FormularioPedido({ estab, comanda, comMesa, enviado, lateral = t
       </div>
       <div className="space-y-3">
         {comMesa && (
+          <>
           <div className="grid grid-cols-2 gap-1 rounded-lg border border-borda p-1" role="radiogroup" aria-label="Atendimento">
             {(["mesa", "retirada"] as Modalidade[]).map((m) => (
               <button
@@ -58,6 +65,8 @@ export function FormularioPedido({ estab, comanda, comMesa, enviado, lateral = t
               </button>
             ))}
           </div>
+          {regra !== "cliente" && modalidade !== regra && <p className="text-[12px] text-alerta">Exceção: a regra do lugar é {NOME_MODALIDADE[regra].toLowerCase()}.</p>}
+          </>
         )}
         <label className="block">
           <span className="rotulo mb-1 block">Observação</span>

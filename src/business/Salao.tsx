@@ -9,7 +9,7 @@ import { FormularioPedido } from "@/job/FormularioPedido";
 import { usePermissoesJob } from "@/job/permissoes";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useBusiness } from "@/lib/acessos";
-import { CAMPOS_PEDIDO, faltaAoFechar, linkDaMesa, minutosDesde, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
+import { CAMPOS_PEDIDO, faltaAoFechar, linkDaMesa, minutosDesde, normalizarPedidos, Pedido, useAoVivo, buscarRegraEntrega, NOME_REGRA_ENTREGA, RegraEntrega } from "@/lib/salao";
 
 interface Mesa {
   id: string;
@@ -481,6 +481,8 @@ export function Salao() {
         </>
       )}
 
+      {aba === "mesas" && id && <RegraEntregaCartao estab={id} />}
+
       {aba === "mesas" && (
         <>
           {rascunhoMesa && (
@@ -619,5 +621,47 @@ function LancarPedido({ estab, comanda, titulo, comMesa, fechar, enviado }: { es
     >
       <FormularioPedido estab={estab} comanda={comanda} comMesa={comMesa} enviado={enviado} />
     </Secao>
+  );
+}
+
+/** O estabelecimento decide como os pedidos chegam ao cliente (modelo do negócio). */
+function RegraEntregaCartao({ estab }: { estab: string }) {
+  const [regra, setRegra] = useState<RegraEntrega | null>(null);
+  const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
+  useEffect(() => {
+    buscarRegraEntrega(estab).then(setRegra);
+  }, [estab]);
+  const mudar = async (r: RegraEntrega) => {
+    const antes = regra;
+    setRegra(r);
+    setAviso(null);
+    const { error } = await supabase.rpc("definir_entrega_pedidos", { p_estab: estab, p_modo: r });
+    if (error) {
+      setRegra(antes);
+      return setAviso({ tipo: "erro", texto: /function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 028 do banco." : mensagemDeErro(error) });
+    }
+    setAviso({ tipo: "ok", texto: "Salvo. Vale para os próximos pedidos." });
+  };
+  return (
+    <section className="cartao p-4">
+      <h2 className="font-semibold">Como os pedidos chegam ao cliente</h2>
+      <p className="mt-0.5 text-sm text-suave">Escolha conforme o modelo do seu negócio. Comandas sem mesa (balcão) são sempre retirada.</p>
+      <div className="mt-3 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Entrega dos pedidos">
+        {(Object.keys(NOME_REGRA_ENTREGA) as RegraEntrega[]).map((r) => (
+          <button
+            key={r}
+            type="button"
+            role="radio"
+            aria-checked={regra === r}
+            onClick={() => void mudar(r)}
+            className={clsx("rounded-lg border p-3 text-left", regra === r ? "border-marca bg-destaque-suave" : "border-borda hover:bg-elevado")}
+          >
+            <span className={clsx("block text-sm font-semibold", regra === r && "text-destaque")}>{NOME_REGRA_ENTREGA[r].nome}</span>
+            <span className="block text-[12px] text-suave">{NOME_REGRA_ENTREGA[r].texto}</span>
+          </button>
+        ))}
+      </div>
+      {aviso && <p className={clsx("mt-2 text-sm", aviso.tipo === "ok" ? "text-ok" : "text-perigo")}>{aviso.texto}</p>}
+    </section>
   );
 }

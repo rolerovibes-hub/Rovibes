@@ -22,8 +22,7 @@ import {
   PagamentoComanda,
   Pedido,
   Totais,
-  useAoVivo,
-} from "@/lib/salao";
+  useAoVivo,, buscarRegraEntrega, RegraEntrega } from "@/lib/salao";
 import { buscarCarteira, Cupom } from "./carteira";
 
 interface Comanda {
@@ -487,6 +486,7 @@ export function ComandaPagina() {
 
 function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { comanda: string; estab: string; usuario: string; comMesa: boolean; fechar: () => void; enviado: () => void }) {
   const [modalidade, setModalidade] = useState<Modalidade>(comMesa ? "mesa" : "retirada");
+  const [regra, setRegra] = useState<RegraEntrega | null>(null);
   const [itens, setItens] = useState<ItemParaPedido[] | null>(null);
   const [cupons, setCupons] = useState<Cupom[]>([]);
   const [carrinho, setCarrinho] = useState<Carrinho>({});
@@ -497,6 +497,7 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
   const [erro, setErro] = useState("");
 
   useEffect(() => {
+    buscarRegraEntrega(estab).then(setRegra);
     carregarItensParaPedido(estab).then(setItens);
     buscarCarteira(usuario).then((c) =>
       setCupons(c.cupons.filter((x) => x.estabelecimento?.id === estab && x.situacao === "disponivel" && Date.parse(x.validade) > Date.now())),
@@ -517,7 +518,8 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
       p_itens: carrinhoParaBanco(carrinho),
       p_observacao: observacao.trim() || null,
       p_cupom: cupom || null,
-      p_modalidade: modalidade,
+      // O estabelecimento decide; só manda a escolha quando ele deixa o cliente escolher.
+      p_modalidade: regra === "cliente" ? modalidade : null,
     });
     setEnviando(false);
     if (error) return setErro(mensagemDeErro(error));
@@ -555,7 +557,13 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
                 );
               })}
             </ul>
-            {comMesa && (
+            {(!comMesa || (regra && regra !== "cliente")) && (
+              <p className="cartao flex items-center gap-2 px-4 py-3 text-sm">
+                <span className="font-semibold">{!comMesa || regra === "retirada" ? "Retirada no balcão" : "Entrega na mesa"}</span>
+                <span className="text-suave">· {!comMesa || regra === "retirada" ? "quando ficar pronto, mostre o QR do pedido no balcão" : "a equipe leva até você"}</span>
+              </p>
+            )}
+            {comMesa && regra === "cliente" && (
               <fieldset>
                 <legend className="rotulo mb-1.5">Como você quer receber</legend>
                 <div className="grid grid-cols-2 gap-2">

@@ -241,3 +241,17 @@ export async function cancelarOuPedir(item: ItemPedido, supervisor: boolean) {
   const { error } = direto ? await mudarItens([item.id], "cancelar", motivo) : await abrirOcorrencia([item.id], "cancelamento", motivo);
   return { error, pedido: !direto };
 }
+
+/** Como o estabelecimento entrega os pedidos: na mesa, no balcão ou o cliente escolhe (atualização 028). */
+export type RegraEntrega = "mesa" | "retirada" | "cliente";
+export const NOME_REGRA_ENTREGA: Record<RegraEntrega, { nome: string; texto: string }> = {
+  mesa: { nome: "Entrega na mesa", texto: "A equipe leva os pedidos até a mesa." },
+  retirada: { nome: "Retirada no balcão", texto: "O cliente retira no balcão com o QR code do pedido." },
+  cliente: { nome: "O cliente escolhe", texto: "No pedido, o cliente escolhe entre mesa e balcão." },
+};
+export async function buscarRegraEntrega(estab: string): Promise<RegraEntrega> {
+  const { data, error } = await supabase.from("estabelecimentos").select("entrega_pedidos").eq("id", estab).maybeSingle();
+  // Antes da atualização 028 o cliente escolhia.
+  if (error || !data) return "cliente";
+  return ((data as { entrega_pedidos: RegraEntrega }).entrega_pedidos ?? "mesa") as RegraEntrega;
+}
