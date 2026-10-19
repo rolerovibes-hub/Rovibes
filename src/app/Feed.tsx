@@ -31,16 +31,19 @@ export function Feed() {
   const { resumos } = useResumos(null);
   const { pos, pedir } = usePosicaoSilenciosa();
   const [grupos, setGrupos] = useState<GrupoStories[]>([]);
+  const [gruposLugares, setGruposLugares] = useState<GrupoStories[]>([]);
   const [pubs, setPubs] = useState<PublicacaoApp[] | null>(null);
-  const [visor, setVisor] = useState<number | null>(null);
+  const [visor, setVisor] = useState<{ lista: "pessoas" | "lugares"; inicio: number } | null>(null);
   const [meuStory, setMeuStory] = useState(false);
 
+  // Bolinhas do topo: só pessoas (o seu primeiro). Stories dos lugares vão para o "Em alta".
   const carregarStories = useCallback(
     () =>
       Promise.all([buscarStoriesPessoas(usuario), buscarStories(usuario)]).then(([pessoas, lugares]) => {
         const meu = pessoas.filter((x) => x.meu);
-        const outros = [...pessoas.filter((x) => !x.meu), ...lugares].sort((a, b) => Number(a.vistos) - Number(b.vistos));
+        const outros = pessoas.filter((x) => !x.meu).sort((a, b) => Number(a.vistos) - Number(b.vistos));
         setGrupos([...meu, ...outros]);
+        setGruposLugares(lugares);
       }),
     [usuario],
   );
@@ -63,8 +66,19 @@ export function Feed() {
       const d = dist(l);
       return (r ? r.pessoas_2h * 4 + mov + r.seguidores * 0.5 + (r.nota ?? 0) * 0.8 : 0) + (d != null ? 8 / (1 + d) : 0);
     };
-    return [...lugares].sort((a, b) => peso(b) - peso(a)).slice(0, 12);
+    return { peso, lista: [...lugares].sort((a, b) => peso(b) - peso(a)).slice(0, 12) };
   }, [lugares, resumos, dist]);
+
+  // Em alta com stories: não vistos primeiro, depois pela força do lugar agora.
+  const storiesEmAlta = useMemo(() => {
+    const porId = new Map(lugares.map((l) => [l.id, l]));
+    return [...gruposLugares].sort((a, b) => {
+      if (a.vistos !== b.vistos) return Number(a.vistos) - Number(b.vistos);
+      const la = porId.get(a.autor.id);
+      const lb = porId.get(b.autor.id);
+      return (lb ? emAlta.peso(lb) : 0) - (la ? emAlta.peso(la) : 0);
+    });
+  }, [gruposLugares, lugares, emAlta]);
 
   const seguir = async (estab: string) => {
     setPubs((l) => l?.map((x) => (x.estabelecimento.id === estab ? { ...x, sigo: true, motivo: null } : x)) ?? null);
@@ -88,7 +102,7 @@ export function Feed() {
         <ul className="flex gap-3.5 overflow-x-auto px-4 py-3 [scrollbar-width:none]">
           <li className="shrink-0">
             <div className="relative flex w-[70px] flex-col items-center gap-1.5">
-              <button onClick={() => (temMeu ? setVisor(0) : setMeuStory(true))} aria-label={temMeu ? "Ver seu story" : "Criar story"}>
+              <button onClick={() => (temMeu ? setVisor({ lista: "pessoas", inicio: 0 }) : setMeuStory(true))} aria-label={temMeu ? "Ver seu story" : "Criar story"}>
                 {temMeu ? (
                   <AnelStory visto={false}>
                     <Avatar nome={perfil?.nome || "?"} foto={perfil?.foto_url} tamanho="story" />
@@ -111,7 +125,7 @@ export function Feed() {
           </li>
           {outrosGrupos.map((gr, i) => (
             <li key={`${gr.tipo}-${gr.autor.id}`} className="shrink-0">
-              <button onClick={() => setVisor(temMeu ? i + 1 : i)} className="flex w-[70px] flex-col items-center gap-1.5">
+              <button onClick={() => setVisor({ lista: "pessoas", inicio: temMeu ? i + 1 : i })} className="flex w-[70px] flex-col items-center gap-1.5">
                 <AnelStory visto={gr.vistos}>
                   {gr.tipo === "pessoa" && !gr.autor.logo_url ? (
                     <Avatar nome={gr.autor.nome} tamanho="story" />
@@ -134,19 +148,37 @@ export function Feed() {
         <Carregando />
       ) : (
         <>
-          <Carrossel
-            titulo="Em alta"
-            acao={
-              !pos && (
-                <button onClick={() => void pedir()} className="inline-flex items-center gap-1 text-[12px] font-medium text-destaque">
-                  <LocateFixed className="h-3.5 w-3.5" />
-                  Perto de mim
-                </button>
-              )
-            }
-            lugares={emAlta}
-            distancia={dist}
-          />
+          {storiesEmAlta.length > 0 ? (
+            <StoriesEmAlta
+              grupos={storiesEmAlta}
+              lugares={lugares}
+              resumos={resumos}
+              distancia={dist}
+              abrir={(i) => setVisor({ lista: "lugares", inicio: i })}
+              acao={
+                !pos && (
+                  <button onClick={() => void pedir()} className="inline-flex items-center gap-1 text-[12px] font-medium text-destaque">
+                    <LocateFixed className="h-3.5 w-3.5" />
+                    Perto de mim
+                  </button>
+                )
+              }
+            />
+          ) : (
+            <Carrossel
+              titulo="Em alta"
+              acao={
+                !pos && (
+                  <button onClick={() => void pedir()} className="inline-flex items-center gap-1 text-[12px] font-medium text-destaque">
+                    <LocateFixed className="h-3.5 w-3.5" />
+                    Perto de mim
+                  </button>
+                )
+              }
+              lugares={emAlta.lista}
+              distancia={dist}
+            />
+          )}
         </>
       )}
 
@@ -213,8 +245,8 @@ export function Feed() {
 
       {visor !== null && (
         <VisorStories
-          grupos={grupos}
-          inicio={visor}
+          grupos={visor.lista === "pessoas" ? grupos : storiesEmAlta}
+          inicio={visor.inicio}
           usuario={usuario}
           fechar={() => {
             setVisor(null);
@@ -268,6 +300,70 @@ function Carrossel({ titulo, acao, lugares, distancia }: { titulo: string; acao?
                   <span className="codigo mt-1 block text-[12px] text-suave">{d != null ? km(d) : l.bairro ?? " "}</span>
                 </span>
               </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+const NOME_MOVIMENTO: Record<string, string> = { cheio: "Cheio", moderado: "Moderado", tranquilo: "Tranquilo" };
+
+/** "Em alta": stories dos estabelecimentos em cards verticais; toque abre em tela cheia. */
+function StoriesEmAlta({
+  grupos,
+  lugares,
+  resumos,
+  distancia,
+  abrir,
+  acao,
+}: {
+  grupos: GrupoStories[];
+  lugares: Lugar[];
+  resumos: ReturnType<typeof useResumos>["resumos"];
+  distancia: (l: Lugar) => number | null;
+  abrir: (i: number) => void;
+  acao?: ReactNode;
+}) {
+  const porId = new Map(lugares.map((l) => [l.id, l]));
+  return (
+    <section className="mt-4" aria-label="Em alta">
+      <div className="mb-2.5 flex items-center justify-between gap-2 px-4">
+        <Link to="/pesquisar" className="inline-flex items-center gap-1 text-[17px] font-semibold">
+          Em alta
+          <ChevronRight className="h-4 w-4" />
+        </Link>
+        {acao}
+      </div>
+      <ul className="flex gap-2.5 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+        {grupos.map((g, i) => {
+          const l = porId.get(g.autor.id);
+          const d = l ? distancia(l) : null;
+          const mov = resumos.get(g.autor.id)?.movimento;
+          const capa = g.stories[g.stories.length - 1]?.foto_url;
+          return (
+            <li key={g.autor.id} className="shrink-0">
+              <button
+                onClick={() => abrir(i)}
+                className={clsx("relative block h-[196px] w-[116px] overflow-hidden rounded-2xl bg-elevado text-left", !g.vistos && "ring-2 ring-magenta ring-offset-2 ring-offset-fundo")}
+                aria-label={`Stories de ${g.autor.nome}`}
+              >
+                {capa && <img src={capa} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />}
+                <span className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/75" />
+                {g.autor.logo_url ? (
+                  <img src={g.autor.logo_url} alt="" className="absolute left-2 top-2 h-9 w-9 rounded-full border-2 border-white object-cover" />
+                ) : (
+                  <span className="absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-elevado text-suave">
+                    <Store className="h-4 w-4" />
+                  </span>
+                )}
+                {mov && <span className="absolute right-2 top-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[10px] font-semibold text-white backdrop-blur">{NOME_MOVIMENTO[mov] ?? mov}</span>}
+                <span className="absolute inset-x-2 bottom-2 text-white">
+                  <span className="block truncate text-[13px] font-semibold leading-tight">{g.autor.nome}</span>
+                  <span className="block truncate text-[11px] opacity-85">{d != null ? km(d) : l?.bairro ?? ""}</span>
+                </span>
+              </button>
             </li>
           );
         })}

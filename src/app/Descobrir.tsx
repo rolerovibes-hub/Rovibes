@@ -1,8 +1,10 @@
-import { useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
-import { BuscaPessoas } from "./BuscaPessoas";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, MapPin, Search, Store } from "lucide-react";
+import { CalendarDays, Clock, Lock, MapPin, Search, Store, User, X } from "lucide-react";
+import { Avatar } from "@/components/Avatar";
+import { supabase } from "@/lib/supabase";
+import { PessoaResumo } from "@/lib/pessoas";
 import { Carregando } from "@/components/Carregando";
 import { MedidorMovimento } from "@/components/Marca";
 import { useResumos } from "./presenca";
@@ -16,15 +18,14 @@ const sem = (s: string) =>
     .replace(/[̀-ͯ]/g, "")
     .toLowerCase();
 
-export function Descobrir() {
+/** Sugestões e filtros quando o campo de busca está vazio. */
+function Explorar() {
   const { lugares, eventos, carregando, erro } = useVitrine();
   const { resumos } = useResumos(null);
   const [filtro, setFiltro] = useState("Tudo");
-  const [busca, setBusca] = useState("");
+  const busca = "";
   const [eu, setEu] = useState<[number, number] | null>(null);
   const [avisoLocal, setAvisoLocal] = useState("");
-  const [params, setParams] = useSearchParams();
-  const aba = params.get("aba") === "pessoas" ? "pessoas" : "lugares";
 
   // Filtros: fixos + as vibes que existem nos lugares.
   const filtros = useMemo(() => {
@@ -70,47 +71,8 @@ export function Descobrir() {
       .filter((e) => filtro !== "Eventos hoje" || ehHoje(e.inicio));
   }, [eventos, busca, filtro]);
 
-  const abas = (
-    <div className="mx-4 flex rounded-full border border-borda bg-superficie p-0.5" role="tablist" aria-label="O que pesquisar">
-      {(["lugares", "pessoas"] as const).map((a) => (
-        <button
-          key={a}
-          role="tab"
-          aria-selected={aba === a}
-          onClick={() => setParams(a === "pessoas" ? { aba: "pessoas" } : {}, { replace: true })}
-          className={clsx("flex-1 rounded-full py-1.5 text-sm", aba === a ? "bg-marca font-medium text-marca-texto" : "text-suave")}
-        >
-          {a === "lugares" ? "Lugares e eventos" : "Pessoas"}
-        </button>
-      ))}
-    </div>
-  );
-
-  if (aba === "pessoas")
-    return (
-      <div className="space-y-4 py-4">
-        {abas}
-        <BuscaPessoas />
-      </div>
-    );
-
   return (
-    <div className="space-y-7 py-4">
-      {abas}
-      <div className="-mt-3 space-y-3 px-4">
-        <h1 className="text-[22px] font-semibold leading-tight">Para onde hoje?</h1>
-        <label className="relative block">
-          <span className="sr-only">Buscar lugares e eventos</span>
-          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-suave" />
-          <input
-            value={busca}
-            onChange={(e) => setBusca(e.target.value)}
-            placeholder="Bar, evento, bairro, vibe"
-            className="h-11 w-full rounded-cartao border border-borda bg-superficie pl-10 pr-3 placeholder:text-suave focus:border-marca focus:outline-none"
-          />
-        </label>
-      </div>
-
+    <div className="space-y-7">
       <div className="flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]" role="tablist" aria-label="Filtros">
         {filtros.map((f) => (
           <button
@@ -223,6 +185,239 @@ export function Descobrir() {
             )}
           </section>
         </>
+      )}
+    </div>
+  );
+}
+
+interface Resultado {
+  tipo: "lugar" | "evento" | "pessoa";
+  id: string;
+  titulo: string;
+  subtitulo: string | null;
+  imagem: string | null;
+  chave: string;
+  distancia_m: number | null;
+  pontos: number;
+  extra: { inicio?: string; privado?: boolean; sigo?: string | null };
+}
+
+const TIPOS: { id: Resultado["tipo"]; nome: string }[] = [
+  { id: "lugar", nome: "Lugares" },
+  { id: "evento", nome: "Eventos" },
+  { id: "pessoa", nome: "Pessoas" },
+];
+const CHAVE_RECENTES = "rovibes:buscas";
+const lerRecentes = (): string[] => {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_RECENTES) ?? "[]") as string[];
+  } catch {
+    return [];
+  }
+};
+const guardarRecentes = (l: string[]) => {
+  try {
+    localStorage.setItem(CHAVE_RECENTES, JSON.stringify(l.slice(0, 8)));
+  } catch {
+    /* sem armazenamento: segue sem recentes */
+  }
+};
+const linkDe = (r: Resultado) => (r.tipo === "lugar" ? `/lugar/${r.id}` : r.tipo === "evento" ? `/evento/${r.id}` : `/p/${r.chave}`);
+
+function LinhaResultado({ r, aoAbrir }: { r: Resultado; aoAbrir: () => void }) {
+  const redondo = r.tipo === "pessoa";
+  return (
+    <Link to={linkDe(r)} onClick={aoAbrir} className="flex items-center gap-3 px-4 py-2.5 hover:bg-elevado">
+      {r.tipo === "pessoa" ? (
+        <Avatar nome={r.titulo} foto={r.imagem} />
+      ) : r.imagem ? (
+        <img src={r.imagem} alt="" className={clsx("h-11 w-11 shrink-0 object-cover", redondo ? "rounded-full" : "rounded-lg")} loading="lazy" />
+      ) : (
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
+          {r.tipo === "evento" ? <CalendarDays className="h-5 w-5" /> : <Store className="h-5 w-5" />}
+        </span>
+      )}
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5 truncate font-medium">
+          {r.titulo}
+          {r.extra.privado && <Lock className="h-3.5 w-3.5 shrink-0 text-suave" aria-label="Perfil privado" />}
+        </span>
+        <span className="block truncate text-[13px] text-suave">
+          {r.tipo === "evento" && r.extra.inicio ? `${quando(r.extra.inicio)} · ` : ""}
+          {r.subtitulo}
+        </span>
+      </span>
+      <span className="shrink-0 text-right text-[12px] text-suave">
+        {r.distancia_m != null ? km(r.distancia_m / 1000) : r.tipo === "pessoa" && r.extra.sigo === "ativo" ? "Seguindo" : ""}
+      </span>
+    </Link>
+  );
+}
+
+/** Pesquisar: um único campo. Os resultados vêm misturados por tipo (lugares, eventos, pessoas) enquanto digita. */
+export function Descobrir() {
+  const [termo, setTermo] = useState("");
+  const [resultados, setResultados] = useState<Resultado[] | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  const [erro, setErro] = useState("");
+  const [recentes, setRecentes] = useState<string[]>(lerRecentes);
+  const [sugeridas, setSugeridas] = useState<PessoaResumo[]>([]);
+  const [pos, setPos] = useState<[number, number] | null>(null);
+  const ultima = useRef("");
+
+  // Posição só se já liberada (não pede permissão sozinho).
+  useEffect(() => {
+    navigator.permissions
+      ?.query({ name: "geolocation" as PermissionName })
+      .then((s) => {
+        if (s.state === "granted") pedirLocalizacao().then(setPos).catch(() => undefined);
+      })
+      .catch(() => undefined);
+    supabase.rpc("pessoas_sugeridas").then(({ data }) => setSugeridas(((data ?? []) as PessoaResumo[]).slice(0, 10)));
+  }, []);
+
+  useEffect(() => {
+    const t = termo.trim();
+    ultima.current = t;
+    if (t.replace(/^@/, "").length < 2) {
+      setResultados(null);
+      setBuscando(false);
+      return;
+    }
+    setBuscando(true);
+    const id = window.setTimeout(async () => {
+      const { data, error } = await supabase.rpc("buscar_tudo", { p_termo: t, p_lat: pos?.[0] ?? null, p_lng: pos?.[1] ?? null });
+      if (ultima.current !== t) return;
+      setErro(error ? (/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 023 do banco (busca)." : "Não foi possível buscar agora.") : "");
+      setResultados(((data ?? []) as Resultado[]).map((r) => ({ ...r, pontos: Number(r.pontos), extra: r.extra ?? {} })));
+      setBuscando(false);
+    }, 250);
+    return () => window.clearTimeout(id);
+  }, [termo, pos]);
+
+  const lembrar = () => {
+    const t = termo.trim();
+    if (t.length < 2) return;
+    const l = [t, ...recentes.filter((x) => x.toLowerCase() !== t.toLowerCase())];
+    setRecentes(l.slice(0, 8));
+    guardarRecentes(l);
+  };
+
+  const melhores = useMemo(() => [...(resultados ?? [])].sort((a, b) => b.pontos - a.pontos).slice(0, 4), [resultados]);
+  const porTipo = (tipo: Resultado["tipo"]) => (resultados ?? []).filter((r) => r.tipo === tipo && !melhores.includes(r));
+
+  return (
+    <div className="space-y-5 py-4">
+      <div className="space-y-3 px-4">
+        <h1 className="text-[22px] font-semibold leading-tight">Para onde hoje?</h1>
+        <label className="relative block">
+          <span className="sr-only">Buscar lugares, eventos e pessoas</span>
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-suave" />
+          <input
+            type="search"
+            value={termo}
+            onChange={(e) => setTermo(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && lembrar()}
+            placeholder="Lugares, eventos, pessoas, vibes"
+            autoCapitalize="none"
+            enterKeyHint="search"
+            className="h-11 w-full rounded-cartao border border-borda bg-superficie pl-10 pr-10 placeholder:text-suave focus:border-marca focus:outline-none [&::-webkit-search-cancel-button]:hidden"
+          />
+          {termo && (
+            <button onClick={() => setTermo("")} className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-suave hover:bg-elevado" aria-label="Limpar busca">
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </label>
+      </div>
+
+      {erro && <p className="px-4 text-sm text-perigo">{erro}</p>}
+
+      {resultados === null && !buscando ? (
+        <>
+          {recentes.length > 0 && (
+            <section className="px-4">
+              <div className="mb-2 flex items-center justify-between">
+                <h2 className="font-semibold">Buscas recentes</h2>
+                <button
+                  className="text-[13px] text-suave hover:text-texto"
+                  onClick={() => {
+                    setRecentes([]);
+                    guardarRecentes([]);
+                  }}
+                >
+                  Limpar
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {recentes.map((r) => (
+                  <button key={r} onClick={() => setTermo(r)} className="inline-flex items-center gap-1.5 rounded-full border border-borda bg-superficie px-3 py-1.5 text-sm hover:bg-elevado">
+                    <Clock className="h-3.5 w-3.5 text-suave" />
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+          {sugeridas.length > 0 && (
+            <section>
+              <h2 className="mb-2 px-4 font-semibold">Pessoas que talvez você conheça</h2>
+              <ul className="flex gap-3 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+                {sugeridas.map((p) => (
+                  <li key={p.id} className="w-[84px] shrink-0">
+                    <Link to={`/p/${p.usuario}`} className="flex flex-col items-center gap-1.5 text-center">
+                      <Avatar nome={p.nome} foto={p.foto_url} tamanho="story" />
+                      <span className="w-full truncate text-[12px] font-medium">{p.nome}</span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          <Explorar />
+        </>
+      ) : buscando && !resultados ? (
+        <Carregando />
+      ) : resultados && resultados.length === 0 ? (
+        <div className="px-6 py-14 text-center">
+          <Search className="mx-auto h-7 w-7 text-suave" />
+          <p className="mt-3 font-medium">Nada encontrado para “{termo.trim()}”</p>
+          <p className="mt-1 text-sm text-suave">Tente outro nome, um bairro ou uma vibe.</p>
+        </div>
+      ) : (
+        <div className={clsx("space-y-5 transition-opacity", buscando && "opacity-60")}>
+          {melhores.length > 0 && (
+            <section>
+              <h2 className="mb-1 px-4 font-semibold">Melhores resultados</h2>
+              <ul className="divide-y divide-borda">
+                {melhores.map((r) => (
+                  <li key={`${r.tipo}-${r.id}`}>
+                    <LinhaResultado r={r} aoAbrir={lembrar} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+          {TIPOS.map((t) => {
+            const lista = porTipo(t.id);
+            if (!lista.length) return null;
+            return (
+              <section key={t.id}>
+                <h2 className="mb-1 flex items-center gap-2 px-4 font-semibold">
+                  {t.id === "pessoa" ? <User className="h-4 w-4 text-suave" /> : t.id === "evento" ? <CalendarDays className="h-4 w-4 text-suave" /> : <Store className="h-4 w-4 text-suave" />}
+                  {t.nome}
+                </h2>
+                <ul className="divide-y divide-borda">
+                  {lista.map((r) => (
+                    <li key={`${r.tipo}-${r.id}`}>
+                      <LinhaResultado r={r} aoAbrir={lembrar} />
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            );
+          })}
+        </div>
       )}
     </div>
   );
