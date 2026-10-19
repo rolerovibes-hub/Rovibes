@@ -8,6 +8,7 @@ import { useSessao } from "@/lib/sessao";
 import { dataCurta, descreverBeneficio, descreverRegras } from "@/lib/beneficio";
 import { quando } from "./dados";
 import { buscarCarteira, codigoLegivel, Cupom, fimDoEvento, Ingresso, qrDoIngresso, SaldoPontos } from "./carteira";
+import { IngressosCarteira, useMeusIngressos } from "./IngressosPagos";
 
 type Aba = "cupons" | "ingressos" | "pontos";
 const ABAS: { id: Aba; nome: string }[] = [
@@ -24,6 +25,7 @@ export function Carteira() {
   const aba = (ABAS.find((a) => a.id === busca.get("aba"))?.id ?? "cupons") as Aba;
   const [dados, setDados] = useState<Awaited<ReturnType<typeof buscarCarteira>> | null>(null);
   const [aberto, setAberto] = useState<Ingresso | null>(null);
+  const novos = useMeusIngressos();
 
   useEffect(() => {
     document.title = "Carteira · RoVibes";
@@ -35,7 +37,8 @@ export function Carteira() {
   const cuponsPassados = dados?.cupons.filter((c) => !cuponsAtivos.includes(c)) ?? [];
   const ingressosAtivos = dados?.ingressos.filter((i) => i.situacao === "valido" && i.evento && i.evento.situacao !== "cancelado" && fimDoEvento(i.evento) > agora) ?? [];
   const ingressosPassados = dados?.ingressos.filter((i) => !ingressosAtivos.includes(i)) ?? [];
-  const contagem: Record<Aba, number> = { cupons: cuponsAtivos.length, ingressos: ingressosAtivos.length, pontos: dados?.pontos.length ?? 0 };
+  const ativosNovos = novos.lista?.filter((i) => i.situacao === "valido" && Date.parse(i.evento.fim ?? i.evento.inicio) + 6 * 3600000 > agora).length;
+  const contagem: Record<Aba, number> = { cupons: cuponsAtivos.length, ingressos: ativosNovos ?? ingressosAtivos.length, pontos: dados?.pontos.length ?? 0 };
 
   return (
     <div className="pb-6">
@@ -82,6 +85,8 @@ export function Carteira() {
             </Grupo>
           )}
         </div>
+      ) : aba === "ingressos" && novos.lista ? (
+        <IngressosCarteira lista={novos.lista} recarregar={novos.recarregar} compraVolta={busca.get("compra")} />
       ) : aba === "ingressos" ? (
         <div className="space-y-6 px-4 pt-5">
           {ingressosAtivos.length === 0 ? (

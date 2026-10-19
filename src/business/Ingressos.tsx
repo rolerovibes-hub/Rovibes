@@ -27,7 +27,7 @@ interface Pessoa {
   usado_em: string | null;
 }
 
-type Resultado = { ok: true; nome: string; evento: string; pontos: number } | { ok: false; texto: string };
+type Resultado = { ok: true; nome: string; evento: string; pontos: number; foto_url?: string | null; usuario?: string | null; tipo?: string | null; meia?: boolean } | { ok: false; texto: string };
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -86,8 +86,8 @@ export function Ingressos() {
       navigator.vibrate?.([80, 60, 80]);
       return;
     }
-    const r = ((data ?? []) as { nome: string; evento: string; pontos: number }[])[0];
-    setResultado({ ok: true, nome: r?.nome ?? "Cliente", evento: r?.evento ?? "", pontos: r?.pontos ?? 0 });
+    const r = ((data ?? []) as { nome: string; evento: string; pontos: number; foto_url?: string | null; usuario?: string | null; tipo?: string | null; meia?: boolean }[])[0];
+    setResultado({ ok: true, nome: r?.nome ?? "Cliente", evento: r?.evento ?? "", pontos: r?.pontos ?? 0, foto_url: r?.foto_url, usuario: r?.usuario, tipo: r?.tipo, meia: r?.meia });
     navigator.vibrate?.(60);
     setCodigo("");
     void carregar();
@@ -173,12 +173,20 @@ export function Ingressos() {
             {resultado &&
               (resultado.ok ? (
                 <div role="status" className="flex items-start gap-3 rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3">
-                  <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-ok" />
+                  {resultado.foto_url ? (
+                    <img src={resultado.foto_url} alt={`Foto de ${resultado.nome}`} className="h-16 w-16 shrink-0 rounded-full object-cover" />
+                  ) : (
+                    <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-ok" />
+                  )}
                   <div>
                     <p className="font-semibold text-ok">Entrada liberada</p>
                     <p className="text-sm">
-                      {resultado.nome} · {resultado.evento}
+                      <strong>{resultado.nome}</strong>
+                      {resultado.usuario ? ` (@${resultado.usuario})` : ""} · {resultado.evento}
                     </p>
+                    {resultado.tipo && <p className="text-sm font-medium">{resultado.tipo}</p>}
+                    {resultado.meia && <p className="text-sm font-semibold text-alerta">Meia-entrada: confira o documento.</p>}
+                    <p className="text-[12px] text-suave">Ingresso nominal: confira se a pessoa é a da foto.</p>
                     {resultado.pontos > 0 && <p className="text-[13px] text-suave">+{resultado.pontos} pontos para o cliente</p>}
                   </div>
                 </div>
@@ -287,6 +295,8 @@ export function Ingressos() {
         )}
       </section>
 
+      {evento && <VendasEvento evento={evento.id} />}
+
       {evento && lista && (
         <Secao titulo={`Lista de ${evento.nome}`}>
           {lista.length === 0 ? (
@@ -310,5 +320,124 @@ export function Ingressos() {
         </Secao>
       )}
     </TelaUniversal>
+  );
+}
+
+interface Vendas {
+  lotes: { tipo: string; lote: string; preco: number; quantidade: number; vendidos: number; meias: number; entraram: number; ativo: boolean; atual: boolean }[];
+  bruto: number;
+  comissao: number;
+  reembolsado: number;
+  reembolsos: { id: string; valor: number; motivo: string; situacao: "solicitado" | "feito" | "falhou"; nome: string | null; em: string }[];
+}
+
+/** Vendas de ingressos pagos do evento (por tipo e lote) e reembolsos. */
+function VendasEvento({ evento }: { evento: string }) {
+  const [v, setV] = useState<Vendas | null>(null);
+  const [aviso, setAviso] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const carregar = useCallback(() => {
+    supabase.rpc("vendas_ingressos", { p_evento: evento }).then(({ data, error }) => setV(error ? null : (data as Vendas)));
+  }, [evento]);
+  useEffect(() => {
+    carregar();
+  }, [carregar]);
+  if (!v || (!v.lotes.length && !v.reembolsos.length)) return null;
+  const r$ = (n: number) => Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  const pendentes = v.reembolsos.filter((r) => r.situacao !== "feito");
+
+  const reembolsar = async (ids: string[]) => {
+    setOcupado(true);
+    setAviso("");
+    const { data, error } = await supabase.functions.invoke("mp-reembolso", { body: { reembolsos: ids } });
+    setOcupado(false);
+    const r = data as { feitos?: string[]; falhas?: string[] } | null;
+    setAviso(error ? "Não foi possível falar com o Mercado Pago agora." : `${r?.feitos?.length ?? 0} reembolso(s) feito(s)${r?.falhas?.length ? `, ${r.falhas.length} com falha (faça pelo Mercado Pago e marque como feito)` : ""}.`);
+    carregar();
+  };
+  const marcarFeito = async (id: string) => {
+    const { error } = await supabase.rpc("marcar_reembolso", { p_reembolso: id, p_situacao: "feito", p_mp: null });
+    if (error) setAviso(mensagemDeErro(error));
+    carregar();
+  };
+
+  return (
+    <Secao titulo="Vendas de ingressos">
+      <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-lg bg-elevado px-3 py-2">
+          <span className="codigo block font-semibold">{r$(v.bruto)}</span>
+          <span className="text-[12px] text-suave">vendido</span>
+        </div>
+        <div className="rounded-lg bg-elevado px-3 py-2">
+          <span className="codigo block font-semibold">{r$(v.comissao)}</span>
+          <span className="text-[12px] text-suave">taxa RoVibes</span>
+        </div>
+        <div className="rounded-lg bg-elevado px-3 py-2">
+          <span className="codigo block font-semibold">{r$(v.reembolsado)}</span>
+          <span className="text-[12px] text-suave">reembolsado</span>
+        </div>
+      </div>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full min-w-[480px] text-sm">
+          <thead>
+            <tr className="border-b border-borda text-left text-[12px] text-suave">
+              <th className="py-2 pr-3 font-medium">Tipo · lote</th>
+              <th className="py-2 pr-3 text-right font-medium">Preço</th>
+              <th className="py-2 pr-3 text-right font-medium">Vendidos</th>
+              <th className="py-2 pr-3 text-right font-medium">Meias</th>
+              <th className="py-2 text-right font-medium">Entraram</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-borda">
+            {v.lotes.map((l, i) => (
+              <tr key={i} className={l.ativo ? "" : "text-suave"}>
+                <td className="py-2 pr-3">
+                  {l.tipo} · {l.lote} {l.atual && <span className="ml-1 rounded bg-ok/15 px-1.5 text-[11px] font-semibold text-ok">à venda</span>}
+                </td>
+                <td className="codigo py-2 pr-3 text-right">{r$(l.preco)}</td>
+                <td className="codigo py-2 pr-3 text-right">
+                  {l.vendidos}/{l.quantidade}
+                </td>
+                <td className="codigo py-2 pr-3 text-right">{l.meias}</td>
+                <td className="codigo py-2 text-right">{l.entraram}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {v.reembolsos.length > 0 && (
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <h3 className="font-semibold">Reembolsos</h3>
+            {pendentes.length > 0 && (
+              <button className="botao h-8 text-[13px]" disabled={ocupado} onClick={() => void reembolsar(pendentes.map((r) => r.id))}>
+                Reembolsar pendentes pelo Mercado Pago
+              </button>
+            )}
+          </div>
+          <ul className="divide-y divide-borda rounded-lg border border-borda text-sm">
+            {v.reembolsos.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
+                <span className="min-w-0 flex-1">
+                  <span className="block">
+                    {r.nome ?? "Cliente"} · <span className="codigo">{r$(r.valor)}</span>
+                  </span>
+                  <span className="block text-[12px] text-suave">{r.motivo}</span>
+                </span>
+                <span className={r.situacao === "feito" ? "text-ok" : r.situacao === "falhou" ? "text-perigo" : "text-alerta"}>
+                  {r.situacao === "feito" ? "Feito" : r.situacao === "falhou" ? "Falhou" : "Pendente"}
+                </span>
+                {r.situacao !== "feito" && (
+                  <button className="botao h-8 px-2.5 text-[12px]" onClick={() => void marcarFeito(r.id)}>
+                    Marcar como feito
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {aviso && <p className="mt-2 text-sm text-suave">{aviso}</p>}
+    </Secao>
   );
 }

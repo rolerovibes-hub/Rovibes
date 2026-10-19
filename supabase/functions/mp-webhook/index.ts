@@ -9,6 +9,7 @@ Deno.serve(async (req) => {
     let corpo: Record<string, unknown> = {};
     if (req.method === "POST") corpo = await req.json().catch(() => ({}));
     const pagamentoId = url.searchParams.get("pagamento") ?? (corpo.pagamento as string | undefined);
+    const compraId = url.searchParams.get("compra") ?? (corpo.compra as string | undefined);
     const tipo = url.searchParams.get("type") ?? url.searchParams.get("topic") ?? (corpo.type as string | undefined) ?? "payment";
     const mpId =
       url.searchParams.get("data.id") ??
@@ -16,9 +17,30 @@ Deno.serve(async (req) => {
       ((corpo.data as { id?: string } | undefined)?.id ?? null) ??
       (corpo.payment_id as string | undefined) ??
       (tipo === "payment" ? url.searchParams.get("id") : null);
-    if (!pagamentoId || tipo !== "payment" || !mpId) return resposta({ ok: true, ignorado: true });
+    if ((!pagamentoId && !compraId) || tipo !== "payment" || !mpId) return resposta({ ok: true, ignorado: true });
 
     const db = admin();
+    // Ingressos (compra pelo App).
+    if (compraId) {
+      const { data: cp } = await db.from("compras_ingresso").select("id, estabelecimento_id").eq("id", compraId).maybeSingle();
+      if (!cp) return resposta({ ok: true, ignorado: "compra desconhecida" });
+      const contaI = await tokenDoEstab(cp.estabelecimento_id as string);
+      if (!contaI) return resposta({ ok: false }, 200);
+      const ri = await fetch(`https://api.mercadopago.com/v1/payments/${encodeURIComponent(String(mpId))}`, { headers: { Authorization: `Bearer ${contaI.token}` } });
+      if (!ri.ok) return resposta({ ok: false, status: ri.status }, 200);
+      const mpi = await ri.json();
+      if (mpi.external_reference !== `ingresso:${compraId}`) return resposta({ ok: false, motivo: "referência não confere" }, 200);
+      const { data: resI, error: errI } = await db.rpc("confirmar_compra_ingresso", {
+        p_compra: compraId,
+        p_mp_id: String(mpi.id),
+        p_status: mpi.status,
+        p_valor: Number(mpi.transaction_amount),
+        p_comissao: Number(mpi.marketplace_fee ?? 0),
+        p_meio: meioDoMp(mpi.payment_type_id),
+      });
+      if (errI) console.error(errI);
+      return resposta({ ok: true, situacao: resI ?? mpi.status });
+    }
     const { data: pg } = await db.from("pagamentos").select("id, estabelecimento_id").eq("id", pagamentoId).maybeSingle();
     if (!pg) return resposta({ ok: true, ignorado: "pagamento desconhecido" });
     const conta = await tokenDoEstab(pg.estabelecimento_id as string);

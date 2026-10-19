@@ -31,3 +31,7 @@ jobs:
         run: supabase functions deploy mp-pagar --project-ref "$PROJETO" --use-api
       - name: Publicar mp-webhook (recebe avisos do Mercado Pago, sem login)
         run: supabase functions deploy mp-webhook --project-ref "$PROJETO" --no-verify-jwt --use-api
+      - name: Publicar mp-ingresso
+        run: supabase functions deploy mp-ingresso --project-ref "$PROJETO" --use-api
+      - name: Publicar mp-reembolso
+        run: supabase functions deploy mp-reembolso --project-ref "$PROJETO" --use-api

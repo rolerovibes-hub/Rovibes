@@ -9,6 +9,7 @@ import { buscarEvento, EventoResumo, quando } from "./dados";
 import { ListasPresenca } from "@/components/ListasPresenca";
 import { capturarRef, meuCodigoPromoter } from "@/lib/promoters";
 import { CompartilharNoChat } from "@/components/CompartilharNoChat";
+import { ComprarIngressos } from "./IngressosPagos";
 
 export function EventoPagina() {
   const { id = "" } = useParams();
@@ -17,6 +18,9 @@ export function EventoPagina() {
   const [compartilhar, setCompartilhar] = useState(false);
   const [codigo, setCodigo] = useState<string | null>(null);
   const [aviso, setAviso] = useState("");
+  // Evento com ingressos à venda (029): mostra "Comprar"; senão, o ingresso gratuito antigo.
+  const [vendeIngressos, setVendeIngressos] = useState(true);
+  const semIngressos = useCallback(() => setVendeIngressos(false), []);
 
   useEffect(() => {
     setEvento(undefined);
@@ -94,7 +98,11 @@ export function EventoPagina() {
           )}
         </ul>
 
-        {!cancelado && <IngressoDoEvento eventoId={evento.id} encerrado={fimDoEvento(evento) <= Date.now()} />}
+        {!cancelado && (vendeIngressos ? (
+          <ComprarIngressos evento={evento.id} encerrado={fimDoEvento(evento) <= Date.now() || Date.parse(evento.inicio) <= Date.now()} semIngressos={semIngressos} />
+        ) : (
+          <IngressoDoEvento eventoId={evento.id} encerrado={fimDoEvento(evento) <= Date.now()} />
+        ))}
 
         {!cancelado && evento.estabelecimento && fimDoEvento(evento) > Date.now() && <ListasPresenca estab={evento.estabelecimento.id} evento={evento.id} />}
 

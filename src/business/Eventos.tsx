@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { Ban, CalendarDays, ExternalLink, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
+import { EditorIngressos } from "./EditorIngressos";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -139,11 +140,16 @@ export function Eventos() {
         capa_url: rascunho.capa_url,
         situacao: rascunho.situacao,
       };
-      const { error } = rascunho.id
-        ? await supabase.from("eventos").update(valores).eq("id", rascunho.id)
-        : await supabase.from("eventos").insert({ ...valores, estabelecimento_id: id });
-      if (error) throw error;
-      setRascunho(null);
+      if (rascunho.id) {
+        const { error } = await supabase.from("eventos").update(valores).eq("id", rascunho.id);
+        if (error) throw error;
+        setRascunho(null);
+      } else {
+        // Evento novo: continua aberto para configurar os ingressos à venda.
+        const { data, error } = await supabase.from("eventos").insert({ ...valores, estabelecimento_id: id }).select("id").single();
+        if (error) throw error;
+        setRascunho({ ...rascunho, id: (data as { id: string }).id });
+      }
       await carregar();
     }, "Evento salvo.");
   };
@@ -278,6 +284,13 @@ export function Eventos() {
               </button>
             </div>
           </form>
+          {rascunho.id ? (
+            <div className="mt-5">
+              <EditorIngressos evento={rascunho.id} />
+            </div>
+          ) : (
+            <p className="mt-4 text-[13px] text-suave">Salve o evento para configurar os ingressos à venda (tipos, lotes e regras).</p>
+          )}
         </Secao>
       )}
 
