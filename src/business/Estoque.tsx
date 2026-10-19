@@ -144,7 +144,7 @@ export function Estoque() {
           <hr className="col-span-full my-1 border-borda" />
           <Link to="/business/app/G4003" className="botao">
             <PackagePlus className="h-4 w-4" />
-            Cadastro de produtos
+            Meus produtos
           </Link>
           <button className="botao" onClick={() => setRascunhoLocal({ nome: "", tipo: "refrigerador", consumo_setor: "", ativo: true })}>
             <MapPin className="h-4 w-4" />
@@ -284,7 +284,7 @@ export function Estoque() {
                 <>
                   Nenhum produto ainda.{" "}
                   <Link to="/business/app/G4003" className="font-semibold text-destaque">
-                    Cadastre os produtos
+                    Adicione da biblioteca
                   </Link>
                   .
                 </>
@@ -366,6 +366,7 @@ export function Estoque() {
 
       {mover && (
         <MovimentarEstoque
+          estab={id}
           produtos={produtos}
           locais={locais}
           saldos={saldos}

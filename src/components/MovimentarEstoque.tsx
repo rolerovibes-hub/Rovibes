@@ -1,9 +1,10 @@
 import { FormEvent, useMemo, useState } from "react";
 import clsx from "clsx";
-import { Link } from "react-router-dom";
-import { ArrowDownToLine, ArrowRightLeft, ClipboardCheck, PackageX, X } from "lucide-react";
+import { ArrowDownToLine, ArrowRightLeft, BookOpen, ClipboardCheck, PackageX, X } from "lucide-react";
 import { mensagemDeErro } from "@/lib/supabase";
-import { formatarQtd, lerNumero, LocalEstoque, movimentar, ProdutoEstoque, TipoMovimento } from "@/lib/estoque";
+import { CAMPOS_PRODUTO, formatarQtd, lerNumero, LocalEstoque, movimentar, normalizarProduto, ProdutoEstoque, TipoMovimento } from "@/lib/estoque";
+import { supabase } from "@/lib/supabase";
+import { BuscaBiblioteca } from "./BuscaBiblioteca";
 
 const TIPOS: { id: TipoMovimento; nome: string; icone: typeof ArrowRightLeft; gestao?: boolean }[] = [
   { id: "transferencia", nome: "Transferir", icone: ArrowRightLeft },
@@ -14,7 +15,8 @@ const TIPOS: { id: TipoMovimento; nome: string; icone: typeof ArrowRightLeft; ge
 
 /** Janela de movimentação de estoque: transferir entre locais, perda, entrada e ajuste (estes dois só para a gestão). */
 export function MovimentarEstoque({
-  produtos,
+  estab,
+  produtos: produtosIniciais,
   locais,
   saldos,
   gestao,
@@ -22,6 +24,7 @@ export function MovimentarEstoque({
   fechar,
   concluido,
 }: {
+  estab: string;
   produtos: ProdutoEstoque[];
   locais: LocalEstoque[];
   saldos: Map<string, number>;
@@ -31,6 +34,9 @@ export function MovimentarEstoque({
   concluido: (texto: string) => void;
 }) {
   const ativos = locais.filter((l) => l.ativo);
+  const [extras, setExtras] = useState<ProdutoEstoque[]>([]);
+  const [biblioteca, setBiblioteca] = useState(false);
+  const produtos = useMemo(() => [...produtosIniciais, ...extras.filter((x) => !produtosIniciais.some((p) => p.id === x.id))], [produtosIniciais, extras]);
   const [tipo, setTipo] = useState<TipoMovimento>(inicial?.tipo ?? "transferencia");
   const [produtoId, setProdutoId] = useState(inicial?.produto ?? "");
   const [busca, setBusca] = useState("");
@@ -44,6 +50,14 @@ export function MovimentarEstoque({
   const [ocupado, setOcupado] = useState(false);
 
   const produto = produtos.find((p) => p.id === produtoId) ?? null;
+
+  // Produto escolhido na biblioteca: já entrou no estoque; busca os dados dele para continuar a entrada.
+  const daBiblioteca = async (id: string) => {
+    setBiblioteca(false);
+    const { data } = await supabase.from("estoque_produtos").select(CAMPOS_PRODUTO).eq("id", id).maybeSingle();
+    if (data) setExtras((l) => [...l, normalizarProduto(data as unknown as Record<string, unknown>)]);
+    setProdutoId(id);
+  };
   const saldoEm = (l: string) => (produto ? saldos.get(`${produto.id}:${l}`) ?? 0 : 0);
   const localEfetivo = local || produto?.local_padrao_id || ativos[0]?.id || "";
   const opcoes = useMemo(() => {
@@ -85,6 +99,7 @@ export function MovimentarEstoque({
   };
 
   return (
+    <>
     <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/60 sm:items-center" role="dialog" aria-modal="true" aria-label="Movimentar estoque" onClick={fechar}>
       <form onSubmit={(e) => void enviar(e)} onClick={(e) => e.stopPropagation()} className="folha max-h-[94vh] w-full max-w-md space-y-4 overflow-y-auto rounded-t-2xl bg-superficie p-5 pb-[max(20px,env(safe-area-inset-bottom))] sm:rounded-2xl">
         <div className="flex items-center justify-between">
@@ -132,17 +147,14 @@ export function MovimentarEstoque({
                     </button>
                   </li>
                 ))}
-                {opcoes.length === 0 && (
-                  <li className="px-3 py-3 text-sm text-suave">
-                    Nenhum produto encontrado.
-                    {gestao && (
-                      <Link to="/business/app/G4003" className="ml-1 font-semibold text-destaque">
-                        Cadastrar produto
-                      </Link>
-                    )}
-                  </li>
-                )}
+                {opcoes.length === 0 && <li className="px-3 py-3 text-sm text-suave">Nenhum produto do seu estoque com esse nome.</li>}
               </ul>
+              {tipo === "entrada" && gestao && (
+                <button type="button" onClick={() => setBiblioteca(true)} className="flex w-full items-center gap-2 border-t border-borda px-3 py-2.5 text-left text-sm font-semibold text-destaque hover:bg-elevado">
+                  <BookOpen className="h-4 w-4" />
+                  Incluir produto da Biblioteca RoVibes (ler código de barras)
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -219,5 +231,7 @@ export function MovimentarEstoque({
         </button>
       </form>
     </div>
+    {biblioteca && <BuscaBiblioteca estab={estab} escolhido={(id) => void daBiblioteca(id)} fechar={() => setBiblioteca(false)} />}
+    </>
   );
 }

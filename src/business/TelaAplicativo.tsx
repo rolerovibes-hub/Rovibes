@@ -18,6 +18,7 @@ import { Denuncias } from "./Denuncias";
 import { MensagensEstab } from "./Mensagens";
 import { Pagamentos } from "./Pagamentos";
 import { Produtos } from "./Produtos";
+import { BibliotecaAdmin } from "./BibliotecaAdmin";
 import { EstoqueEquipe } from "@/job/EstoqueEquipe";
 import { Promocoes } from "./Promocoes";
 import { Ingressos } from "./Ingressos";
@@ -92,6 +93,7 @@ export function TelaAplicativo() {
   if (app.codigo === "A1002") return <AprovacaoEstabelecimentos key="todas" filtroInicial="todas" />;
   if (app.codigo === "A1004") return <VibesCategorias />;
   if (app.codigo === "A1003") return <Denuncias />;
+  if (app.codigo === "A1005") return <BibliotecaAdmin />;
   if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "G4003") return <Produtos />;
   if (app.codigo === "T4004") {

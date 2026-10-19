@@ -86,7 +86,7 @@ export function NovoItemCardapio({
     if (exato) escolher(exato);
     else {
       setCamera(false);
-      setErro(`Nenhum produto do estoque com o código ${codigo}. Cadastre o produto no recebimento (Cadastro de produtos) primeiro.`);
+      setErro(`Nenhum produto do estoque com o código ${codigo}. Inclua o produto no estoque pela Biblioteca RoVibes (Meus produtos ou Estoque → Entrada) primeiro.`);
     }
   };
 
@@ -174,7 +174,7 @@ export function NovoItemCardapio({
                   <li className="px-3 py-5 text-center text-sm text-suave">
                     Nenhum produto encontrado.{" "}
                     <Link to="/business/app/G4003" className="font-semibold text-destaque">
-                      Cadastrar no recebimento
+                      Adicionar da biblioteca
                     </Link>
                   </li>
                 )}

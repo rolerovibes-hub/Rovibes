@@ -96,7 +96,7 @@ export function ReceitaItem({ estab, item, nomeItem }: { estab: string; item: st
         <p className="mt-3 text-[13px]">
           Nenhum produto no estoque.{" "}
           <Link to="/business/app/G4003" className="font-semibold text-destaque">
-            Cadastrar produtos
+            Adicionar produtos
           </Link>
         </p>
       ) : (

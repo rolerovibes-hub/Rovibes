@@ -20,6 +20,7 @@ import {
   ShieldCheck,
   Store,
   Tags,
+  Library,
   Ticket,
   TrendingUp,
   UserRound,
@@ -49,7 +50,7 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "G3001", nome: "Equipe e permissões", area: "Equipe", icone: Users, fase: 5 },
   { codigo: "G4001", nome: "Cardápio e produtos", area: "Vitrine", icone: UtensilsCrossed, fase: 2 },
   { codigo: "G4002", nome: "Estoque", area: "Operação", icone: Boxes, fase: 5 },
-  { codigo: "G4003", nome: "Cadastro de produtos", area: "Operação", icone: PackagePlus, fase: 5 },
+  { codigo: "G4003", nome: "Meus produtos", area: "Operação", icone: PackagePlus, fase: 5 },
   { codigo: "T4004", nome: "Movimentação de estoque", area: "Operação", icone: ArrowRightLeft, fase: 5 },
   { codigo: "G5001", nome: "Eventos", area: "Vitrine", icone: CalendarDays, fase: 2 },
   { codigo: "T5002", nome: "Status ao vivo", area: "Operação", icone: Radio, fase: 3 },
@@ -67,6 +68,7 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "A1002", nome: "Estabelecimentos", area: "Administração", icone: Building2, fase: 2 },
   { codigo: "A1003", nome: "Denúncias", area: "Administração", icone: Flag, fase: 6 },
   { codigo: "A1004", nome: "Vibes e categorias", area: "Administração", icone: Tags, fase: 2 },
+  { codigo: "A1005", nome: "Biblioteca de produtos", area: "Administração", icone: Library, fase: 5 },
 ];
 
 export const AREAS: Area[] = ["Estabelecimento", "Vitrine", "Conteúdo", "Operação", "Equipe", "Administração"];

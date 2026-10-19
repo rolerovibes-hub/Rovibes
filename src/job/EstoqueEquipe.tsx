@@ -104,6 +104,7 @@ export function EstoqueEquipe({ estab }: { estab: string }) {
 
       {mover && (
         <MovimentarEstoque
+          estab={estab}
           produtos={produtos}
           locais={locais}
           saldos={saldos}

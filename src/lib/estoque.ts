@@ -53,6 +53,9 @@ export interface ProdutoEstoque {
   ncm: string | null;
   local_padrao_id: string | null;
   ativo: boolean;
+  biblioteca_id?: string | null;
+  foto_url?: string | null;
+  descricao?: string | null;
 }
 
 export interface LocalEstoque {
@@ -75,8 +78,9 @@ export const NOME_MOVIMENTO: Record<string, string> = {
   consumo: "Venda",
 };
 
-export const CAMPOS_PRODUTO =
+export const CAMPOS_PRODUTO_BASE =
   "id, nome, codigo, ean, marca, grupo, categoria, unidade, embalagem_nome, embalagem_fator, saldo, minimo, custo, validade, controla_validade, conservacao, ncm, local_padrao_id, ativo";
+export const CAMPOS_PRODUTO = `${CAMPOS_PRODUTO_BASE}, biblioteca_id, foto_url, descricao`;
 
 const n = (v: unknown) => (v == null ? null : Number(v));
 
@@ -94,12 +98,15 @@ export function normalizarProduto(x: Record<string, unknown>): ProdutoEstoque {
 
 /** Produtos, locais e o saldo de cada produto em cada local. */
 export async function carregarEstoque(estab: string) {
-  const [p, l] = await Promise.all([
-    supabase.from("estoque_produtos").select(CAMPOS_PRODUTO).eq("estabelecimento_id", estab).order("nome"),
+  const produtosDe = (campos: string) => supabase.from("estoque_produtos").select(campos).eq("estabelecimento_id", estab).order("nome");
+  const [p0, l] = await Promise.all([
+    produtosDe(CAMPOS_PRODUTO),
     supabase.from("estoque_locais").select("id, nome, tipo, consumo_setor, ativo, ordem").eq("estabelecimento_id", estab).order("ordem").order("nome"),
   ]);
+  // Antes da atualização 021 do banco não há biblioteca/foto.
+  const p = p0.error ? await produtosDe(CAMPOS_PRODUTO_BASE) : p0;
   const erro = p.error ?? l.error;
-  const produtos = ((p.data ?? []) as Record<string, unknown>[]).map(normalizarProduto);
+  const produtos = ((p.data ?? []) as unknown as Record<string, unknown>[]).map(normalizarProduto);
   const locais = (l.data ?? []) as LocalEstoque[];
   const saldos = new Map<string, number>();
   if (locais.length) {
