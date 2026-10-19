@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { Armchair, Boxes, Briefcase, ChefHat, ChevronDown, LayoutDashboard, LogOut, Menu, MessagesSquare, PackageCheck, Smartphone, X } from "lucide-react";
+import { Armchair, Boxes, Briefcase, ChefHat, ChevronDown, LayoutDashboard, LogOut, Menu, MessagesSquare, PackageCheck, Smartphone, X, Radio } from "lucide-react";
 import { MensagensEstab } from "@/business/Mensagens";
 import { EstoqueEquipe } from "./EstoqueEquipe";
 import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
+import { ChatAoVivo } from "@/business/ChatAoVivo";
 import { BusinessProvider, NOME_PAPEL, useBusiness } from "@/lib/acessos";
 import { porCodigo } from "@/lib/catalogo";
 import { Garcom } from "./Garcom";
@@ -29,6 +30,7 @@ const MODULOS: Modulo[] = [
   { id: "entregas", nome: "Entregas", descricao: "Cumim: levar e confirmar", icone: PackageCheck, codigo: "T7003" },
   { id: "estoque", nome: "Estoque", descricao: "Saldos dos locais e transferências", icone: Boxes, codigo: "T4004" },
   { id: "mensagens", nome: "Mensagens", descricao: "Responder os clientes pelo chat", icone: MessagesSquare, codigo: "T2001" },
+  { id: "ao-vivo", nome: "Chat ao vivo", descricao: "Moderar o chat da noite", icone: Radio, codigo: "T2002" },
   { id: "geral", nome: "Supervisão", descricao: "Ocorrências, atrasos e visão da operação", icone: LayoutDashboard },
 ];
 
@@ -135,6 +137,8 @@ function Job() {
           <FilaEntregas key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
         ) : ativo.id === "estoque" ? (
           <EstoqueEquipe key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
+        ) : ativo.id === "ao-vivo" ? (
+          <ChatAoVivo key={atual.estabelecimento_id} estab={atual.estabelecimento_id} nomeEstab={atual.estabelecimento.nome} />
         ) : ativo.id === "mensagens" ? (
           <MensagensEstab
             key={atual.estabelecimento_id}

@@ -20,7 +20,7 @@ const ABAS = [
 ];
 
 // Telas em que o menu flutuante atrapalharia (têm botões próprios no canto de baixo).
-const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada", "/chat/"];
+const SEM_MENU = ["/mapa", "/comanda", "/mesa", "/retirada", "/chat/", "/ao-vivo/"];
 
 export function AppLayout() {
   const { carregando, sessao } = useSessao();

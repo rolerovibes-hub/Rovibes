@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { ArrowLeft, AtSign, Bookmark, CalendarDays, ChevronRight, MapPin, MapPinned, MessageCircle, Navigation, PartyPopper, Phone, Store, UtensilsCrossed } from "lucide-react";
 import { abrirConversaEstab } from "@/lib/chat";
@@ -65,7 +65,9 @@ export function LugarPagina() {
   const relacao = useRelacao(id);
   const { resumos, recarregar } = useResumos([id]);
   const exigirLogin = useExigirLogin();
-  const [checkinAberto, setCheckinAberto] = useState(false);
+  const [params, setParams] = useSearchParams();
+  const [checkinAberto, setCheckinAberto] = useState(params.get("checkin") === "1");
+  const [aoVivo, setAoVivo] = useState(false);
   const [versao, setVersao] = useState(0);
   const resumo = resumos.get(id);
   const { sessao } = useSessao();
@@ -73,6 +75,16 @@ export function LugarPagina() {
   const [stories, setStories] = useState<GrupoStories[]>([]);
   const [visorAberto, setVisorAberto] = useState(false);
   const [navegando, setNavegando] = useState(false);
+
+  // Chat ao vivo aberto agora?
+  useEffect(() => {
+    if (!usuario) return;
+    supabase.rpc("sala_ao_vivo", { p_estab: id }).then(({ data }) => setAoVivo(!!data));
+  }, [id, usuario]);
+  useEffect(() => {
+    if (params.get("checkin")) setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!usuario) return;
@@ -203,6 +215,12 @@ export function LugarPagina() {
         </div>
 
         <div className="mt-4 space-y-2">
+          {aoVivo && (
+            <Link to={`/ao-vivo/${lugar.id}`} className="flex h-11 w-full items-center justify-center gap-2 rounded-full border border-perigo/40 bg-perigo/10 text-[15px] font-semibold text-perigo">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-perigo" />
+              Chat ao vivo agora
+            </Link>
+          )}
           {itens.length > 0 && (
             <Link to={`/lugar/${lugar.id}/cardapio`} className="botao-principal h-11 w-full rounded-full text-[15px]">
               <UtensilsCrossed className="h-4 w-4" />
