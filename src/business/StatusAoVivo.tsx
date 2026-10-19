@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
-import { RefreshCw, X } from "lucide-react";
+import { Music, RefreshCw, X } from "lucide-react";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Secao } from "@/components/Formulario";
 import { MedidorMovimento, Movimento } from "@/components/Marca";
@@ -33,6 +33,9 @@ export function StatusAoVivo() {
   const { sessao } = useSessao();
   const id = atual?.estabelecimento_id;
   const [informado, setInformado] = useState<{ nivel: Movimento; informado_em: string } | null>(null);
+  const [musica, setMusica] = useState<{ texto: string; em: string } | null>(null);
+  const [textoMusica, setTextoMusica] = useState("");
+  const [sugestoes, setSugestoes] = useState<string[]>([]);
   const [checkins, setCheckins] = useState<Checkin[]>([]);
   const [avaliacoes, setAvaliacoes] = useState<Avaliacao[]>([]);
   const [erro, setErro] = useState("");
@@ -41,8 +44,13 @@ export function StatusAoVivo() {
     if (!id) return;
     const inicioDoDia = new Date();
     inicioDoDia.setHours(0, 0, 0, 0);
-    const [m, c, a] = await Promise.all([
-      supabase.from("movimento_informado").select("nivel, informado_em").eq("estabelecimento_id", id).maybeSingle(),
+    const [m, c, a, g, ev] = await Promise.all([
+      supabase
+        .from("movimento_informado")
+        .select("nivel, informado_em, musica, musica_em")
+        .eq("estabelecimento_id", id)
+        .maybeSingle()
+        .then((r) => (r.error ? supabase.from("movimento_informado").select("nivel, informado_em").eq("estabelecimento_id", id).maybeSingle() : r)),
       supabase
         .from("checkins")
         .select("id, movimento, vibe_confere, criado_em")
@@ -51,9 +59,15 @@ export function StatusAoVivo() {
         .order("criado_em", { ascending: false })
         .limit(200),
       supabase.from("avaliacoes").select("id, nota, comentario, atualizado_em").eq("estabelecimento_id", id).order("atualizado_em", { ascending: false }).limit(10),
+      supabase.from("estabelecimento_gostos").select("gosto:gostos(nome, tipo)").eq("estabelecimento_id", id),
+      supabase.from("eventos").select("nome").eq("estabelecimento_id", id).eq("situacao", "publicado").gte("inicio", inicioDoDia.toISOString()).lt("inicio", new Date(inicioDoDia.getTime() + 86400000).toISOString()),
     ]);
-    const mi = m.data as { nivel: Movimento; informado_em: string } | null;
-    setInformado(mi && Date.now() - Date.parse(mi.informado_em) < 3 * 3600 * 1000 ? mi : null);
+    const mi = m.data as { nivel: Movimento | null; informado_em: string; musica?: string | null; musica_em?: string | null } | null;
+    setInformado(mi?.nivel && Date.now() - Date.parse(mi.informado_em) < 3 * 3600 * 1000 ? { nivel: mi.nivel, informado_em: mi.informado_em } : null);
+    setMusica(mi?.musica && mi.musica_em && Date.now() - Date.parse(mi.musica_em) < 3 * 3600 * 1000 ? { texto: mi.musica, em: mi.musica_em } : null);
+    const estilos = ((g.data ?? []) as unknown as { gosto: { nome: string; tipo: string } | null }[]).filter((x) => x.gosto?.tipo === "musica").map((x) => x.gosto!.nome);
+    const deHoje = ((ev.data ?? []) as { nome: string }[]).map((e) => e.nome);
+    setSugestoes([...new Set([...deHoje, ...estilos, "DJ", "Banda ao vivo", "Playlist ambiente"])].slice(0, 10));
     setCheckins((c.data ?? []) as Checkin[]);
     setAvaliacoes((a.data ?? []) as Avaliacao[]);
   }, [id]);
@@ -68,12 +82,23 @@ export function StatusAoVivo() {
 
   const informar = async (nivel: Movimento | null) => {
     setErro("");
-    const { error } = nivel
-      ? await supabase
-          .from("movimento_informado")
-          .upsert({ estabelecimento_id: id, nivel, informado_por: sessao?.user.id, informado_em: new Date().toISOString() })
-      : await supabase.from("movimento_informado").delete().eq("estabelecimento_id", id);
+    let { error } = await supabase.rpc("informar_agora", { p_estab: id, p_movimento: nivel ?? "", p_musica: null });
+    // Banco sem a atualização 031: grava do jeito antigo.
+    if (error && /function|schema cache/i.test(error.message))
+      ({ error } = nivel
+        ? await supabase
+            .from("movimento_informado")
+            .upsert({ estabelecimento_id: id, nivel, informado_por: sessao?.user.id, informado_em: new Date().toISOString() })
+        : await supabase.from("movimento_informado").delete().eq("estabelecimento_id", id));
     if (error) setErro(mensagemDeErro(error));
+    await carregar();
+  };
+
+  const informarMusica = async (texto: string) => {
+    setErro("");
+    const { error } = await supabase.rpc("informar_agora", { p_estab: id, p_movimento: null, p_musica: texto });
+    if (error) setErro(/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 031 do banco para informar a música." : mensagemDeErro(error));
+    else setTextoMusica("");
     await carregar();
   };
 
@@ -127,6 +152,49 @@ export function StatusAoVivo() {
             ? `Informado às ${hora(informado.informado_em)}. Vale até ${hora(expira.toISOString())}; depois o App volta a usar as respostas dos check-ins.`
             : "Sem informação da casa: o App mostra o que as pessoas respondem no check-in."}
         </p>
+      </Secao>
+
+      <Secao
+        titulo="Música tocando agora"
+        acao={
+          musica && (
+            <button className="botao h-8 text-[13px]" onClick={() => void informarMusica("")}>
+              <X className="h-3.5 w-3.5" />
+              Apagar
+            </button>
+          )
+        }
+      >
+        {musica ? (
+          <p className="mb-3 flex items-center gap-2 font-medium">
+            <span className="h-2 w-2 animate-pulse rounded-full bg-perigo" />
+            {musica.texto}
+            <span className="text-[13px] font-normal text-suave">· informado às {hora(musica.em)}</span>
+          </p>
+        ) : (
+          <p className="mb-3 text-[13px] text-suave">Sem informação: o App mostra a programação de hoje como “prevista”, não como o que está tocando.</p>
+        )}
+        <div className="mb-2 flex flex-wrap gap-1.5">
+          {sugestoes.map((t) => (
+            <button key={t} className="h-8 rounded-full border border-borda px-3 text-[13px] hover:bg-elevado" onClick={() => void informarMusica(t)}>
+              {t}
+            </button>
+          ))}
+        </div>
+        <form
+          className="flex gap-2"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (textoMusica.trim()) void informarMusica(textoMusica.trim());
+          }}
+        >
+          <input className="entrada min-w-0 flex-1" value={textoMusica} onChange={(e) => setTextoMusica(e.target.value.slice(0, 80))} placeholder="Ex.: Samba com Grupo Raiz, DJ de funk" />
+          <button className="botao-principal shrink-0" disabled={!textoMusica.trim()}>
+            <Music className="h-4 w-4" />
+            Informar
+          </button>
+        </form>
+        <p className="mt-2 text-[13px] text-suave">Um toque basta. Vale por até 3 horas; depois o App mostra “sem atualização recente”.</p>
       </Secao>
 
       <div className="grid gap-4 md:grid-cols-3">

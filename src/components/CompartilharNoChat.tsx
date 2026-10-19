@@ -3,12 +3,12 @@ import clsx from "clsx";
 import { Check, ExternalLink, Search, Send, UserPlus, X } from "lucide-react";
 import { IconeConversa } from "./Conversa";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { abrirConversa, ConversaResumo } from "@/lib/chat";
+import { abrirConversa, ConversaResumo, enviarMensagem } from "@/lib/chat";
 import { compartilhar, enviarCartao, linkDivulgacao } from "@/lib/promoters";
 import { EscolherPessoas } from "@/app/NovoRole";
 
 /**
- * Compartilhar evento ou lista: dentro do RoVibes (chat direto ou grupo, como cartão)
+ * Compartilhar evento, lista ou lugar: dentro do RoVibes (chat direto ou grupo, como cartão)
  * ou em outros apps (link que abre o RoVibes direto no evento/lista).
  */
 export function CompartilharNoChat({
@@ -19,7 +19,7 @@ export function CompartilharNoChat({
   fechar,
   enviado,
 }: {
-  tipo: "evento" | "lista";
+  tipo: "evento" | "lista" | "lugar";
   id: string;
   titulo: string;
   codigo?: string | null;
@@ -55,7 +55,10 @@ export function CompartilharNoChat({
     setEnviando(true);
     setErro("");
     try {
-      for (const c of ids) await enviarCartao(c, tipo, id, texto.trim() || null);
+      for (const c of ids) {
+        if (tipo === "lugar") await enviarMensagem(c, texto.trim() || `Olha esse lugar: ${titulo}`, null, id);
+        else await enviarCartao(c, tipo, id, texto.trim() || null);
+      }
       enviado?.(`Enviado para ${ids.length} conversa${ids.length === 1 ? "" : "s"}.`);
       fechar();
     } catch (e) {
@@ -77,7 +80,7 @@ export function CompartilharNoChat({
           <div className="min-w-0 flex-1">
             <h2 className="text-lg font-semibold">Compartilhar</h2>
             <p className="truncate text-[13px] text-suave">
-              {tipo === "evento" ? "Evento" : "Lista"}: {titulo}
+              {tipo === "evento" ? "Evento" : tipo === "lugar" ? "Lugar" : "Lista"}: {titulo}
             </p>
           </div>
           <button onClick={fechar} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">

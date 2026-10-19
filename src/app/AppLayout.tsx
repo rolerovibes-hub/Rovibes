@@ -48,7 +48,7 @@ function Estrutura() {
   const [publicar, setPublicar] = useState(false);
   const chat = useChatNaoLidas(true);
   const seloChat = chat.conversas + chat.pedidos;
-  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r));
+  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !/^\/lugar\/[^/]+\/role/.test(local.pathname);
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col border-borda sm:border-x">

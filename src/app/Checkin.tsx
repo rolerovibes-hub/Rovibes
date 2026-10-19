@@ -5,6 +5,8 @@ import { MedidorMovimento, Movimento } from "@/components/Marca";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { pedirLocalizacao } from "./dados";
 import { NOME_MOVIMENTO } from "./presenca";
+import { Visibilidade, VISIBILIDADES } from "@/lib/agora";
+import { ler, gravar } from "@/lib/armazenamento";
 
 const NIVEIS: Movimento[] = ["tranquilo", "moderado", "cheio"];
 
@@ -27,6 +29,8 @@ export function FolhaCheckin({
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState("");
   const [feito, setFeito] = useState(false);
+  // Lembra a última escolha da pessoa; o padrão é "Amigos".
+  const [visibilidade, setVisibilidade] = useState<Visibilidade>(() => ler<Visibilidade>("visibilidade_checkin", "amigos"));
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && fechar();
@@ -39,14 +43,18 @@ export function FolhaCheckin({
     setEnviando(true);
     try {
       const [lat, lng] = await pedirLocalizacao(true);
-      const { error } = await supabase.rpc("fazer_checkin", {
+      const base = {
         p_estab: estabelecimentoId,
         p_lat: lat,
         p_lng: lng,
         p_movimento: movimento ?? "",
         p_vibe_confere: vibes.length ? vibeConfere : null,
-      });
+      };
+      let { error } = await supabase.rpc("fazer_checkin", { ...base, p_visibilidade: visibilidade });
+      // Banco sem a atualização 031: faz o check-in do jeito antigo.
+      if (error && /function|schema cache/i.test(error.message)) ({ error } = await supabase.rpc("fazer_checkin", base));
       if (error) throw error;
+      gravar("visibilidade_checkin", visibilidade);
       setFeito(true);
       concluido();
     } catch (e) {
@@ -126,6 +134,31 @@ export function FolhaCheckin({
                 </div>
               </section>
             )}
+
+            <section>
+              <h3 className="mb-2 text-sm font-medium">Quem pode ver que você está aqui?</h3>
+              <div className="space-y-1.5" role="radiogroup" aria-label="Quem pode ver seu check-in">
+                {VISIBILIDADES.map((v) => (
+                  <button
+                    key={v.valor}
+                    role="radio"
+                    aria-checked={visibilidade === v.valor}
+                    onClick={() => setVisibilidade(v.valor)}
+                    className={clsx(
+                      "flex w-full items-start gap-3 rounded-lg border px-3 py-2.5 text-left",
+                      visibilidade === v.valor ? "border-marca bg-destaque-suave" : "border-borda hover:bg-elevado",
+                    )}
+                  >
+                    <span className={clsx("mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2", visibilidade === v.valor ? "border-marca bg-marca" : "border-borda")} />
+                    <span>
+                      <span className="block text-sm font-semibold">{v.nome}</span>
+                      <span className="block text-[12px] text-suave">{v.texto}</span>
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-[12px] text-suave">Vale por 4 horas ou até você tocar em “Saí”. Dá para mudar depois.</p>
+            </section>
 
             <p className="flex items-center gap-2 text-[13px] text-suave">
               <LocateFixed className="h-4 w-4 shrink-0" />

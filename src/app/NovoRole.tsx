@@ -137,7 +137,7 @@ export function EscolherPessoas({
   unica = false,
 }: {
   jaNoRole?: string[];
-  confirmar: (ids: string[]) => Promise<void>;
+  confirmar: (ids: string[], pessoas: PessoaResumo[]) => Promise<void>;
   cancelar?: () => void;
   textoBotao: string;
   unica?: boolean;
@@ -178,7 +178,7 @@ export function EscolherPessoas({
   const alternar = (p: PessoaResumo) => {
     if (unica) {
       setSalvando(true);
-      confirmar([p.id])
+      confirmar([p.id], [p])
         .catch((e) => setErro(mensagemDeErro(e)))
         .finally(() => setSalvando(false));
       return;
@@ -195,7 +195,7 @@ export function EscolherPessoas({
     setSalvando(true);
     setErro("");
     try {
-      await confirmar([...marcados.keys()]);
+      await confirmar([...marcados.keys()], [...marcados.values()]);
     } catch (e) {
       setErro(mensagemDeErro(e));
     }

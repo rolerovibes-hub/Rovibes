@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { ExternalLink, ImagePlus, LocateFixed, RotateCcw, Save, Star, Trash2 } from "lucide-react";
 import { TelaUniversal } from "./TelaUniversal";
+import { GostosDaCasa } from "./GostosDaCasa";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { MapaBase, PinMapa, Recentralizar, UBERLANDIA } from "@/components/MapaBase";
 import { Carregando } from "@/components/Carregando";
@@ -363,6 +364,8 @@ export function PerfilEstabelecimento() {
           })}
         </div>
       </Secao>
+
+      {id && <GostosDaCasa estab={id} />}
 
       <Secao titulo="Endereço e localização">
         <div className="grid gap-4 sm:grid-cols-[2fr_1fr]">

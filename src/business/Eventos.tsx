@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { Ban, CalendarDays, ExternalLink, ImagePlus, Pencil, Plus, Trash2, X } from "lucide-react";
 import { EditorIngressos } from "./EditorIngressos";
+import { EstilosEvento } from "./GostosDaCasa";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -285,7 +286,8 @@ export function Eventos() {
             </div>
           </form>
           {rascunho.id ? (
-            <div className="mt-5">
+            <div className="mt-5 space-y-4">
+              <EstilosEvento evento={rascunho.id} />
               <EditorIngressos evento={rascunho.id} />
             </div>
           ) : (
