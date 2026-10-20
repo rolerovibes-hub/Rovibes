@@ -128,9 +128,16 @@ export function CriarEventoPessoa() {
 
   const salvar = async () => {
     setErro("");
-    if (titulo.trim().length < 3) return setErro("Dê um nome para o evento.");
-    if (!data || !hora) return setErro("Escolha o dia e a hora.");
-    if (pago && !aceito && !jaAceitou) return setErro("Para vender ingressos, leia e aceite os termos de venda.");
+    const mostrar = (msg: string, onde?: string) => {
+      setErro(msg);
+      if (onde) document.getElementById(onde)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    };
+    if (titulo.trim().length < 3) return mostrar("Dê um nome para o evento (pelo menos 3 letras).", "campo-titulo");
+    if (!data || !hora) return mostrar("Escolha o dia e a hora do evento.", "campo-quando");
+    if (new Date(`${data}T${hora}`).getTime() < Date.now()) return mostrar("Essa data e hora já passaram.", "campo-quando");
+    if (cotas.some((c) => !c.nome.trim())) return mostrar("Dê um nome a cada tipo de ingresso.", "campo-ingressos");
+    if (cotas.some((c) => !Number(c.quantidade))) return mostrar("Informe a quantidade de cada ingresso.", "campo-ingressos");
+    if (pago && !aceito && !jaAceitou) return mostrar("Para vender ingressos, marque que leu e aceita os termos de venda.", "campo-termos");
     const inicio = new Date(`${data}T${hora}`);
     let fim: Date | null = null;
     if (horaFim) {
@@ -194,7 +201,7 @@ export function CriarEventoPessoa() {
         </section>
 
         <section className="space-y-3">
-          <label className="block">
+          <label className="block" id="campo-titulo">
             <span className="rotulo mb-1 block">Nome do evento</span>
             <input className="entrada" maxLength={80} value={titulo} onChange={(e) => setTitulo(e.target.value)} placeholder={TIPOS_EVENTO.find((t) => t.valor === tipo)?.exemplo} />
           </label>
@@ -211,7 +218,7 @@ export function CriarEventoPessoa() {
           </div>
         </section>
 
-        <section>
+        <section id="campo-quando">
           <h2 className="mb-2 font-semibold">Quando</h2>
           <div className="grid grid-cols-3 gap-2">
             <label className="col-span-3 block sm:col-span-1">
@@ -262,7 +269,7 @@ export function CriarEventoPessoa() {
           <p className="mt-1.5 text-[12px] text-suave">Depois de criar, você convida os amigos e pode impulsionar o evento para mais gente perto do local.</p>
         </section>
 
-        <section>
+        <section id="campo-ingressos">
           <h2 className="font-semibold">Ingressos</h2>
           <p className="mb-2 text-[12px] text-suave">
             Preço vazio ou 0 = grátis (só confirma presença). Pago: entre {reais(regras.preco_min)} e {reais(regras.preco_max)}. Até {regras.max_ingressos} no total.
@@ -313,7 +320,7 @@ export function CriarEventoPessoa() {
               )}
             </div>
             {!jaAceitou && (
-              <div className="cartao p-4">
+              <div id="campo-termos" className={clsx("cartao p-4", erro.includes("termos") && !aceito && "border-perigo ring-2 ring-perigo/40")}>
                 <h2 className="font-semibold">Termos de venda de ingressos</h2>
                 <div className="mt-2 max-h-56 overflow-y-auto whitespace-pre-line rounded-lg bg-fundo p-3 text-[13px] leading-relaxed text-suave">{regras.termos}</div>
                 <label className="mt-3 flex items-start gap-2 text-sm">
@@ -325,12 +332,12 @@ export function CriarEventoPessoa() {
           </section>
         )}
 
-        {erro && <p className="rounded-lg bg-perigo/10 px-3 py-2 text-sm text-perigo">{erro}</p>}
       </div>
 
       <div className="fixed inset-x-0 bottom-0 z-40 border-t border-borda bg-fundo/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
-        <button onClick={() => void salvar()} disabled={salvando || (pago && !aceito && !jaAceitou)} className="botao-principal mx-auto flex h-12 w-full max-w-xl rounded-full text-[15px]">
-          {salvando ? "Salvando..." : id ? "Salvar alterações" : "Criar evento"}
+        {erro && <p className="mx-auto mb-2 max-w-xl rounded-lg bg-perigo px-3 py-2 text-center text-sm font-medium text-white">{erro}</p>}
+        <button onClick={() => void salvar()} disabled={salvando} className="botao-principal mx-auto flex h-12 w-full max-w-xl rounded-full text-[15px]">
+          {salvando ? "Criando..." : id ? "Salvar alterações" : pago && !aceito && !jaAceitou ? "Aceite os termos para criar" : "Criar evento"}
         </button>
       </div>
     </div>
