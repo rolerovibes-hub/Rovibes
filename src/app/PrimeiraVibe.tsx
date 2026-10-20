@@ -134,7 +134,7 @@ export function PrimeiraVibe() {
         })}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-borda bg-fundo/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-borda bg-fundo/95 px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <div className="mx-auto max-w-xl">
           {erro && <p className="mb-2 text-sm text-perigo">{erro}</p>}
           <button className="botao-principal h-12 w-full rounded-full text-[15px]" disabled={faltam > 0 || salvando} onClick={() => void salvar([...marcados])}>

@@ -55,7 +55,9 @@ function Estrutura() {
   const chat = useChatNaoLidas(true);
   const seloChat = chat.conversas + chat.pedidos;
   const { perfil } = useSessao();
-  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !/^\/lugar\/[^/]+\/role/.test(local.pathname) && !/^\/eventos\/(novo|[^/]+\/editar)/.test(local.pathname);
+  // Telas de fluxo (criar evento, marcar rolê, primeira vibe) têm o próprio botão no rodapé: sem abas embaixo.
+  const telaDeFluxo = /^\/(lugar\/[^/]+\/role|eventos\/(novo|[^/]+\/editar)|primeira-vibe)/.test(local.pathname);
+  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !telaDeFluxo;
 
   // Primeira vez no App: mostra a "Primeira vibe" (uma vez; dá para pular).
   if (local.pathname === "/" && perfil && perfil.vibe_inicial_em === null && !ler<boolean>("vibe_inicial_feita", false)) {
@@ -127,7 +129,7 @@ function Estrutura() {
         />
       )}
 
-      <nav aria-label="Navegação principal" className="pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-borda bg-superficie sm:border-x">
+      <nav aria-label="Navegação principal" hidden={telaDeFluxo} className="pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-borda bg-superficie sm:border-x">
         <ul className="grid grid-cols-5">
           {ABAS.map(({ para, nome, icone: Icone, fim, central }) => (
             <li key={para}>

@@ -22,7 +22,7 @@ import {
   PagamentoComanda,
   Pedido,
   Totais,
-  useAoVivo, buscarRegraEntrega, RegraEntrega, buscarModelo, ModeloAtendimento, pagarPedido } from "@/lib/salao";
+  useAoVivo, buscarRegraEntrega, RegraEntrega, buscarModelo, ModeloAtendimento, pagarPedido, pegarCarrinho } from "@/lib/salao";
 import { buscarCarteira, Cupom } from "./carteira";
 
 interface Comanda {
@@ -557,7 +557,19 @@ function FolhaPedido({
 
   useEffect(() => {
     buscarRegraEntrega(estab).then(setRegra);
-    carregarItensParaPedido(estab).then(setItens);
+    carregarItensParaPedido(estab).then((lista) => {
+      setItens(lista);
+      // Pedido montado no cardápio: já entra pronto para revisar.
+      const guardado = pegarCarrinho(estab);
+      if (guardado) {
+        const c: Carrinho = {};
+        for (const [idItem, q] of Object.entries(guardado)) if (q > 0 && lista.some((i) => i.id === idItem && i.preco != null)) c[idItem] = { quantidade: q, observacao: "" };
+        if (Object.keys(c).length) {
+          setCarrinho(c);
+          setEtapa("revisar");
+        }
+      }
+    });
     buscarCarteira(usuario).then((c) =>
       setCupons(c.cupons.filter((x) => x.estabelecimento?.id === estab && x.situacao === "disponivel" && Date.parse(x.validade) > Date.now())),
     );

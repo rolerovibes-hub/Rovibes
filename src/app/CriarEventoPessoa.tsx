@@ -328,7 +328,7 @@ export function CriarEventoPessoa() {
         {erro && <p className="rounded-lg bg-perigo/10 px-3 py-2 text-sm text-perigo">{erro}</p>}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-borda bg-fundo/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-borda bg-fundo/95 px-4 pb-[max(12px,env(safe-area-inset-bottom))] pt-3 backdrop-blur">
         <button onClick={() => void salvar()} disabled={salvando || (pago && !aceito && !jaAceitou)} className="botao-principal mx-auto flex h-12 w-full max-w-xl rounded-full text-[15px]">
           {salvando ? "Salvando..." : id ? "Salvar alterações" : "Criar evento"}
         </button>

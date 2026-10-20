@@ -294,3 +294,23 @@ export async function pagarPedido(pedido: string): Promise<{ url?: string; liber
   }
   return data as { url?: string; liberado?: boolean; comanda?: string };
 }
+
+/** Pedido montado no cardápio, guardado até a pessoa entrar na comanda (mesa, balcão ou QR). */
+export function guardarCarrinho(estab: string, itens: Record<string, number>) {
+  try {
+    sessionStorage.setItem(`rovibes:carrinho:${estab}`, JSON.stringify({ itens, em: Date.now() }));
+  } catch {
+    /* sem armazenamento */
+  }
+}
+export function pegarCarrinho(estab: string): Record<string, number> | null {
+  try {
+    const bruto = sessionStorage.getItem(`rovibes:carrinho:${estab}`);
+    if (!bruto) return null;
+    sessionStorage.removeItem(`rovibes:carrinho:${estab}`);
+    const d = JSON.parse(bruto) as { itens: Record<string, number>; em: number };
+    return Date.now() - d.em < 2 * 3600 * 1000 ? d.itens : null;
+  } catch {
+    return null;
+  }
+}
