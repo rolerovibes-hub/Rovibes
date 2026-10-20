@@ -90,9 +90,8 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
           if (!foto_url) foto_url = video_url;
         }
         const extras = midia.tipo === "video" ? { video_url, duracao: duracao ? Math.round(duracao * 100) / 100 : null, musica_id: midia.musicaId } : {};
-        const linha = destino === "feed"
-          ? { foto_url, texto: legenda, estabelecimento_id: localId, ...extras }
-          : { foto_url, legenda, estabelecimento_id: localId, ...extras };
+        const linha: Record<string, unknown> =
+          destino === "feed" ? { foto_url, texto: legenda, estabelecimento_id: localId, ...extras } : { foto_url, legenda, estabelecimento_id: localId, ...extras };
         const { error } = await supabase.from(destino === "feed" ? "publicacoes_pessoas" : "stories_pessoas").insert(linha);
         if (error) {
           throw /column|schema cache/i.test(error.message)
