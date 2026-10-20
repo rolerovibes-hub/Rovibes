@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, Clock, Lock, MapPin, Search, Store, User, X } from "lucide-react";
+import { CalendarDays, Clock, Lock, MapPin, PartyPopper, Search, Store, User, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { supabase } from "@/lib/supabase";
 import { PessoaResumo } from "@/lib/pessoas";
@@ -11,6 +11,9 @@ import { useResumos } from "./presenca";
 import { NotaCompacta } from "./Avaliacoes";
 import { abertoAgora, resumoHorario } from "@/lib/horarios";
 import { distanciaKm, ehHoje, km, Lugar, nomesVibes, pedirLocalizacao, quando, useVitrine } from "./dados";
+import { useSessao } from "@/lib/sessao";
+import { usePresencaAmigos } from "@/lib/agora";
+import { AmigosAqui } from "./AgoraLugar";
 
 const sem = (s: string) =>
   s
@@ -26,12 +29,24 @@ function Explorar() {
   const busca = "";
   const [eu, setEu] = useState<[number, number] | null>(null);
   const [avisoLocal, setAvisoLocal] = useState("");
+  const { sessao } = useSessao();
+  const navegar = useNavigate();
+  const amigos = usePresencaAmigos(
+    lugares.slice(0, 300).map((l) => l.id),
+    sessao?.user.id ?? "",
+  );
+  const comAmigos = (id: string) => {
+    const a = amigos.get(id);
+    return !!a && (a.identificados > 0 || a.anonimos > 0);
+  };
+  const temAlgumAmigo = lugares.some((l) => comAmigos(l.id));
+  const comEventoHoje = useMemo(() => new Set(eventos.filter((e) => ehHoje(e.inicio)).map((e) => e.estabelecimento?.id)), [eventos]);
 
   // Filtros: fixos + as vibes que existem nos lugares.
   const filtros = useMemo(() => {
     const vibes = new Set(lugares.flatMap(nomesVibes));
-    return ["Tudo", "Perto de mim", "Aberto agora", "Eventos hoje", ...[...vibes].sort()];
-  }, [lugares]);
+    return ["Tudo", ...(temAlgumAmigo ? ["Amigos agora"] : []), "Perto de mim", "Aberto agora", "Eventos hoje", ...[...vibes].sort()];
+  }, [lugares, temAlgumAmigo]);
 
   const escolher = async (f: string) => {
     setFiltro(f);
@@ -52,7 +67,8 @@ function Explorar() {
     let lista = lugares.filter(
       (l) => !t || sem(`${l.nome} ${l.bairro ?? ""} ${l.categoria?.nome ?? ""} ${nomesVibes(l).join(" ")}`).includes(t),
     );
-    if (filtro === "Aberto agora") lista = lista.filter((l) => abertoAgora(l.horarios));
+    if (filtro === "Amigos agora") lista = lista.filter((l) => comAmigos(l.id));
+    else if (filtro === "Aberto agora") lista = lista.filter((l) => abertoAgora(l.horarios));
     else if (filtro === "Eventos hoje") {
       const comEvento = new Set(eventos.filter((e) => ehHoje(e.inicio)).map((e) => e.estabelecimento?.id));
       lista = lista.filter((l) => comEvento.has(l.id));
@@ -62,7 +78,7 @@ function Explorar() {
     }
     return lista;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lugares, eventos, filtro, busca, eu]);
+  }, [lugares, eventos, filtro, busca, eu, amigos]);
 
   const eventosVisiveis = useMemo(() => {
     const t = sem(busca.trim());
@@ -142,8 +158,8 @@ function Explorar() {
                   const d = distancia(l);
                   const horario = resumoHorario(l.horarios);
                   return (
-                    <li key={l.id}>
-                      <Link to={`/lugar/${l.id}`} className="cartao flex gap-3.5 p-3.5 hover:bg-elevado">
+                    <li key={l.id} className="cartao overflow-hidden">
+                      <Link to={`/lugar/${l.id}`} className="flex gap-3.5 p-3.5 pb-2.5 hover:bg-elevado">
                         {l.capa_url ? (
                           <img src={l.capa_url} alt="" className="h-[76px] w-[76px] shrink-0 rounded-lg object-cover" loading="lazy" />
                         ) : (
@@ -178,6 +194,25 @@ function Explorar() {
                           )}
                         </div>
                       </Link>
+                      <div className="flex items-center gap-2 px-3.5 pb-3">
+                        <div className="min-w-0 flex-1">
+                          {comAmigos(l.id) ? (
+                            <AmigosAqui amigos={amigos.get(l.id)} compacto />
+                          ) : comEventoHoje.has(l.id) ? (
+                            <span className="inline-flex items-center gap-1 text-[12px] font-medium text-magenta">
+                              <CalendarDays className="h-3.5 w-3.5" />
+                              Evento hoje
+                            </span>
+                          ) : null}
+                        </div>
+                        <button
+                          onClick={() => navegar(`/lugar/${l.id}/role`)}
+                          className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-borda px-3 py-1.5 text-[13px] font-medium hover:bg-elevado"
+                        >
+                          <PartyPopper className="h-4 w-4 text-magenta" />
+                          Marcar rolê
+                        </button>
+                      </div>
                     </li>
                   );
                 })}

@@ -1,19 +1,18 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { CircleMarker } from "react-leaflet";
-import { LocateFixed, Navigation, X } from "lucide-react";
+import { LocateFixed } from "lucide-react";
 import { Navegacao } from "./Navegacao";
 import { MapaBase, PinMapa, Recentralizar, TamanhoPin, UBERLANDIA, corDoTema } from "@/components/MapaBase";
-import { abertoAgora, resumoHorario } from "@/lib/horarios";
-import { MedidorMovimento } from "@/components/Marca";
-import { useResumos } from "./presenca";
-import { NotaCompacta } from "./Avaliacoes";
-import { atendeFiltro, FILTROS_FIXOS, nomesVibes, pedirLocalizacao, useVitrine } from "./dados";
+import { abertoAgora } from "@/lib/horarios";
+import { useSessao } from "@/lib/sessao";
+import { usePresencaAmigos } from "@/lib/agora";
+import { atendeFiltro, distanciaKm, FILTROS_FIXOS, Lugar, nomesVibes, pedirLocalizacao, useVitrine } from "./dados";
+import { CartaoLugarAgora } from "./CartaoLugarAgora";
 
 export function Mapa() {
   const { lugares, eventos } = useVitrine();
-  const { resumos } = useResumos(null);
+  const { sessao } = useSessao();
   const [filtro, setFiltro] = useState("Tudo");
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [eu, setEu] = useState<[number, number] | null>(null);
@@ -22,8 +21,21 @@ export function Mapa() {
 
   const comLocal = lugares.filter((l) => l.latitude != null && l.longitude != null);
   const lugar = comLocal.find((l) => l.id === selecionado) ?? null;
-  const filtros = useMemo(() => [...FILTROS_FIXOS, ...[...new Set(lugares.flatMap(nomesVibes))].sort()], [lugares]);
-  const quantos = comLocal.filter((l) => atendeFiltro(l, filtro, eventos, (x) => abertoAgora(x.horarios))).length;
+  const amigos = usePresencaAmigos(
+    comLocal.map((l) => l.id),
+    sessao?.user.id ?? "",
+  );
+  const comAmigos = (id: string) => {
+    const a = amigos.get(id);
+    return !!a && (a.identificados > 0 || a.anonimos > 0);
+  };
+  const temAlgumAmigo = comLocal.some((l) => comAmigos(l.id));
+  const filtros = useMemo(
+    () => [FILTROS_FIXOS[0], ...(temAlgumAmigo ? ["Amigos agora"] : []), ...FILTROS_FIXOS.slice(1), ...[...new Set(lugares.flatMap(nomesVibes))].sort()],
+    [lugares, temAlgumAmigo],
+  );
+  const atende = (l: Lugar) => (filtro === "Amigos agora" ? comAmigos(l.id) : atendeFiltro(l, filtro, eventos, (x) => abertoAgora(x.horarios)));
+  const quantos = comLocal.filter(atende).length;
 
   // Tamanho do pin: selecionado > atende ao filtro > fora do filtro.
   const tamanho = (id: string, atende: boolean): TamanhoPin => {
@@ -50,7 +62,7 @@ export function Mapa() {
             key={l.id}
             posicao={[l.latitude!, l.longitude!]}
             titulo={l.nome}
-            tamanho={tamanho(l.id, atendeFiltro(l, filtro, eventos, (x) => abertoAgora(x.horarios)))}
+            tamanho={tamanho(l.id, atende(l))}
             aoClicar={() => setSelecionado(l.id)}
           />
         ))}
@@ -85,55 +97,22 @@ export function Mapa() {
       <button
         onClick={() => void localizar()}
         className="botao absolute bottom-4 right-4 z-[500] h-11 w-11 px-0 shadow-sm"
-        style={lugar ? { bottom: "12.5rem" } : undefined}
+        style={lugar ? { bottom: "15.5rem" } : undefined}
         aria-label="Mostrar minha localização"
       >
         <LocateFixed className="h-[18px] w-[18px]" />
       </button>
 
       {lugar ? (
-        <div className="cartao absolute inset-x-4 bottom-4 z-[500] p-4 shadow-sm">
-          <div className="flex items-start gap-3">
-            {lugar.logo_url ? (
-              <img src={lugar.logo_url} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
-            ) : null}
-            <div className="min-w-0 flex-1">
-              <h2 className="truncate font-semibold">{lugar.nome}</h2>
-              <p className="truncate text-[13px] text-suave">{[lugar.categoria?.nome, lugar.bairro].filter(Boolean).join(" · ")}</p>
-              {lugar.horarios.length > 0 && (
-                <p className={abertoAgora(lugar.horarios) ? "mt-0.5 text-[13px] font-medium text-ok" : "mt-0.5 text-[13px] text-suave"}>
-                  {resumoHorario(lugar.horarios)}
-                </p>
-              )}
-              {resumos.get(lugar.id) && (
-                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <NotaCompacta nota={resumos.get(lugar.id)!.nota} total={resumos.get(lugar.id)!.avaliacoes} />
-                  {resumos.get(lugar.id)!.movimento && <MedidorMovimento nivel={resumos.get(lugar.id)!.movimento!} />}
-                </p>
-              )}
-            </div>
-            <button onClick={() => setSelecionado(null)} className="rounded p-1 text-suave hover:text-texto" aria-label="Fechar">
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          {nomesVibes(lugar).length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {nomesVibes(lugar).map((v) => (
-                <span key={v} className="rounded-md bg-destaque-suave px-2 py-0.5 text-[12px] font-medium text-destaque">
-                  {v}
-                </span>
-              ))}
-            </div>
-          )}
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button onClick={() => setNavegando(true)} className="botao">
-              <Navigation className="h-4 w-4" />
-              Como chegar
-            </button>
-            <Link to={`/lugar/${lugar.id}`} className="botao-principal">
-              Ver lugar
-            </Link>
-          </div>
+        <div className="absolute inset-x-3 bottom-3 z-[500]">
+          <CartaoLugarAgora
+            key={lugar.id}
+            lugar={lugar}
+            distanciaKm={eu ? distanciaKm(eu, [lugar.latitude!, lugar.longitude!]) : null}
+            amigos={amigos.get(lugar.id)}
+            fechar={() => setSelecionado(null)}
+            comoChegar={() => setNavegando(true)}
+          />
         </div>
       ) : (
         comLocal.length === 0 && (
