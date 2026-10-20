@@ -3,7 +3,8 @@ import clsx from "clsx";
 import { CircleMarker } from "react-leaflet";
 import { LocateFixed } from "lucide-react";
 import { Navegacao } from "./Navegacao";
-import { MapaBase, PinMapa, Recentralizar, TamanhoPin, UBERLANDIA, corDoTema } from "@/components/MapaBase";
+import { MapaBase, Recentralizar, UBERLANDIA, corDoTema } from "@/components/MapaBase";
+import { PinsLugares } from "./PinsMapa";
 import { abertoAgora } from "@/lib/horarios";
 import { useSessao } from "@/lib/sessao";
 import { usePresencaAmigos } from "@/lib/agora";
@@ -37,12 +38,6 @@ export function Mapa() {
   const atende = (l: Lugar) => (filtro === "Amigos agora" ? comAmigos(l.id) : atendeFiltro(l, filtro, eventos, (x) => abertoAgora(x.horarios)));
   const quantos = comLocal.filter(atende).length;
 
-  // Tamanho do pin: selecionado > atende ao filtro > fora do filtro.
-  const tamanho = (id: string, atende: boolean): TamanhoPin => {
-    if (id === selecionado) return "foco";
-    if (filtro === "Tudo") return "medio";
-    return atende ? "grande" : "pequeno";
-  };
 
   const localizar = async () => {
     setAviso("");
@@ -57,15 +52,8 @@ export function Mapa() {
     <div className="relative h-[calc(100dvh-56px-64px)] min-h-[420px]">
       <MapaBase centro={UBERLANDIA} zoom={13} className="h-full w-full" aoClicar={() => setSelecionado(null)}>
         <Recentralizar centro={eu} zoom={15} />
-        {comLocal.map((l) => (
-          <PinMapa
-            key={l.id}
-            posicao={[l.latitude!, l.longitude!]}
-            titulo={l.nome}
-            tamanho={tamanho(l.id, atende(l))}
-            aoClicar={() => setSelecionado(l.id)}
-          />
-        ))}
+        {/* Tamanho do pin = pessoas lá agora; fora do filtro fica apagado. */}
+        <PinsLugares lugares={comLocal} amigos={amigos} selecionado={selecionado} apagado={(l) => filtro !== "Tudo" && !atende(l)} aoClicar={setSelecionado} />
         {eu && <CircleMarker center={eu} radius={7} pathOptions={{ color: "#fff", weight: 3, fillColor: corDoTema("azul"), fillOpacity: 1 }} />}
       </MapaBase>
 

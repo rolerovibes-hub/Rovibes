@@ -130,6 +130,88 @@
   transform: translateY(-2px);
 }
 
+/* Pins do mapa com amigos e etiqueta (Mapa) */
+.pin-lugar {
+  overflow: visible;
+}
+.pin-lugar .pin-marca {
+  position: relative;
+  z-index: 1;
+}
+.pin-lugar.pin-apagado {
+  opacity: 0.4;
+}
+.pin-amigo,
+.pin-logo {
+  position: absolute;
+  display: flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: rgb(var(--superficie));
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+.pin-amigo {
+  z-index: 2;
+  border-radius: 9999px;
+  border: 2px solid rgb(var(--ok));
+  animation: pin-flutuar 2.6s ease-in-out infinite alternate;
+}
+.pin-amigo img,
+.pin-logo img {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover;
+  filter: none !important;
+}
+.pin-inicial,
+.pin-mais {
+  font: 600 11px/1 "IBM Plex Sans", system-ui, sans-serif;
+  color: rgb(var(--texto));
+}
+.pin-mais {
+  color: rgb(var(--ok));
+}
+.pin-etiqueta {
+  position: absolute;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  white-space: nowrap;
+  pointer-events: auto;
+}
+.pin-logo {
+  position: relative;
+  border-radius: 7px;
+  border: 2px solid rgb(var(--superficie));
+}
+.pin-nome {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-radius: 6px;
+  background: rgb(var(--superficie) / 0.92);
+  padding: 3px 6px;
+  font: 600 12px/1.2 "IBM Plex Sans", system-ui, sans-serif;
+  color: rgb(var(--texto));
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+}
+.pin-foco .pin-nome {
+  background: rgb(var(--marca));
+  color: rgb(var(--marca-texto));
+}
+@keyframes pin-flutuar {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-5px);
+  }
+}
+
 .text-destaque {
   color: rgb(var(--destaque));
 }
