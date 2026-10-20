@@ -86,7 +86,7 @@ export function useMinhaPresenca(estab: string, usuario: string) {
 }
 
 export const VISIBILIDADES: { valor: Visibilidade; nome: string; texto: string }[] = [
-  { valor: "publico", nome: "Público", texto: "Quem segue você vê que você está aqui." },
+  { valor: "publico", nome: "Público", texto: "Qualquer pessoa vê seu perfil na lista de quem está aqui." },
   { valor: "amigos", nome: "Amigos", texto: "Só quem você segue e segue você de volta." },
   { valor: "privado", nome: "Privado", texto: "Ninguém vê seu nome. Você conta só para o movimento do lugar." },
 ];

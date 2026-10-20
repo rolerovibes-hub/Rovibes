@@ -44,6 +44,7 @@ import { CompartilharNoChat } from "@/components/CompartilharNoChat";
 import { capturarRef, compartilhar, linkDivulgacao } from "@/lib/promoters";
 import { mudarPresenca, posicaoSeLiberada, sairDoLugar, useAgora, useMinhaPresenca, Visibilidade, VISIBILIDADES } from "@/lib/agora";
 import { AmigosAqui, CartaoComoEsta, FolhaComoEsta } from "./AgoraLugar";
+import { PresentesNoLugar } from "./PresentesNoLugar";
 import { registrarSinal } from "@/lib/sinais";
 
 type Dados = Awaited<ReturnType<typeof buscarLugar>>;
@@ -119,6 +120,7 @@ export function LugarPagina() {
   const [visorAberto, setVisorAberto] = useState(false);
   const [navegando, setNavegando] = useState(false);
   const [comoEsta, setComoEsta] = useState(false);
+  const [verPresentes, setVerPresentes] = useState(false);
   const [mais, setMais] = useState(false);
   const [compartilhando, setCompartilhando] = useState(false);
   const [aviso, setAviso] = useState("");
@@ -287,10 +289,19 @@ export function LugarPagina() {
           )}
         </ul>
 
-        {agora?.amigos && (
-          <div className="mt-3">
-            <AmigosAqui amigos={agora.amigos} />
-          </div>
+        {agora?.amigos && agora.amigos.presentes > 0 && (
+          <button onClick={() => exigirLogin() && setVerPresentes(true)} className="mt-3 flex w-full items-center gap-2 text-left">
+            <span className="min-w-0 flex-1">
+              {agora.amigos.identificados > 0 || agora.amigos.anonimos > 0 ? (
+                <AmigosAqui amigos={agora.amigos} />
+              ) : (
+                <span className="text-[13px] text-suave">
+                  {agora.amigos.presentes} {agora.amigos.presentes === 1 ? "pessoa com check-in" : "pessoas com check-in"} agora
+                </span>
+              )}
+            </span>
+            <span className="shrink-0 text-[13px] font-semibold text-destaque">Ver quem está aqui</span>
+          </button>
         )}
 
         {presenca && (
@@ -451,6 +462,7 @@ export function LugarPagina() {
         </Folha>
       )}
 
+      {verPresentes && <PresentesNoLugar estab={lugar.id} nome={lugar.nome} fechar={() => setVerPresentes(false)} />}
       {comoEsta && (
         <FolhaComoEsta
           nome={lugar.nome}

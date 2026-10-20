@@ -84,12 +84,15 @@ export function PinsLugares({
   selecionado,
   apagado,
   aoClicar,
+  aoClicarAmigos,
 }: {
   lugares: Lugar[];
   amigos: Map<string, Amigos>;
   selecionado: string | null;
   apagado: (l: Lugar) => boolean;
   aoClicar: (id: string) => void;
+  /** Toque nos círculos de amigos: abre a lista de quem está lá. */
+  aoClicarAmigos: (id: string) => void;
 }) {
   const [zoom, setZoom] = useState(13);
   useMapEvents({ zoomend: (e) => setZoom(e.target.getZoom()) });
@@ -111,7 +114,13 @@ export function PinsLugares({
             title={l.nome}
             zIndexOffset={foco ? 2000 : Math.round(h * 10)}
             bubblingMouseEvents={false}
-            eventHandlers={{ click: () => aoClicar(l.id) }}
+            eventHandlers={{
+              click: (e) => {
+                const alvo = (e.originalEvent?.target ?? null) as HTMLElement | null;
+                if (alvo?.closest?.(".pin-amigo")) aoClicarAmigos(l.id);
+                else aoClicar(l.id);
+              },
+            }}
           />
         );
       })}

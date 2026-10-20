@@ -10,6 +10,7 @@ import { useSessao } from "@/lib/sessao";
 import { usePresencaAmigos } from "@/lib/agora";
 import { atendeFiltro, distanciaKm, FILTROS_FIXOS, Lugar, nomesVibes, pedirLocalizacao, useVitrine } from "./dados";
 import { CartaoLugarAgora } from "./CartaoLugarAgora";
+import { PresentesNoLugar } from "./PresentesNoLugar";
 
 export function Mapa() {
   const { lugares, eventos } = useVitrine();
@@ -19,6 +20,7 @@ export function Mapa() {
   const [eu, setEu] = useState<[number, number] | null>(null);
   const [aviso, setAviso] = useState("");
   const [navegando, setNavegando] = useState(false);
+  const [presentes, setPresentes] = useState<string | null>(null);
 
   const comLocal = lugares.filter((l) => l.latitude != null && l.longitude != null);
   const lugar = comLocal.find((l) => l.id === selecionado) ?? null;
@@ -53,7 +55,7 @@ export function Mapa() {
       <MapaBase centro={UBERLANDIA} zoom={13} className="h-full w-full" aoClicar={() => setSelecionado(null)}>
         <Recentralizar centro={eu} zoom={15} />
         {/* Tamanho do pin = pessoas lá agora; fora do filtro fica apagado. */}
-        <PinsLugares lugares={comLocal} amigos={amigos} selecionado={selecionado} apagado={(l) => filtro !== "Tudo" && !atende(l)} aoClicar={setSelecionado} />
+        <PinsLugares lugares={comLocal} amigos={amigos} selecionado={selecionado} apagado={(l) => filtro !== "Tudo" && !atende(l)} aoClicar={setSelecionado} aoClicarAmigos={setPresentes} />
         {eu && <CircleMarker center={eu} radius={7} pathOptions={{ color: "#fff", weight: 3, fillColor: corDoTema("azul"), fillOpacity: 1 }} />}
       </MapaBase>
 
@@ -100,6 +102,7 @@ export function Mapa() {
             amigos={amigos.get(lugar.id)}
             fechar={() => setSelecionado(null)}
             comoChegar={() => setNavegando(true)}
+            verPresentes={() => setPresentes(lugar.id)}
           />
         </div>
       ) : (
@@ -108,6 +111,9 @@ export function Mapa() {
             Os lugares aprovados aparecem aqui assim que marcarem a localização.
           </p>
         )
+      )}
+      {presentes && (
+        <PresentesNoLugar estab={presentes} nome={comLocal.find((l) => l.id === presentes)?.nome ?? ""} fechar={() => setPresentes(null)} />
       )}
       {navegando && lugar && <Navegacao destino={{ nome: lugar.nome, lat: lugar.latitude!, lng: lugar.longitude! }} fechar={() => setNavegando(false)} />}
     </div>

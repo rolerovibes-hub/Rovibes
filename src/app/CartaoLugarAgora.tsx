@@ -18,12 +18,14 @@ export function CartaoLugarAgora({
   amigos,
   fechar,
   comoChegar,
+  verPresentes,
 }: {
   lugar: Lugar;
   distanciaKm: number | null;
   amigos?: Amigos;
   fechar: () => void;
   comoChegar: () => void;
+  verPresentes: () => void;
 }) {
   const navegar = useNavigate();
   const { agora } = useAgora(lugar.id);
@@ -81,7 +83,14 @@ export function CartaoLugarAgora({
               </span>
             </Link>
           )}
-          <AmigosAqui amigos={quem} compacto />
+          {temAmigos && (
+            <button onClick={verPresentes} className="flex w-full items-center gap-1 text-left">
+              <span className="min-w-0 flex-1">
+                <AmigosAqui amigos={quem} compacto />
+              </span>
+              <span className="shrink-0 text-[12px] font-semibold text-destaque">Ver todos</span>
+            </button>
+          )}
         </div>
       )}
 
