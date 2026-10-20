@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Camera, Flag, Heart, Lock, MapPin, Trash2, X } from "lucide-react";
+import { Camera, Flag, Heart, Lock, MapPin, MessageCircle, Trash2, X } from "lucide-react";
+import { contarComentarios, FolhaComentarios } from "./Comentarios";
 import { Avatar } from "./Avatar";
 import { JanelaDenuncia } from "./Denunciar";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -97,6 +98,11 @@ function VisorPost({
   const { sessao } = useSessao();
   const [denunciando, setDenunciando] = useState(false);
   const [erro, setErro] = useState("");
+  const [comentando, setComentando] = useState(false);
+  const [totalComentarios, setTotalComentarios] = useState(0);
+  useEffect(() => {
+    contarComentarios("pessoa", [post.id]).then((m) => setTotalComentarios(m.get(post.id) ?? 0));
+  }, [post.id]);
 
   const curtir = async () => {
     if (!sessao) return;
@@ -145,16 +151,23 @@ function VisorPost({
         </div>
         <img src={post.foto_url} alt={post.texto ?? ""} className="max-h-[70vh] w-full bg-black object-contain" />
         <div className="space-y-2 px-4 py-3">
-          <button onClick={() => void curtir()} aria-pressed={post.curti} className="-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
-            <Heart className={clsx("h-5 w-5", post.curti ? "fill-current text-magenta" : "text-suave")} />
-            <span className={post.curti ? "font-medium" : "text-suave"}>{post.curtidas}</span>
-          </button>
+          <span className="-ml-1 inline-flex items-center gap-2">
+            <button onClick={() => void curtir()} aria-pressed={post.curti} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
+              <Heart className={clsx("h-5 w-5", post.curti ? "fill-current text-magenta" : "text-suave")} />
+              <span className={post.curti ? "font-medium" : "text-suave"}>{post.curtidas}</span>
+            </button>
+            <button onClick={() => setComentando(true)} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave" aria-label="Comentários">
+              <MessageCircle className="h-5 w-5" />
+              {totalComentarios}
+            </button>
+          </span>
           {post.texto && <p className="whitespace-pre-line text-[15px]">{post.texto}</p>}
           <p className="text-[12px] text-suave">{new Date(post.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</p>
           {erro && <p className="text-sm text-perigo">{erro}</p>}
         </div>
       </div>
       {denunciando && <JanelaDenuncia tipo="post" alvo={post.id} titulo="Denunciar publicação" fechar={() => setDenunciando(false)} />}
+      {comentando && <FolhaComentarios tipo="pessoa" id={post.id} fechar={() => setComentando(false)} aoMudarTotal={setTotalComentarios} />}
     </div>
   );
 }

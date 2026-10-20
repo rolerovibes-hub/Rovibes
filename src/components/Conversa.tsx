@@ -271,10 +271,27 @@ export function CorpoConversa({
                                 {m.tipo === "lugar" && <PreviaLugar lugar={m.estabelecimento_id ? lugarPorId.get(m.estabelecimento_id) : undefined} minha={eMinha} />}
                                 {(m.tipo === "evento" || m.tipo === "lista") && m.dados?.id && (
                                   <span className="block p-1.5" onClick={(e) => e.stopPropagation()}>
-                                    <CartaoDivulgacao tipo={m.tipo} id={m.dados.id} codigo={m.dados.ref} minha={eMinha} />
+                                    <CartaoDivulgacao tipo={m.tipo} id={m.dados.id} codigo={m.dados.ref ?? null} minha={eMinha} />
                                   </span>
                                 )}
-                                {m.texto && !((m.tipo === "evento" || m.tipo === "lista") && m.dados?.id && /^(Evento|Lista): /.test(m.texto)) && (
+                                {m.tipo === "story" && m.dados && (
+                                  <span className="flex items-center gap-2.5 px-2.5 pt-2.5">
+                                    {m.dados.foto_url ? (
+                                      <img src={m.dados.foto_url} alt="" className="h-16 w-10 shrink-0 rounded-md object-cover" loading="lazy" />
+                                    ) : null}
+                                    <span className={clsx("text-[12px]", eMinha ? "opacity-80" : "text-suave")}>
+                                      {eMinha
+                                        ? m.dados.resposta
+                                          ? "Você respondeu ao story"
+                                          : "Você reagiu ao story"
+                                        : m.dados.resposta
+                                          ? "Respondeu ao seu story"
+                                          : "Reagiu ao seu story"}
+                                    </span>
+                                    {m.dados.emoji && !m.dados.resposta && <span className="text-[32px] leading-none">{m.dados.emoji}</span>}
+                                  </span>
+                                )}
+                                {m.texto && !(m.tipo === "story" && !m.dados?.resposta) && !((m.tipo === "evento" || m.tipo === "lista") && m.dados?.id && /^(Evento|Lista): /.test(m.texto)) && (
                                   <span className="block whitespace-pre-wrap break-words px-3.5 py-2">{m.texto}</span>
                                 )}
                               </>

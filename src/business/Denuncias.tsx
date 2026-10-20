@@ -8,7 +8,7 @@ import { nomeMotivo } from "@/lib/pessoas";
 
 interface Denuncia {
   id: string;
-  tipo_alvo: "perfil" | "story" | "publicacao" | "mensagem";
+  tipo_alvo: "perfil" | "story" | "publicacao" | "mensagem" | "post" | "comentario";
   alvo_id: string;
   motivo: string;
   detalhe: string | null;
@@ -24,7 +24,7 @@ interface Denuncia {
   total_contra: number;
 }
 
-const NOME_TIPO: Record<Denuncia["tipo_alvo"], string> = { perfil: "Perfil", story: "Story", publicacao: "Publicação", mensagem: "Mensagem" };
+const NOME_TIPO: Record<Denuncia["tipo_alvo"], string> = { perfil: "Perfil", story: "Story", publicacao: "Publicação", mensagem: "Mensagem", post: "Publicação de pessoa", comentario: "Comentário" };
 const NOME_ACAO: Record<string, string> = { ocultado: "Conteúdo ocultado", advertido: "Advertência", suspenso: "Conta suspensa", arquivado: "Arquivada" };
 
 type Acao = "ocultado" | "advertido" | "suspenso" | "arquivado";

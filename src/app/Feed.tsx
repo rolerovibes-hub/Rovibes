@@ -1,7 +1,8 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, Heart, LocateFixed, MapPin, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
+import { CalendarDays, ChevronRight, Heart, LocateFixed, MapPin, MessageCircle, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
+import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
 import { useSessao } from "@/lib/sessao";
@@ -36,6 +37,31 @@ export function Feed() {
   const [pubs, setPubs] = useState<PublicacaoApp[] | null>(null);
   const [visor, setVisor] = useState<{ lista: "pessoas" | "lugares"; inicio: number } | null>(null);
   const [meuStory, setMeuStory] = useState(false);
+  const [totais, setTotais] = useState<Map<string, number>>(new Map());
+  const [comentando, setComentando] = useState<{ tipo: "lugar" | "pessoa"; id: string } | null>(null);
+  // Link de notificação: /?comentarios=pessoa:ID abre os comentários direto.
+  const [params, setParams] = useSearchParams();
+  const pedidoComentarios = params.get("comentarios");
+  useEffect(() => {
+    const [t, i] = (pedidoComentarios ?? "").split(":");
+    if ((t === "lugar" || t === "pessoa") && i) setComentando({ tipo: t, id: i });
+    if (pedidoComentarios) setParams({}, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedidoComentarios]);
+  const chaveComentario = (p: PublicacaoApp) => `${p.tipo === "pessoa" ? "pessoa" : "lugar"}:${p.id}`;
+
+  // Total de comentários de cada publicação.
+  useEffect(() => {
+    if (!pubs?.length) return;
+    const deLugar = pubs.filter((p) => p.tipo !== "pessoa").map((p) => p.id);
+    const dePessoa = pubs.filter((p) => p.tipo === "pessoa").map((p) => p.id);
+    Promise.all([contarComentarios("lugar", deLugar), contarComentarios("pessoa", dePessoa)]).then(([a, b]) => {
+      const m = new Map<string, number>();
+      a.forEach((v, k) => m.set(`lugar:${k}`, v));
+      b.forEach((v, k) => m.set(`pessoa:${k}`, v));
+      setTotais(m);
+    });
+  }, [pubs]);
 
   // Bolinhas do topo: só pessoas (o seu primeiro). Stories dos lugares vão para o "Em alta".
   const carregarStories = useCallback(
@@ -263,10 +289,20 @@ export function Feed() {
                     </Link>
                   )}
                   <div className="flex items-center justify-between">
-                    <button onClick={() => void curtir(p)} aria-pressed={p.curti} className="-ml-1 inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
-                      <Heart className={clsx("h-5 w-5", p.curti ? "fill-current text-magenta" : "text-suave")} />
-                      <span className={p.curti ? "font-medium" : "text-suave"}>{p.curtidas}</span>
-                    </button>
+                    <span className="-ml-1 inline-flex items-center gap-2">
+                      <button onClick={() => void curtir(p)} aria-pressed={p.curti} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
+                        <Heart className={clsx("h-5 w-5", p.curti ? "fill-current text-magenta" : "text-suave")} />
+                        <span className={p.curti ? "font-medium" : "text-suave"}>{p.curtidas}</span>
+                      </button>
+                      <button
+                        onClick={() => setComentando({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
+                        className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave"
+                        aria-label="Comentários"
+                      >
+                        <MessageCircle className="h-5 w-5" />
+                        <span>{totais.get(chaveComentario(p)) ?? 0}</span>
+                      </button>
+                    </span>
                     {(p.tipo !== "pessoa" || p.local) && (
                       <Link
                         to={`/lugar/${p.tipo === "pessoa" ? p.local!.id : p.estabelecimento.id}/role`}
@@ -283,6 +319,15 @@ export function Feed() {
           </ul>
         )}
       </section>
+
+      {comentando && (
+        <FolhaComentarios
+          tipo={comentando.tipo}
+          id={comentando.id}
+          fechar={() => setComentando(null)}
+          aoMudarTotal={(n) => setTotais((m) => new Map(m).set(`${comentando.tipo}:${comentando.id}`, n))}
+        />
+      )}
 
       {visor !== null && (
         <VisorStories

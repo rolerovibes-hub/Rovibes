@@ -65,7 +65,7 @@ export async function desbloquearPessoa(id: string) {
   if (error) throw error;
 }
 
-export async function denunciar(tipo: "perfil" | "story" | "publicacao" | "mensagem" | "post", alvo: string, motivo: string, detalhe: string) {
+export async function denunciar(tipo: "perfil" | "story" | "publicacao" | "mensagem" | "post" | "comentario", alvo: string, motivo: string, detalhe: string) {
   const { error } = await supabase.rpc("denunciar", { p_tipo: tipo, p_alvo: alvo, p_motivo: motivo, p_detalhe: detalhe });
   if (error) throw error;
 }

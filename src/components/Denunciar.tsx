@@ -11,7 +11,7 @@ export function JanelaDenuncia({
   titulo,
   fechar,
 }: {
-  tipo: "perfil" | "story" | "publicacao" | "mensagem" | "post";
+  tipo: "perfil" | "story" | "publicacao" | "mensagem" | "post" | "comentario";
   alvo: string;
   titulo: string;
   fechar: () => void;

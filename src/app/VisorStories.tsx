@@ -1,18 +1,20 @@
-import { ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Eye, Flag, MapPin, MoreHorizontal, Store, Trash2, X } from "lucide-react";
+import { Eye, Flag, MapPin, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { JanelaDenuncia } from "@/components/Denunciar";
-import { supabase } from "@/lib/supabase";
+import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { GrupoStories, marcarVisto, tempoAtras } from "./conteudo";
 
 const DURACAO = 5000;
+const REACOES = ["🔥", "😍", "😂", "😮", "👏", "🍻", "💜"];
 
 interface Visualizacao {
   nome: string;
   usuario: string;
   foto_url: string | null;
   visto_em: string;
+  reacao?: string | null;
 }
 
 /** Visualizador de stories em tela cheia: toque à direita avança, à esquerda volta. */
@@ -34,11 +36,16 @@ export function VisorStories({
   const [denunciando, setDenunciando] = useState(false);
   const [vistos, setVistos] = useState<Visualizacao[] | null>(null);
   const [apagados, setApagados] = useState<Set<string>>(new Set());
+  const [resposta, setResposta] = useState("");
+  const [escrevendo, setEscrevendo] = useState(false);
+  const [enviandoResposta, setEnviandoResposta] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const [voando, setVoando] = useState<{ emoji: string; n: number } | null>(null);
   const grupo = grupos[g];
   const lista = grupo?.stories.filter((x) => !apagados.has(x.id)) ?? [];
   const story = lista[s];
   const pessoa = grupo?.tipo === "pessoa";
-  const parado = pausado || menu || denunciando || vistos !== null;
+  const parado = pausado || menu || denunciando || vistos !== null || escrevendo || enviandoResposta;
 
   const avancar = () => {
     if (!grupo) return fechar();
@@ -68,8 +75,14 @@ export function VisorStories({
   }, [g, s, parado, story]);
 
   useEffect(() => {
+    if (!aviso) return;
+    const t = window.setTimeout(() => setAviso(""), 2200);
+    return () => window.clearTimeout(t);
+  }, [aviso]);
+
+  useEffect(() => {
     const tecla = (e: KeyboardEvent) => {
-      if (denunciando || vistos) return;
+      if (denunciando || vistos || escrevendo) return;
       if (e.key === "Escape") fechar();
       if (e.key === "ArrowRight") avancar();
       if (e.key === "ArrowLeft") voltar();
@@ -108,6 +121,28 @@ export function VisorStories({
       setApagados((a) => new Set(a).add(story.id));
     }
   };
+
+  // Responder ou reagir: vai para o chat direto com a pessoa (ou para a conversa com o lugar).
+  const interagir = async (emoji: string | null, texto: string | null) => {
+    if (!story || !grupo) return;
+    setEnviandoResposta(true);
+    if (emoji) setVoando({ emoji, n: Date.now() });
+    const { error } = await supabase.rpc("interagir_story", { p_tipo: grupo.tipo ?? "lugar", p_story: story.id, p_emoji: emoji, p_texto: texto });
+    setEnviandoResposta(false);
+    if (error) {
+      setAviso(/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 034 do banco." : mensagemDeErro(error));
+      return;
+    }
+    setAviso(emoji && !texto ? "Reação enviada" : `Resposta enviada para ${pessoa ? grupo.autor.usuario ?? grupo.autor.nome : grupo.autor.nome}`);
+    if (texto) setResposta("");
+  };
+  const enviarResposta = (e: FormEvent) => {
+    e.preventDefault();
+    const t = resposta.trim();
+    if (t) void interagir(null, t);
+    (document.activeElement as HTMLElement | null)?.blur();
+  };
+  const podeInteragir = !grupo.meu;
 
   const linkAutor = pessoa ? (grupo.meu ? "/perfil" : `/p/${grupo.autor.usuario}`) : `/lugar/${grupo.autor.id}`;
 
@@ -194,8 +229,8 @@ export function VisorStories({
           onPointerLeave={() => setPausado(false)}
         />
 
-        {(story.legenda || story.local) && (
-          <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/70 to-transparent px-5 pb-[max(24px,env(safe-area-inset-bottom))] pt-10 text-center">
+        {(story.legenda || story.local || podeInteragir) && (
+          <div className="absolute inset-x-0 bottom-0 space-y-3 bg-gradient-to-t from-black/75 to-transparent px-4 pb-[max(16px,env(safe-area-inset-bottom))] pt-10 text-center">
             {story.legenda && <p className="text-[15px] text-white">{story.legenda}</p>}
             {story.local && (
               <Link
@@ -207,7 +242,50 @@ export function VisorStories({
                 {story.local.nome}
               </Link>
             )}
+            {podeInteragir && (
+              <div className="space-y-2.5 text-left">
+                <div className="flex justify-center gap-2.5" role="group" aria-label="Reagir ao story">
+                  {REACOES.map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => void interagir(r, null)}
+                      disabled={enviandoResposta}
+                      className="text-[26px] leading-none transition-transform active:scale-125"
+                      aria-label={`Reagir com ${r}`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <form onSubmit={enviarResposta} className="flex items-center gap-2">
+                  <input
+                    value={resposta}
+                    onChange={(e) => setResposta(e.target.value.slice(0, 500))}
+                    onFocus={() => setEscrevendo(true)}
+                    onBlur={() => setEscrevendo(false)}
+                    placeholder={`Responder a ${pessoa ? grupo.autor.usuario ?? grupo.autor.nome : grupo.autor.nome}...`}
+                    className="h-11 min-w-0 flex-1 rounded-full border border-white/60 bg-black/30 px-4 text-[15px] text-white placeholder:text-white/70 focus:border-white focus:outline-none"
+                    enterKeyHint="send"
+                  />
+                  {resposta.trim() && (
+                    <button type="submit" disabled={enviandoResposta} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-black" aria-label="Enviar resposta">
+                      <Send className="h-5 w-5" />
+                    </button>
+                  )}
+                </form>
+              </div>
+            )}
           </div>
+        )}
+        {voando && (
+          <span key={voando.n} className="pointer-events-none absolute bottom-40 left-1/2 z-20 -translate-x-1/2 animate-[reacao-story_900ms_ease-out_forwards] text-[64px]" onAnimationEnd={() => setVoando(null)}>
+            {voando.emoji}
+          </span>
+        )}
+        {aviso && (
+          <p role="status" className="absolute inset-x-0 top-24 z-20 mx-auto w-max max-w-[90%] rounded-full bg-black/70 px-4 py-2 text-center text-sm text-white">
+            {aviso}
+          </p>
         )}
       </div>
 
@@ -229,6 +307,7 @@ export function VisorStories({
                       <span className="block truncate text-sm font-medium">{v.usuario}</span>
                       <span className="block truncate text-[12px] text-suave">{v.nome}</span>
                     </span>
+                    {v.reacao && <span className="text-[20px] leading-none">{v.reacao}</span>}
                     <span className="text-[12px] text-suave">{tempoAtras(v.visto_em)}</span>
                   </li>
                 ))}

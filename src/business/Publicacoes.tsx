@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Eye, EyeOff, Heart, ImagePlus, Newspaper, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, Heart, ImagePlus, MessageCircle, Newspaper, Plus, Trash2, X } from "lucide-react";
+import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -26,6 +27,8 @@ export function Publicacoes() {
   const [nova, setNova] = useState<{ texto: string; foto_url: string | null; evento_id: string } | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [comentarios, setComentarios] = useState<Map<string, number>>(new Map());
+  const [vendoComentarios, setVendoComentarios] = useState<string | null>(null);
   const seletor = useRef<HTMLInputElement>(null);
 
   const carregar = useCallback(async () => {
@@ -40,6 +43,7 @@ export function Publicacoes() {
     if (pubs.length) {
       const { data } = await supabase.rpc("curtidas_de", { p_ids: pubs.map((x) => x.id) });
       setCurtidas(Object.fromEntries(((data ?? []) as { publicacao_id: string; total: number }[]).map((c) => [c.publicacao_id, c.total])));
+      setComentarios(await contarComentarios("lugar", pubs.map((x) => x.id)));
     }
   }, [id]);
 
@@ -121,6 +125,10 @@ export function Publicacoes() {
             <Plus className="h-4 w-4" />
             Nova publicação
           </button>
+          <button className="botao" disabled={!pub} onClick={() => pub && setVendoComentarios(pub.id)}>
+            <MessageCircle className="h-4 w-4" />
+            Comentários
+          </button>
           <button className="botao" disabled={!pub || ocupado} onClick={alternar}>
             {pub?.situacao === "oculta" ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
             {pub?.situacao === "oculta" ? "Mostrar" : "Ocultar"}
@@ -135,6 +143,15 @@ export function Publicacoes() {
       }
     >
       {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
+      {vendoComentarios && (
+        <FolhaComentarios
+          tipo="lugar"
+          id={vendoComentarios}
+          titulo="Comentários da publicação"
+          fechar={() => setVendoComentarios(null)}
+          aoMudarTotal={(n) => setComentarios((m) => new Map(m).set(vendoComentarios, n))}
+        />
+      )}
 
       {nova && (
         <Secao
@@ -209,6 +226,10 @@ export function Publicacoes() {
                       <span className="inline-flex items-center gap-1">
                         <Heart className="h-3.5 w-3.5" />
                         {curtidas[p.id] ?? 0}
+                      </span>
+                      <span className="inline-flex items-center gap-1">
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        {comentarios.get(p.id) ?? 0}
                       </span>
                     </span>
                   </div>

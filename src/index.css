@@ -203,6 +203,20 @@
   background: rgb(var(--marca));
   color: rgb(var(--marca-texto));
 }
+@keyframes reacao-story {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 20px) scale(0.6);
+  }
+  30% {
+    opacity: 1;
+    transform: translate(-50%, -10px) scale(1.15);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -120px) scale(1);
+  }
+}
 @keyframes pin-flutuar {
   from {
     transform: translateY(0);

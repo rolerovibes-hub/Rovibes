@@ -67,9 +67,19 @@ export interface Mensagem {
   id: string;
   conversa_id: string;
   autor_id: string | null;
-  tipo: "texto" | "foto" | "sistema" | "lugar" | "plano" | "evento" | "lista";
+  tipo: "texto" | "foto" | "sistema" | "lugar" | "plano" | "evento" | "lista" | "story";
   texto: string | null;
-  dados?: { id: string; evento: string | null; ref: string | null } | null;
+  /** evento/lista: id, evento, ref · story: story_tipo, story_id, foto_url, emoji, resposta */
+  dados?: {
+    id?: string;
+    evento?: string | null;
+    ref?: string | null;
+    story_tipo?: "lugar" | "pessoa";
+    story_id?: string;
+    foto_url?: string | null;
+    emoji?: string | null;
+    resposta?: boolean;
+  } | null;
   foto: string | null;
   estabelecimento_id: string | null;
   plano_id: string | null;

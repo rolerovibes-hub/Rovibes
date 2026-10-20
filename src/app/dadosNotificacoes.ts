@@ -105,6 +105,18 @@ export function useNotificacoes(usuario: string | undefined, pedido: { comanda: 
         link: x.estabelecimento ? `/lugar/${x.estabelecimento.id}` : "/",
       });
     }
+    // Comentários nas minhas publicações e respostas aos meus comentários (atualização 034).
+    const { data: inter } = await supabase.rpc("minhas_interacoes");
+    for (const x of (inter ?? []) as { id: string; tipo: "comentario" | "resposta"; quem: string; texto: string; criado_em: string; pub_tipo: string; pub_id: string }[]) {
+      itens.push({
+        id: `coment-${x.id}`,
+        tipo: "publicacao",
+        titulo: x.tipo === "resposta" ? `${x.quem.split(" ")[0]} respondeu seu comentário` : `${x.quem.split(" ")[0]} comentou sua publicação`,
+        texto: x.texto,
+        quando: x.criado_em,
+        link: `/?comentarios=${x.pub_tipo}:${x.pub_id}`,
+      });
+    }
     // Convites para ser promoter.
     const { data: conv } = await supabase
       .from("promoters")
