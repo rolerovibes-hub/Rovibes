@@ -627,10 +627,22 @@ function LancarPedido({ estab, comanda, titulo, comMesa, fechar, enviado }: { es
 /** O estabelecimento decide como os pedidos chegam ao cliente (modelo do negócio). */
 function RegraEntregaCartao({ estab }: { estab: string }) {
   const [regra, setRegra] = useState<RegraEntrega | null>(null);
+  const [modelo, setModelo] = useState<{ tem_mesas: boolean; exige_qr: boolean; pagamento: "comanda" | "prepago" } | null | undefined>(undefined);
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   useEffect(() => {
     buscarRegraEntrega(estab).then(setRegra);
+    supabase
+      .from("estabelecimentos")
+      .select("tem_mesas, exige_qr_mesa, pagamento_mesa")
+      .eq("id", estab)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        const d = data as { tem_mesas: boolean; exige_qr_mesa: boolean; pagamento_mesa: "comanda" | "prepago" } | null;
+        setModelo(error || !d ? null : { tem_mesas: d.tem_mesas, exige_qr: d.exige_qr_mesa, pagamento: d.pagamento_mesa });
+      });
   }, [estab]);
+
+  const erroDe = (e: { message: string }, n: string) => (/function|schema cache|column/i.test(e.message) ? `Falta aplicar a atualização ${n} do banco.` : mensagemDeErro(e));
   const mudar = async (r: RegraEntrega) => {
     const antes = regra;
     setRegra(r);
@@ -638,30 +650,104 @@ function RegraEntregaCartao({ estab }: { estab: string }) {
     const { error } = await supabase.rpc("definir_entrega_pedidos", { p_estab: estab, p_modo: r });
     if (error) {
       setRegra(antes);
-      return setAviso({ tipo: "erro", texto: /function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 028 do banco." : mensagemDeErro(error) });
+      return setAviso({ tipo: "erro", texto: erroDe(error, "028") });
     }
     setAviso({ tipo: "ok", texto: "Salvo. Vale para os próximos pedidos." });
   };
+  const mudarModelo = async (m: { tem_mesas: boolean; exige_qr: boolean; pagamento: "comanda" | "prepago" }) => {
+    const antes = modelo;
+    setModelo(m);
+    setAviso(null);
+    const { error } = await supabase.rpc("definir_atendimento", { p_estab: estab, p_tem_mesas: m.tem_mesas, p_exige_qr: m.exige_qr, p_pagamento: m.pagamento });
+    if (error) {
+      setModelo(antes);
+      return setAviso({ tipo: "erro", texto: erroDe(error, "035") });
+    }
+    if (!m.tem_mesas) setRegra("retirada");
+    setAviso({ tipo: "ok", texto: "Salvo. Vale para os próximos pedidos." });
+  };
+
+  const opcao = (ativo: boolean, titulo: string, texto: string, acao: () => void) => (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={ativo}
+      onClick={acao}
+      className={clsx("rounded-lg border p-3 text-left", ativo ? "border-marca bg-destaque-suave" : "border-borda hover:bg-elevado")}
+    >
+      <span className={clsx("block text-sm font-semibold", ativo && "text-destaque")}>{titulo}</span>
+      <span className="block text-[12px] text-suave">{texto}</span>
+    </button>
+  );
+
   return (
-    <section className="cartao p-4">
-      <h2 className="font-semibold">Como os pedidos chegam ao cliente</h2>
-      <p className="mt-0.5 text-sm text-suave">Escolha conforme o modelo do seu negócio. Comandas sem mesa (balcão) são sempre retirada.</p>
-      <div className="mt-3 grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Entrega dos pedidos">
-        {(Object.keys(NOME_REGRA_ENTREGA) as RegraEntrega[]).map((r) => (
-          <button
-            key={r}
-            type="button"
-            role="radio"
-            aria-checked={regra === r}
-            onClick={() => void mudar(r)}
-            className={clsx("rounded-lg border p-3 text-left", regra === r ? "border-marca bg-destaque-suave" : "border-borda hover:bg-elevado")}
-          >
-            <span className={clsx("block text-sm font-semibold", regra === r && "text-destaque")}>{NOME_REGRA_ENTREGA[r].nome}</span>
-            <span className="block text-[12px] text-suave">{NOME_REGRA_ENTREGA[r].texto}</span>
-          </button>
-        ))}
+    <section className="cartao space-y-5 p-4">
+      <div>
+        <h2 className="font-semibold">Como o seu lugar atende pelo App</h2>
+        <p className="mt-0.5 text-sm text-suave">Escolha conforme o modelo do seu negócio. Vale para os pedidos feitos pelo cardápio no App.</p>
       </div>
-      {aviso && <p className={clsx("mt-2 text-sm", aviso.tipo === "ok" ? "text-ok" : "text-perigo")}>{aviso.texto}</p>}
+
+      {modelo === null ? (
+        <p className="text-sm text-suave">Para escolher entre mesas, QR e pré-pago, aplique a atualização 035 do banco.</p>
+      ) : modelo ? (
+        <>
+          <div>
+            <p className="rotulo mb-1.5">Atendimento</p>
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Atendimento">
+              {opcao(modelo.tem_mesas, "Com mesas", "O cliente pede pela mesa.", () => void mudarModelo({ ...modelo, tem_mesas: true }))}
+              {opcao(!modelo.tem_mesas, "Sem mesas (balcão)", "O cliente pede pelo cardápio, paga na hora e retira no balcão.", () =>
+                void mudarModelo({ ...modelo, tem_mesas: false }),
+              )}
+            </div>
+          </div>
+          {modelo.tem_mesas && (
+            <>
+              <div>
+                <p className="rotulo mb-1.5">Para pedir</p>
+                <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="QR da mesa">
+                  {opcao(modelo.exige_qr, "Ler o QR da mesa", "Só pede quem está na mesa (mais seguro).", () => void mudarModelo({ ...modelo, exige_qr: true }))}
+                  {opcao(!modelo.exige_qr, "Escolher a mesa na lista", "O cliente escolhe o número da mesa no cardápio, sem QR.", () =>
+                    void mudarModelo({ ...modelo, exige_qr: false }),
+                  )}
+                </div>
+              </div>
+              <div>
+                <p className="rotulo mb-1.5">Pagamento</p>
+                <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Pagamento na mesa">
+                  {opcao(modelo.pagamento === "comanda", "Comanda", "Pede à vontade e paga a conta no fim (App ou caixa).", () =>
+                    void mudarModelo({ ...modelo, pagamento: "comanda" }),
+                  )}
+                  {opcao(modelo.pagamento === "prepago", "Pré-pago", "Cada pedido é pago na hora pelo App; só então vai para o preparo.", () =>
+                    void mudarModelo({ ...modelo, pagamento: "prepago" }),
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </>
+      ) : null}
+
+      {(modelo === null || modelo?.tem_mesas) && (
+        <div>
+          <p className="rotulo mb-1.5">Como os pedidos chegam ao cliente</p>
+          <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Entrega dos pedidos">
+            {(Object.keys(NOME_REGRA_ENTREGA) as RegraEntrega[]).map((r) => (
+              <span key={r} className="contents">
+                {opcao(regra === r, NOME_REGRA_ENTREGA[r].nome, NOME_REGRA_ENTREGA[r].texto, () => void mudar(r))}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {modelo && !modelo.tem_mesas && (
+        <p className="rounded-lg bg-elevado px-3 py-2.5 text-[13px] text-suave">
+          Sem mesas: o pedido só vai para o preparo depois do pagamento aprovado. Quando ficar pronto, o cliente mostra o QR de retirada no balcão. Sem pagamento em 30 minutos, o pedido é cancelado sozinho.
+        </p>
+      )}
+      {modelo?.tem_mesas && modelo.pagamento === "prepago" && (
+        <p className="rounded-lg bg-elevado px-3 py-2.5 text-[13px] text-suave">Pré-pago: pedidos sem pagamento em 30 minutos são cancelados sozinhos. A taxa de serviço não é cobrada no pré-pago.</p>
+      )}
+      {aviso && <p className={clsx("text-sm", aviso.tipo === "ok" ? "text-ok" : "text-perigo")}>{aviso.texto}</p>}
     </section>
   );
 }

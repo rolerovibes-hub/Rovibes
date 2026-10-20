@@ -22,7 +22,7 @@ import {
   PagamentoComanda,
   Pedido,
   Totais,
-  useAoVivo, buscarRegraEntrega, RegraEntrega } from "@/lib/salao";
+  useAoVivo, buscarRegraEntrega, RegraEntrega, buscarModelo, ModeloAtendimento, pagarPedido } from "@/lib/salao";
 import { buscarCarteira, Cupom } from "./carteira";
 
 interface Comanda {
@@ -76,6 +76,8 @@ export function ComandaPagina() {
   const [qrAberto, setQrAberto] = useState(false);
   const [aviso, setAviso] = useState("");
   const situacoes = useRef<Map<string, string> | null>(null);
+  const [modelo, setModelo] = useState<ModeloAtendimento | null>(null);
+  const [pagandoPedido, setPagandoPedido] = useState<string | null>(null);
 
   const carregar = useCallback(async () => {
     const [c, p, g, d, t] = await Promise.all([
@@ -188,6 +190,19 @@ export function ComandaPagina() {
   useEffect(() => {
     if (comanda?.estabelecimento) document.title = `Comanda · ${comanda.estabelecimento.nome}`;
   }, [comanda]);
+  const estabDaComanda = comanda?.estabelecimento?.id;
+  useEffect(() => {
+    if (estabDaComanda) buscarModelo(estabDaComanda).then(setModelo);
+  }, [estabDaComanda]);
+  // Vindo do cardápio (?pedir=1): já abre a escolha dos itens.
+  useEffect(() => {
+    if (busca.get("pedir") === "1") {
+      setPedindo(true);
+      busca.delete("pedir");
+      setBusca(busca, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (comanda === undefined) return <Carregando />;
   if (!comanda || !comanda.estabelecimento) {
@@ -203,6 +218,23 @@ export function ComandaPagina() {
   }
 
   const aberta = comanda.situacao === "aberta";
+  // Pré-pago: comanda sem mesa (balcão) ou lugar que cobra cada pedido na hora (atualização 035).
+  const prepago = !!modelo && (!comanda.mesa || modelo.pagamento === "prepago");
+  const pagarAgora = async (pedido: string) => {
+    setPagandoPedido(pedido);
+    setErro("");
+    try {
+      const r = await pagarPedido(pedido);
+      if (r.url) window.location.href = r.url;
+      else {
+        setPagandoPedido(null);
+        void carregar();
+      }
+    } catch (e) {
+      setErro(mensagemDeErro(e));
+      setPagandoPedido(null);
+    }
+  };
   const prontosParaEntrega = pedidos.flatMap((p) => p.itens).filter((i) => i.situacao === "pronto" || i.situacao === "saiu").length;
   const nomeDe = (u: string | null) => (u ? (u === eu ? "Você" : pessoas.find((p) => p.id === u)?.nome ?? "Alguém da mesa") : "Equipe");
 
@@ -286,7 +318,7 @@ export function ComandaPagina() {
             const cancelavel =
               aberta &&
               e.usuario_id === eu &&
-              itensEnvio.every((i) => i.situacao === "recebido" || i.situacao === "cancelado" || (i.situacao === "pronto" && i.destino === "sem_preparo")) &&
+              itensEnvio.every((i) => i.situacao === "aguardando" || i.situacao === "recebido" || i.situacao === "cancelado" || (i.situacao === "pronto" && i.destino === "sem_preparo")) &&
               itensEnvio.some((i) => i.situacao !== "cancelado");
             return (
               <article key={e.id} className="cartao overflow-hidden">
@@ -315,6 +347,16 @@ export function ComandaPagina() {
                   ))}
                 </ul>
                 {e.pedidos[0].observacao && <p className="border-t border-borda px-4 py-2 text-[12px] text-suave">Obs.: {e.pedidos[0].observacao}</p>}
+                {aberta && e.usuario_id === eu && itensEnvio.some((i) => i.situacao === "aguardando") && (
+                  <div className="border-t border-borda px-4 py-3">
+                    <button className="botao-principal h-10 w-full rounded-full" disabled={pagandoPedido === e.pedidos[0].id} onClick={() => void pagarAgora(e.pedidos[0].id)}>
+                      {pagandoPedido === e.pedidos[0].id
+                        ? "Abrindo o pagamento..."
+                        : `Pagar agora · ${reais(itensEnvio.filter((i) => i.situacao === "aguardando").reduce((t, i) => t + i.preco * i.quantidade, 0))}`}
+                    </button>
+                    <p className="mt-1.5 text-center text-[12px] text-suave">O pedido vai para o preparo assim que o pagamento for aprovado. Sem pagamento em 30 min, ele é cancelado.</p>
+                  </div>
+                )}
                 {cancelavel && (
                   <button onClick={() => void cancelarEnvio(e.id)} className="w-full border-t border-borda px-4 py-2 text-[13px] text-suave hover:bg-elevado">
                     Cancelar pedido
@@ -378,7 +420,7 @@ export function ComandaPagina() {
               </p>
             )}
             <p className="flex justify-between px-4 py-3 font-semibold">
-              <span>Total da mesa</span>
+              <span>{comanda.mesa ? "Total da mesa" : "Total"}</span>
               <span className="codigo">{reais(totais.total)}</span>
             </p>
             {pagamentos.length > 0 && (
@@ -402,7 +444,7 @@ export function ComandaPagina() {
           </section>
         )}
 
-        {totais && aberta && totais.falta > 0 && (
+        {totais && aberta && totais.falta > 0 && !prepago && (
           <section className="cartao p-4">
             <h2 className="font-semibold">Dividir a conta</h2>
             <p className="mt-0.5 text-[13px] text-suave">Escolha como quer pagar a sua parte. Já com o serviço.</p>
@@ -451,7 +493,7 @@ export function ComandaPagina() {
 
         {aberta && (
           <button onClick={() => void sair()} className="mx-auto block py-2 text-[13px] text-suave underline underline-offset-2">
-            Sair da mesa
+            {comanda.mesa ? "Sair da mesa" : "Sair"}
           </button>
         )}
       </div>
@@ -469,6 +511,7 @@ export function ComandaPagina() {
 
       {pedindo && (
         <FolhaPedido
+          prepago={prepago}
           comMesa={!!comanda.mesa}
           comanda={comanda.id}
           estab={comanda.estabelecimento.id}
@@ -484,7 +527,23 @@ export function ComandaPagina() {
   );
 }
 
-function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { comanda: string; estab: string; usuario: string; comMesa: boolean; fechar: () => void; enviado: () => void }) {
+function FolhaPedido({
+  comanda,
+  estab,
+  usuario,
+  comMesa,
+  prepago,
+  fechar,
+  enviado,
+}: {
+  comanda: string;
+  estab: string;
+  usuario: string;
+  comMesa: boolean;
+  prepago: boolean;
+  fechar: () => void;
+  enviado: () => void;
+}) {
   const [modalidade, setModalidade] = useState<Modalidade>(comMesa ? "mesa" : "retirada");
   const [regra, setRegra] = useState<RegraEntrega | null>(null);
   const [itens, setItens] = useState<ItemParaPedido[] | null>(null);
@@ -513,7 +572,7 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
   const enviar = async () => {
     setEnviando(true);
     setErro("");
-    const { error } = await supabase.rpc("fazer_pedido", {
+    const { data, error } = await supabase.rpc("fazer_pedido", {
       p_comanda: comanda,
       p_itens: carrinhoParaBanco(carrinho),
       p_observacao: observacao.trim() || null,
@@ -521,8 +580,26 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
       // O estabelecimento decide; só manda a escolha quando ele deixa o cliente escolher.
       p_modalidade: regra === "cliente" ? modalidade : null,
     });
+    if (error) {
+      setEnviando(false);
+      return setErro(mensagemDeErro(error));
+    }
+    // Pré-pago: segue direto para o pagamento; o pedido só vai para o preparo depois de aprovado.
+    if (prepago && data) {
+      try {
+        const r = await pagarPedido(data as string);
+        if (r.url) {
+          window.location.href = r.url;
+          return;
+        }
+      } catch (e) {
+        setErro(`Pedido criado, mas o pagamento não abriu: ${mensagemDeErro(e)} Tente “Pagar agora” no pedido.`);
+        setEnviando(false);
+        window.setTimeout(enviado, 2500);
+        return;
+      }
+    }
     setEnviando(false);
-    if (error) return setErro(mensagemDeErro(error));
     enviado();
   };
 
@@ -557,6 +634,12 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
                 );
               })}
             </ul>
+            {prepago && (
+              <p className="cartao px-4 py-3 text-sm">
+                <span className="font-semibold">Pagamento na hora</span>
+                <span className="text-suave"> · Pix ou cartão pelo Mercado Pago. O pedido vai para o preparo assim que o pagamento for aprovado.</span>
+              </p>
+            )}
             {(!comMesa || (regra && regra !== "cliente")) && (
               <p className="cartao flex items-center gap-2 px-4 py-3 text-sm">
                 <span className="font-semibold">{!comMesa || regra === "retirada" ? "Retirada no balcão" : "Entrega na mesa"}</span>
@@ -633,7 +716,7 @@ function FolhaPedido({ comanda, estab, usuario, comMesa, fechar, enviado }: { co
           </button>
         ) : (
           <button className="botao-principal h-12 w-full rounded-full text-[15px]" disabled={enviando} onClick={() => void enviar()}>
-            {enviando ? "Enviando..." : "Enviar pedido"}
+            {enviando ? (prepago ? "Abrindo o pagamento..." : "Enviando...") : prepago ? `Pagar ${reais(Math.max(0, total - desconto))} e pedir` : "Enviar pedido"}
           </button>
         )}
       </footer>

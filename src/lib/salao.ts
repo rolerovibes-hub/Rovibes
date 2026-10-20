@@ -23,12 +23,13 @@ export const COR_SITUACAO_PEDIDO: Record<SituacaoPedido, string> = {
 export const NOME_SETOR: Record<Setor, string> = { cozinha: "Cozinha", bar: "Bar" };
 
 export type Destino = Setor | "sem_preparo";
-export type SituacaoItem = "recebido" | "preparo" | "pronto" | "saiu" | "entregue" | "cancelado";
+export type SituacaoItem = "aguardando" | "recebido" | "preparo" | "pronto" | "saiu" | "entregue" | "cancelado";
 export type Modalidade = "mesa" | "retirada";
 
 export const NOME_DESTINO: Record<Destino, string> = { cozinha: "Cozinha", bar: "Bar", sem_preparo: "Sem preparo" };
 
 export const NOME_SITUACAO_ITEM: Record<SituacaoItem, string> = {
+  aguardando: "Aguardando pagamento",
   recebido: "Recebido",
   preparo: "Em preparo",
   pronto: "Pronto",
@@ -38,6 +39,7 @@ export const NOME_SITUACAO_ITEM: Record<SituacaoItem, string> = {
 };
 
 export const COR_SITUACAO_ITEM: Record<SituacaoItem, string> = {
+  aguardando: "text-alerta",
   recebido: "text-azul",
   preparo: "text-alerta",
   pronto: "text-ok",
@@ -254,4 +256,41 @@ export async function buscarRegraEntrega(estab: string): Promise<RegraEntrega> {
   // Antes da atualização 028 o cliente escolhia.
   if (error || !data) return "cliente";
   return ((data as { entrega_pedidos: RegraEntrega }).entrega_pedidos ?? "mesa") as RegraEntrega;
+}
+
+// ------------------------------------------------------------
+// Modelo de atendimento do lugar (atualização 035)
+// ------------------------------------------------------------
+export interface ModeloAtendimento {
+  tem_mesas: boolean;
+  exige_qr: boolean;
+  /** comanda = paga no fim; prepago = paga cada pedido na hora (sem mesas é sempre pré-pago). */
+  pagamento: "comanda" | "prepago";
+  entrega: RegraEntrega;
+  mesas: { id: string; numero: string; area: string | null }[] | null;
+  minha_comanda: string | null;
+}
+
+/** null = banco sem a 035 (vale o jeito antigo: mesa com QR e comanda). */
+export async function buscarModelo(estab: string): Promise<ModeloAtendimento | null> {
+  const { data, error } = await supabase.rpc("modelo_atendimento", { p_estab: estab });
+  if (error || !data) return null;
+  return data as ModeloAtendimento;
+}
+
+/** Paga um pedido pré-pago no Mercado Pago. Devolve o link de pagamento, ou liberado=true se o cupom cobriu tudo. */
+export async function pagarPedido(pedido: string): Promise<{ url?: string; liberado?: boolean; comanda?: string }> {
+  const { data, error } = await supabase.functions.invoke("mp-pagar", { body: { pedido } });
+  if (error || !(data as { url?: string; liberado?: boolean })?.url && !(data as { liberado?: boolean })?.liberado) {
+    let msg = (data as { erro?: string } | null)?.erro;
+    if (!msg && error && "context" in error) {
+      try {
+        msg = ((await (error as { context: Response }).context.json()) as { erro?: string }).erro;
+      } catch {
+        /* sem detalhe */
+      }
+    }
+    throw new Error(msg ?? "Não foi possível iniciar o pagamento agora.");
+  }
+  return data as { url?: string; liberado?: boolean; comanda?: string };
 }

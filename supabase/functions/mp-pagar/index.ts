@@ -7,12 +7,18 @@ Deno.serve(async (req) => {
   try {
     const autorizacao = req.headers.get("Authorization");
     if (!autorizacao) return resposta({ erro: "Entre na sua conta." }, 401);
-    const { comanda, modo, valor } = await req.json();
+    const { comanda: comandaPedida, modo, valor, pedido } = await req.json();
     const usuario = createClient(URL_SUPABASE, CHAVE_ANON, { global: { headers: { Authorization: autorizacao } }, auth: { persistSession: false } });
 
-    const { data, error } = await usuario.rpc("preparar_pagamento_app", { p_comanda: comanda, p_modo: modo, p_valor: valor ?? null });
+    // Pedido pré-pago (balcão ou mesa pré-paga) ou parte da conta da comanda.
+    const { data, error } = pedido
+      ? await usuario.rpc("preparar_pagamento_pedido", { p_pedido: pedido })
+      : await usuario.rpc("preparar_pagamento_app", { p_comanda: comandaPedida, p_modo: modo, p_valor: valor ?? null });
     if (error) return resposta({ erro: error.message }, 400);
-    const p = (data as { pagamento_id: string; valor: number; estabelecimento_id: string; descricao: string; comissao_pct: number }[])[0];
+    const p = (data as { pagamento_id: string | null; valor: number; estabelecimento_id: string; descricao: string; comissao_pct: number; comanda_id?: string }[])[0];
+    const comanda = p.comanda_id ?? comandaPedida;
+    // Cupom cobriu o pedido inteiro: já foi liberado para o preparo.
+    if (!p.pagamento_id) return resposta({ liberado: true, comanda });
 
     const conta = await tokenDoEstab(p.estabelecimento_id);
     if (!conta) return resposta({ erro: "Este lugar ainda não recebe pagamentos pelo App." }, 400);
@@ -47,7 +53,7 @@ Deno.serve(async (req) => {
       return resposta({ erro: "Não foi possível iniciar o pagamento agora. Tente de novo." }, 502);
     }
     await admin().from("pagamentos").update({ mp_preferencia: pref.id, comissao }).eq("id", p.pagamento_id);
-    return resposta({ url: pref.init_point, pagamento: p.pagamento_id, valor: valorNum, teste: !conta.conectado });
+    return resposta({ url: pref.init_point, pagamento: p.pagamento_id, valor: valorNum, teste: !conta.conectado, comanda });
   } catch (e) {
     console.error(e);
     return resposta({ erro: "Erro inesperado ao iniciar o pagamento." }, 500);

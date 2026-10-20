@@ -3,7 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Armchair, ScanLine } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { codigoDaMesa } from "@/lib/salao";
+import { buscarModelo, codigoDaMesa, ModeloAtendimento } from "@/lib/salao";
 
 interface MesaInfo {
   estabelecimento_id: string;
@@ -19,6 +19,10 @@ export function MesaPagina() {
   const [mesa, setMesa] = useState<MesaInfo | null | undefined>(undefined);
   const [erro, setErro] = useState("");
   const [entrando, setEntrando] = useState(false);
+  const [modelo, setModelo] = useState<ModeloAtendimento | null>(null);
+  useEffect(() => {
+    if (mesa?.estabelecimento_id) buscarModelo(mesa.estabelecimento_id).then(setModelo);
+  }, [mesa?.estabelecimento_id]);
 
   useEffect(() => {
     supabase.rpc("mesa_pelo_codigo", { p_codigo: codigoDaMesa(codigo) }).then(({ data }) => setMesa(((data ?? []) as MesaInfo[])[0] ?? null));
@@ -30,7 +34,7 @@ export function MesaPagina() {
     const { data, error } = await supabase.rpc("entrar_na_mesa", { p_codigo: codigoDaMesa(codigo) });
     setEntrando(false);
     if (error) return setErro(mensagemDeErro(error));
-    navegar(`/comanda/${data as string}`, { replace: true });
+    navegar(`/comanda/${data as string}?pedir=1`, { replace: true });
   };
 
   if (mesa === undefined) return <Carregando />;
@@ -56,7 +60,8 @@ export function MesaPagina() {
       <h1 className="text-2xl font-semibold">Mesa {mesa.numero}</h1>
       {mesa.area && <p className="text-sm text-suave">{mesa.area}</p>}
       <p className="mx-auto mt-4 max-w-xs text-sm text-suave">
-        Entre na mesa para pedir pelo cardápio. Quem estiver com você e ler o mesmo QR entra na mesma comanda. A conta é paga no caixa.
+        Entre na mesa para pedir pelo cardápio. Quem estiver com você e ler o mesmo QR entra na mesma comanda.{" "}
+        {modelo?.pagamento === "prepago" ? "Aqui cada pedido é pago na hora, pelo App." : "A conta é paga no fim, pelo App ou no caixa."}
       </p>
       <button className="botao-principal mt-6 h-11 w-full max-w-xs rounded-full text-[15px]" disabled={entrando} onClick={() => void entrar()}>
         {entrando ? "Entrando..." : "Entrar na mesa"}

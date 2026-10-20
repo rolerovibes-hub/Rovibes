@@ -155,8 +155,9 @@ export function MenuFlutuante() {
   const acoesLugar = foco
     ? [
         { nome: "Cardápio", icone: UtensilsCrossed, acao: () => ir(`/lugar/${foco.id}/cardapio`) },
-        { nome: "Pedir", icone: ScanLine, acao: () => (comandaAqui && mesa ? ir(`/comanda/${mesa.id}`) : lerQr()) },
-        { nome: "Pagar", icone: CreditCard, acao: () => (comandaAqui && mesa ? ir(`/comanda/${mesa.id}`) : lerQr()) },
+        // Sem comanda aberta, o cardápio mostra o jeito de pedir que o lugar escolheu (QR, mesa da lista ou balcão).
+        { nome: "Pedir", icone: ScanLine, acao: () => ir(comandaAqui && mesa ? `/comanda/${mesa.id}?pedir=1` : `/lugar/${foco.id}/cardapio`) },
+        { nome: "Pagar", icone: CreditCard, acao: () => ir(comandaAqui && mesa ? `/comanda/${mesa.id}` : `/lugar/${foco.id}/cardapio`) },
         { nome: "Ingressos", icone: Ticket, acao: () => ir(`/lugar/${foco.id}?aba=programacao`) },
       ]
     : [];
