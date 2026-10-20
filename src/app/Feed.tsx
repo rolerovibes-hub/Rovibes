@@ -12,6 +12,7 @@ import { alternarCurtida, buscarFeed, buscarStories, seguirLugar, buscarStoriesP
 import { NovoStory } from "./NovoStory";
 import { AnelStory, VisorStories } from "./VisorStories";
 import { ParaVoceAgora } from "./ParaVoce";
+import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
@@ -218,6 +219,7 @@ export function Feed() {
       )}
 
       {!carregando && <ParaVoceAgora lugares={lugares} pos={pos} usuario={usuario} />}
+      <EventosDaGalera pos={pos} />
 
       {/* Publicações */}
       <section className="mt-5">

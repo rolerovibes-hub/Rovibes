@@ -20,6 +20,7 @@ import { Pagamentos } from "./Pagamentos";
 import { Produtos } from "./Produtos";
 import { BibliotecaAdmin } from "./BibliotecaAdmin";
 import { MusicasAdmin } from "./MusicasAdmin";
+import { EventosPessoasAdmin } from "./EventosPessoasAdmin";
 import { ChatAoVivo } from "./ChatAoVivo";
 import { Portaria } from "@/job/Portaria";
 import { EstoqueEquipe } from "@/job/EstoqueEquipe";
@@ -98,6 +99,7 @@ export function TelaAplicativo() {
   if (app.codigo === "A1003") return <Denuncias />;
   if (app.codigo === "A1005") return <BibliotecaAdmin />;
   if (app.codigo === "A1006") return <MusicasAdmin />;
+  if (app.codigo === "A1007") return <EventosPessoasAdmin />;
   if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "G4003") return <Produtos />;
   if (app.codigo === "T4004") {

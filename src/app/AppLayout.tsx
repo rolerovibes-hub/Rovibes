@@ -55,7 +55,7 @@ function Estrutura() {
   const chat = useChatNaoLidas(true);
   const seloChat = chat.conversas + chat.pedidos;
   const { perfil } = useSessao();
-  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !/^\/lugar\/[^/]+\/role/.test(local.pathname);
+  const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !/^\/lugar\/[^/]+\/role/.test(local.pathname) && !/^\/eventos\/(novo|[^/]+\/editar)/.test(local.pathname);
 
   // Primeira vez no App: mostra a "Primeira vibe" (uma vez; dá para pular).
   if (local.pathname === "/" && perfil && perfil.vibe_inicial_em === null && !ler<boolean>("vibe_inicial_feita", false)) {

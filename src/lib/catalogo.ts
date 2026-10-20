@@ -1,6 +1,7 @@
 import {
   ArrowRightLeft,
   Music,
+  PartyPopper,
   Award,
   Building2,
   CalendarDays,
@@ -74,6 +75,7 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "A1004", nome: "Vibes e categorias", area: "Administração", icone: Tags, fase: 2 },
   { codigo: "A1005", nome: "Biblioteca de produtos", area: "Administração", icone: Library, fase: 5 },
   { codigo: "A1006", nome: "Músicas dos vídeos", area: "Administração", icone: Music, fase: 6 },
+  { codigo: "A1007", nome: "Eventos de pessoas", area: "Administração", icone: PartyPopper, fase: 7 },
 ];
 
 export const AREAS: Area[] = ["Estabelecimento", "Vitrine", "Conteúdo", "Operação", "Equipe", "Administração"];

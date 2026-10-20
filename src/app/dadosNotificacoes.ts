@@ -117,6 +117,29 @@ export function useNotificacoes(usuario: string | undefined, pedido: { comanda: 
         link: `/?comentarios=${x.pub_tipo}:${x.pub_id}`,
       });
     }
+    // Convites para eventos de amigos (atualização 037).
+    const { data: conviteEv } = await supabase
+      .from("convites_evento_pessoa")
+      .select("evento_id, convidado_em, situacao")
+      .eq("usuario_id", usuario)
+      .eq("situacao", "convidado")
+      .limit(20);
+    if (conviteEv?.length) {
+      const evs = await supabase.rpc("eventos_pessoa_para_mim", { p_lat: null, p_lng: null });
+      const porId = new Map(((evs.data ?? []) as { id: string; titulo: string; anfitriao: { nome: string } }[]).map((e) => [e.id, e]));
+      for (const c of conviteEv as { evento_id: string; convidado_em: string }[]) {
+        const e = porId.get(c.evento_id);
+        if (!e) continue;
+        itens.push({
+          id: `convite-ev-${c.evento_id}`,
+          tipo: "evento",
+          titulo: `${e.anfitriao.nome.split(" ")[0]} convidou você`,
+          texto: e.titulo,
+          quando: c.convidado_em,
+          link: `/evento-pessoa/${c.evento_id}`,
+        });
+      }
+    }
     // Convites para ser promoter.
     const { data: conv } = await supabase
       .from("promoters")

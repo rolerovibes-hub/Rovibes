@@ -35,3 +35,5 @@ jobs:
         run: supabase functions deploy mp-ingresso --project-ref "$PROJETO" --use-api
       - name: Publicar mp-reembolso
         run: supabase functions deploy mp-reembolso --project-ref "$PROJETO" --use-api
+      - name: Publicar mp-anfitriao
+        run: supabase functions deploy mp-anfitriao --project-ref "$PROJETO" --use-api

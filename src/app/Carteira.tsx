@@ -9,6 +9,7 @@ import { dataCurta, descreverBeneficio, descreverRegras } from "@/lib/beneficio"
 import { quando } from "./dados";
 import { buscarCarteira, codigoLegivel, Cupom, fimDoEvento, Ingresso, qrDoIngresso, SaldoPontos } from "./carteira";
 import { IngressosCarteira, useMeusIngressos } from "./IngressosPagos";
+import { IngressosDeAnfitrioes } from "./EventosDaGalera";
 
 type Aba = "cupons" | "ingressos" | "pontos";
 const ABAS: { id: Aba; nome: string }[] = [
@@ -86,7 +87,10 @@ export function Carteira() {
           )}
         </div>
       ) : aba === "ingressos" && novos.lista ? (
-        <IngressosCarteira lista={novos.lista} recarregar={novos.recarregar} compraVolta={busca.get("compra")} />
+        <>
+          <IngressosDeAnfitrioes />
+          <IngressosCarteira lista={novos.lista} recarregar={novos.recarregar} compraVolta={busca.get("compra")} />
+        </>
       ) : aba === "ingressos" ? (
         <div className="space-y-6 px-4 pt-5">
           {ingressosAtivos.length === 0 ? (

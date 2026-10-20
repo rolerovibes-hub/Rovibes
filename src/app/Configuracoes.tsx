@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
+import { CalendarHeart, CalendarPlus, ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -54,6 +54,23 @@ export function Configuracoes({ fechar }: { fechar: () => void }) {
         <section className="px-5 pb-4">
           <h3 className="rotulo mb-2">Tema</h3>
           <SeletorTema />
+        </section>
+
+        <section className="border-t border-borda">
+          <h3 className="rotulo px-5 pb-1 pt-4">Eventos</h3>
+          <Link to="/eventos/novo" onClick={fechar} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado">
+            <CalendarPlus className="h-4 w-4 text-destaque" />
+            <span className="flex-1">
+              <span className="block">Criar um evento</span>
+              <span className="block text-[13px] text-suave">Churrasco, aniversário, comemoração... com ingressos para os amigos</span>
+            </span>
+            <ChevronRight className="h-4 w-4 text-suave" />
+          </Link>
+          <Link to="/eventos/meus" onClick={fechar} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado">
+            <CalendarHeart className="h-4 w-4 text-destaque" />
+            <span className="flex-1">Meus eventos</span>
+            <ChevronRight className="h-4 w-4 text-suave" />
+          </Link>
         </section>
 
         <section className="border-t border-borda">

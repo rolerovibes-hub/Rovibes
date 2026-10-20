@@ -11,6 +11,9 @@ import { Perfil } from "./app/Perfil";
 import { Entrar } from "./Entrar";
 import { MarcarRole } from "./app/MarcarRole";
 import { PrimeiraVibe } from "./app/PrimeiraVibe";
+import { CriarEventoPessoa } from "./app/CriarEventoPessoa";
+import { MeusEventosPessoa } from "./app/MeusEventosPessoa";
+import { EventoPessoaPagina } from "./app/EventoPessoaPagina";
 import { LugarPagina } from "./app/LugarPagina";
 import { EventoPagina } from "./app/EventoPagina";
 import { CardapioPagina } from "./app/CardapioPagina";
@@ -62,6 +65,10 @@ export default function App() {
         <Route path="lugar/:id/cardapio" element={<CardapioPagina />} />
         <Route path="lugar/:id/role" element={<MarcarRole />} />
         <Route path="primeira-vibe" element={<PrimeiraVibe />} />
+        <Route path="eventos/novo" element={<CriarEventoPessoa />} />
+        <Route path="eventos/meus" element={<MeusEventosPessoa />} />
+        <Route path="eventos/:id/editar" element={<CriarEventoPessoa />} />
+        <Route path="evento-pessoa/:id" element={<EventoPessoaPagina />} />
         <Route path="evento/:id" element={<EventoPagina />} />
         <Route path="carteira" element={<Carteira />} />
         <Route path="mesa/:codigo" element={<MesaPagina />} />
