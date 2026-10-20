@@ -11,6 +11,8 @@ import { ler } from "@/lib/armazenamento";
 import { AcessoRapidoProvider, useAcessoRapido } from "./estadoAcesso";
 import { MenuFlutuante } from "./AcessoRapido";
 import { NovoStory } from "./NovoStory";
+import { EnviosProvider } from "@/lib/envios";
+import { BarraEnvios } from "@/components/BarraEnvios";
 import { useChatNaoLidas } from "@/lib/chat";
 
 const ABAS = [
@@ -37,7 +39,10 @@ export function AppLayout() {
 
   return (
     <AcessoRapidoProvider>
-      <Estrutura />
+      <EnviosProvider>
+        <Estrutura />
+        <BarraEnvios />
+      </EnviosProvider>
     </AcessoRapidoProvider>
   );
 }
@@ -117,11 +122,8 @@ function Estrutura() {
         <NovoStory
           destinoInicial="feed"
           fechar={() => setPublicar(false)}
-          publicado={(destino) => {
-            setPublicar(false);
-            window.dispatchEvent(new CustomEvent("rovibes:publicou", { detail: destino }));
-            if (local.pathname !== "/" && destino === "feed") navegar("/perfil");
-          }}
+          // O envio segue em segundo plano (barra no topo); a pessoa continua onde estava.
+          publicado={() => setPublicar(false)}
         />
       )}
 

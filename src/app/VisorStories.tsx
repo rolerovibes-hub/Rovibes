@@ -1,6 +1,6 @@
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Eye, Flag, MapPin, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
+import { Eye, Flag, MapPin, MoreHorizontal, Send, Store, Trash2, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { JanelaDenuncia } from "@/components/Denunciar";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -41,6 +41,8 @@ export function VisorStories({
   const [enviandoResposta, setEnviandoResposta] = useState(false);
   const [aviso, setAviso] = useState("");
   const [voando, setVoando] = useState<{ emoji: string; n: number } | null>(null);
+  const [mudo, setMudo] = useState(false);
+  const telaVideo = useRef<HTMLVideoElement>(null);
   const grupo = grupos[g];
   const lista = grupo?.stories.filter((x) => !apagados.has(x.id)) ?? [];
   const story = lista[s];
@@ -67,8 +69,23 @@ export function VisorStories({
     if (story && !grupo?.meu) void marcarVisto(story.id, usuario, grupo?.tipo ?? "lugar");
   }, [story, usuario, grupo]);
 
+  // Vídeo: toca, pausa junto com o story e avança quando termina.
+  const ehVideo = !!story?.video_url;
+  const duracaoStory = ehVideo ? Math.max(1, Number(story?.duracao ?? 15)) * 1000 : DURACAO;
   useEffect(() => {
-    if (parado || !story) return;
+    const v = telaVideo.current;
+    if (!v) return;
+    if (parado) v.pause();
+    else void v.play().catch(() => {
+      // Sem permissão para tocar com som: toca mudo.
+      v.muted = true;
+      setMudo(true);
+      void v.play().catch(() => undefined);
+    });
+  }, [parado, story?.id]);
+
+  useEffect(() => {
+    if (parado || !story || ehVideo) return;
     const t = window.setTimeout(avancar, DURACAO);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -116,8 +133,8 @@ export function VisorStories({
     if (!window.confirm("Apagar este story?")) return;
     const { error } = await supabase.from("stories_pessoas").delete().eq("id", story.id);
     if (!error) {
-      const caminho = story.foto_url.split("/avatares/")[1];
-      if (caminho) await supabase.storage.from("avatares").remove([decodeURIComponent(caminho)]);
+      const caminhos = [story.foto_url, story.video_url].map((u) => u?.split("/avatares/")[1]).filter((c): c is string => !!c).map(decodeURIComponent);
+      if (caminhos.length) await supabase.storage.from("avatares").remove(caminhos);
       setApagados((a) => new Set(a).add(story.id));
     }
   };
@@ -149,7 +166,26 @@ export function VisorStories({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black" role="dialog" aria-modal="true" aria-label={`Stories de ${grupo.autor.nome}`}>
       <div className="relative h-full w-full max-w-md">
-        <img src={story.foto_url} alt={story.legenda ?? ""} className="absolute inset-0 h-full w-full object-contain" />
+        {ehVideo ? (
+          <video
+            key={story.id}
+            ref={telaVideo}
+            src={story.video_url!}
+            poster={story.foto_url}
+            playsInline
+            autoPlay
+            muted={mudo}
+            onEnded={avancar}
+            className="absolute inset-0 h-full w-full object-contain"
+          />
+        ) : (
+          <img src={story.foto_url} alt={story.legenda ?? ""} className="absolute inset-0 h-full w-full object-contain" />
+        )}
+        {ehVideo && (
+          <button onClick={() => setMudo((m) => !m)} className="absolute right-3 top-20 z-20 rounded-full bg-black/45 p-2 text-white" aria-label={mudo ? "Ligar o som" : "Tirar o som"}>
+            {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
+          </button>
+        )}
 
         <div className="absolute inset-x-0 top-0 z-10 space-y-3 bg-gradient-to-b from-black/60 to-transparent p-3 pt-[max(12px,env(safe-area-inset-top))]">
           <div key={`${g}-${lista.length}`} className="flex gap-1">
@@ -159,7 +195,7 @@ export function VisorStories({
                   className="block h-full bg-white"
                   style={{
                     width: i < s ? "100%" : i > s ? "0%" : parado ? "50%" : undefined,
-                    animation: i === s && !parado ? `progresso-story ${DURACAO}ms linear forwards` : undefined,
+                    animation: i === s && !parado ? `progresso-story ${duracaoStory}ms linear forwards` : undefined,
                   }}
                 />
               </span>

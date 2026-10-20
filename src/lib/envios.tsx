@@ -1,0 +1,179 @@
+import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { supabase } from "./supabase";
+import { reduzirImagem } from "./imagens";
+import { capaDoVideo, extensao, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
+
+export type Destino = "feed" | "story";
+
+export type MidiaEnvio =
+  | { tipo: "foto"; arquivo: File | Blob }
+  | { tipo: "video"; arquivo: File | Blob; regravar: boolean; opcoes: OpcoesVideo; musicaId: string | null };
+
+export interface PedidoPublicacao {
+  destino: Destino;
+  midia: MidiaEnvio;
+  legenda: string | null;
+  localId: string | null;
+}
+
+export interface Envio {
+  id: string;
+  pedido: PedidoPublicacao;
+  previa: string | null;
+  estado: "preparando" | "enviando" | "publicado" | "erro";
+  /** 0 a 1, somando as etapas (regravar o vídeo, enviar). */
+  progresso: number;
+  erro?: string;
+}
+
+interface Contexto {
+  envios: Envio[];
+  publicar: (p: PedidoPublicacao, previa: string | null) => void;
+  tentarDeNovo: (id: string) => void;
+  descartar: (id: string) => void;
+}
+
+const Ctx = createContext<Contexto | null>(null);
+
+/**
+ * Publicações em segundo plano: a pessoa toca em "Publicar" e continua usando o app.
+ * Uma por vez, com progresso; ao terminar, avisa as telas (evento "rovibes:publicou").
+ */
+export function EnviosProvider({ children }: { children: ReactNode }) {
+  const [envios, setEnvios] = useState<Envio[]>([]);
+  const fila = useRef<string[]>([]);
+  const rodando = useRef(false);
+  const lista = useRef<Envio[]>([]);
+  lista.current = envios;
+
+  const mudar = useCallback((id: string, m: Partial<Envio>) => setEnvios((l) => l.map((e) => (e.id === id ? { ...e, ...m } : e))), []);
+
+  const executar = useCallback(
+    async (e: Envio) => {
+      const { data: s } = await supabase.auth.getSession();
+      const eu = s.session?.user.id;
+      if (!eu) throw new Error("Entre na sua conta para publicar.");
+      const { destino, midia, legenda, localId } = e.pedido;
+      const base = `${eu}/${destino === "feed" ? "post" : "story"}-${crypto.randomUUID()}`;
+      const caminhos: string[] = [];
+      let foto_url: string;
+      let video_url: string | null = null;
+      let duracao: number | null = null;
+      try {
+        if (midia.tipo === "foto") {
+          mudar(e.id, { estado: "preparando", progresso: 0.05 });
+          const blob = await reduzirImagem(midia.arquivo as File, 1440);
+          mudar(e.id, { estado: "enviando" });
+          caminhos.push(`${base}.jpg`);
+          foto_url = await subirComProgresso("avatares", `${base}.jpg`, blob, "image/jpeg", (p) => mudar(e.id, { progresso: 0.1 + p * 0.85 }));
+        } else {
+          mudar(e.id, { estado: "preparando", progresso: 0.02 });
+          let video: Blob = midia.arquivo;
+          let tipo = midia.arquivo.type || "video/mp4";
+          duracao = midia.opcoes.duracao;
+          // Etapa 1: regravar (trecho de até 15 s e o som escolhido), só quando precisa.
+          if (midia.regravar) {
+            const r = await regravarVideo(midia.arquivo, midia.opcoes, (p) => mudar(e.id, { progresso: 0.02 + p * 0.5 }));
+            video = r.blob;
+            tipo = r.tipo;
+            duracao = r.duracao;
+          }
+          const capa = await capaDoVideo(video, 0.2).catch(() => null);
+          mudar(e.id, { estado: "enviando", progresso: midia.regravar ? 0.55 : 0.1 });
+          const ini = midia.regravar ? 0.55 : 0.1;
+          if (capa) {
+            caminhos.push(`${base}.jpg`);
+            foto_url = await subirComProgresso("avatares", `${base}.jpg`, capa, "image/jpeg");
+          } else foto_url = "";
+          caminhos.push(`${base}.${extensao(tipo)}`);
+          video_url = await subirComProgresso("avatares", `${base}.${extensao(tipo)}`, video, tipo, (p) => mudar(e.id, { progresso: ini + p * (0.97 - ini) }));
+          if (!foto_url) foto_url = video_url;
+        }
+        const extras = midia.tipo === "video" ? { video_url, duracao: duracao ? Math.round(duracao * 100) / 100 : null, musica_id: midia.musicaId } : {};
+        const linha = destino === "feed"
+          ? { foto_url, texto: legenda, estabelecimento_id: localId, ...extras }
+          : { foto_url, legenda, estabelecimento_id: localId, ...extras };
+        const { error } = await supabase.from(destino === "feed" ? "publicacoes_pessoas" : "stories_pessoas").insert(linha);
+        if (error) {
+          throw /column|schema cache/i.test(error.message)
+            ? new Error("Para publicar vídeos, falta aplicar a atualização 036 do banco.")
+            : /relation|does not exist/i.test(error.message)
+              ? new Error(`Falta aplicar a atualização ${destino === "feed" ? "027" : "013"} do banco.`)
+              : error;
+        }
+      } catch (err) {
+        if (caminhos.length) await supabase.storage.from("avatares").remove(caminhos).catch(() => undefined);
+        throw err;
+      }
+    },
+    [mudar],
+  );
+
+  const proximo = useCallback(async () => {
+    if (rodando.current) return;
+    const id = fila.current.shift();
+    if (!id) return;
+    const e = lista.current.find((x) => x.id === id);
+    if (!e) return void proximo();
+    rodando.current = true;
+    try {
+      await executar(e);
+      mudar(id, { estado: "publicado", progresso: 1 });
+      window.dispatchEvent(new CustomEvent("rovibes:publicou", { detail: e.pedido.destino }));
+      window.setTimeout(() => setEnvios((l) => l.filter((x) => x.id !== id || x.estado !== "publicado")), 4000);
+    } catch (err) {
+      mudar(id, { estado: "erro", erro: err instanceof Error ? err.message : "Não foi possível publicar." });
+    }
+    rodando.current = false;
+    void proximo();
+  }, [executar, mudar]);
+
+  const publicar = useCallback(
+    (pedido: PedidoPublicacao, previa: string | null) => {
+      const id = crypto.randomUUID();
+      const novo: Envio = { id, pedido, previa, estado: "preparando", progresso: 0 };
+      lista.current = [...lista.current, novo];
+      setEnvios(lista.current);
+      fila.current.push(id);
+      void proximo();
+    },
+    [proximo],
+  );
+
+  const tentarDeNovo = useCallback(
+    (id: string) => {
+      mudar(id, { estado: "preparando", progresso: 0, erro: undefined });
+      fila.current.push(id);
+      void proximo();
+    },
+    [mudar, proximo],
+  );
+
+  const descartar = useCallback((id: string) => {
+    setEnvios((l) => {
+      const e = l.find((x) => x.id === id);
+      if (e?.previa) URL.revokeObjectURL(e.previa);
+      return l.filter((x) => x.id !== id);
+    });
+  }, []);
+
+  // Fechar o app no meio do envio perde a publicação: avisa.
+  const ativos = envios.some((e) => e.estado === "preparando" || e.estado === "enviando");
+  useEffect(() => {
+    if (!ativos) return;
+    const aviso = (ev: BeforeUnloadEvent) => {
+      ev.preventDefault();
+      ev.returnValue = "";
+    };
+    window.addEventListener("beforeunload", aviso);
+    return () => window.removeEventListener("beforeunload", aviso);
+  }, [ativos]);
+
+  return <Ctx.Provider value={{ envios, publicar, tentarDeNovo, descartar }}>{children}</Ctx.Provider>;
+}
+
+export function useEnvios() {
+  const c = useContext(Ctx);
+  if (!c) throw new Error("useEnvios fora do EnviosProvider");
+  return c;
+}

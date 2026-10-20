@@ -23,11 +23,12 @@ cp -r android-config/res/. $RES/
 grep -q ic_launcher_foreground $RES/mipmap-anydpi-v26/ic_launcher.xml
 grep -q "capacitor-app" android/capacitor.settings.gradle
 
-# Localização (check-in e "perto de mim") e câmera (ler QR dos ingressos).
+# Localização (check-in e "perto de mim"), câmera (QR, fotos e vídeos) e microfone (som dos vídeos).
 MANIFESTO=android/app/src/main/AndroidManifest.xml
-sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />#' $MANIFESTO
+sed -i 's#<uses-permission android:name="android.permission.INTERNET" />#<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />\n    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />\n    <uses-feature android:name="android.hardware.camera" android:required="false" />\n    <uses-feature android:name="android.hardware.location.gps" android:required="false" />#' $MANIFESTO
 grep -q ACCESS_FINE_LOCATION $MANIFESTO
 grep -q android.permission.CAMERA $MANIFESTO
+grep -q android.permission.RECORD_AUDIO $MANIFESTO
 
 # Links: rovibes://... e https://rovibes.vercel.app/... abrem o app direto na tela do link (evento, lista, lugar, perfil).
 python3 - "$MANIFESTO" <<'PY'

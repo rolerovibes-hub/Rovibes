@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Camera, Flag, Heart, Lock, MapPin, MessageCircle, Trash2, X } from "lucide-react";
+import { Camera, Flag, Heart, Lock, MapPin, MessageCircle, Play, Trash2, X } from "lucide-react";
+import { VideoPost } from "./VideoPost";
 import { contarComentarios, FolhaComentarios } from "./Comentarios";
 import { Avatar } from "./Avatar";
 import { JanelaDenuncia } from "./Denunciar";
@@ -16,6 +17,7 @@ export interface Post {
   local: { id: string; nome: string } | null;
   curtidas: number;
   curti: boolean;
+  video_url?: string | null;
 }
 
 /** Grade de publicações de uma pessoa (perfil). Toque abre a publicação. */
@@ -27,9 +29,16 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
   const [erro, setErro] = useState("");
 
   const carregar = useCallback(() => {
-    supabase.rpc("publicacoes_da_pessoa", { p_pessoa: pessoa, p_antes: null }).then(({ data, error }) => {
+    supabase.rpc("publicacoes_da_pessoa", { p_pessoa: pessoa, p_antes: null }).then(async ({ data, error }) => {
       if (error) setErro(/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 027 do banco." : "");
-      setPosts((data ?? []) as Post[]);
+      const lista = (data ?? []) as Post[];
+      // Vídeos (atualização 036).
+      if (lista.length) {
+        const { data: v } = await supabase.from("publicacoes_pessoas").select("id, video_url").in("id", lista.map((p) => p.id)).not("video_url", "is", null);
+        const mapa = new Map(((v ?? []) as { id: string; video_url: string }[]).map((x) => [x.id, x.video_url]));
+        for (const p of lista) p.video_url = mapa.get(p.id) ?? null;
+      }
+      setPosts(lista);
     });
   }, [pessoa]);
   useEffect(() => {
@@ -60,8 +69,13 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
       <ul className="grid grid-cols-3 gap-0.5">
         {posts.map((p) => (
           <li key={p.id}>
-            <button onClick={() => setAberto(p)} className="block aspect-square w-full overflow-hidden bg-elevado" aria-label={p.texto ?? "Publicação"}>
+            <button onClick={() => setAberto(p)} className="relative block aspect-square w-full overflow-hidden bg-elevado" aria-label={p.texto ?? "Publicação"}>
               <img src={p.foto_url} alt="" className="h-full w-full object-cover" loading="lazy" />
+              {p.video_url && (
+                <span className="absolute right-1.5 top-1.5 rounded-full bg-black/55 p-1 text-white">
+                  <Play className="h-3 w-3 fill-current" />
+                </span>
+              )}
             </button>
           </li>
         ))}
@@ -117,8 +131,8 @@ function VisorPost({
     if (!window.confirm("Apagar esta publicação?")) return;
     const { error } = await supabase.from("publicacoes_pessoas").delete().eq("id", post.id);
     if (error) return setErro(mensagemDeErro(error));
-    const caminho = post.foto_url.split("/avatares/")[1];
-    if (caminho) await supabase.storage.from("avatares").remove([decodeURIComponent(caminho)]);
+    const caminhos = [post.foto_url, post.video_url].map((u) => u?.split("/avatares/")[1]).filter((c): c is string => !!c).map(decodeURIComponent);
+    if (caminhos.length) await supabase.storage.from("avatares").remove(caminhos);
     mudou(null);
   };
 
@@ -149,7 +163,11 @@ function VisorPost({
             <X className="h-5 w-5" />
           </button>
         </div>
-        <img src={post.foto_url} alt={post.texto ?? ""} className="max-h-[70vh] w-full bg-black object-contain" />
+        {post.video_url ? (
+          <VideoPost src={post.video_url} capa={post.foto_url} className="max-h-[70vh] w-full bg-black object-contain" />
+        ) : (
+          <img src={post.foto_url} alt={post.texto ?? ""} className="max-h-[70vh] w-full bg-black object-contain" />
+        )}
         <div className="space-y-2 px-4 py-3">
           <span className="-ml-1 inline-flex items-center gap-2">
             <button onClick={() => void curtir()} aria-pressed={post.curti} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">

@@ -16,6 +16,9 @@ export interface StoryApp {
   estabelecimento: Autor;
   /** Story de pessoa: lugar marcado. */
   local?: { id: string; nome: string } | null;
+  /** Story em vídeo (até 15 s); foto_url é a capa. */
+  video_url?: string | null;
+  duracao?: number | null;
 }
 
 export interface GrupoStories {
@@ -43,6 +46,8 @@ export interface PublicacaoApp {
   tipo?: "lugar" | "pessoa";
   pessoa?: { id: string; nome: string; usuario: string; foto_url: string | null } | null;
   local?: { id: string; nome: string } | null;
+  /** Publicação em vídeo (até 15 s); foto_url é a capa. */
+  video_url?: string | null;
 }
 
 /** Stories no ar, agrupados por lugar; quem ainda tem story não visto vem primeiro. */
@@ -74,16 +79,26 @@ export async function marcarVisto(storyId: string, usuario: string, tipo: "lugar
 
 /** Stories de pessoas (os seus e de quem você segue), agrupados por pessoa; o seu vem primeiro. */
 export async function buscarStoriesPessoas(usuario: string, soDe?: string): Promise<GrupoStories[]> {
-  let q = supabase
-    .from("stories_pessoas")
-    .select("id, usuario_id, foto_url, legenda, criado_em, local:estabelecimentos(id, nome)")
-    .eq("oculto", false)
-    .gt("expira_em", new Date().toISOString())
-    .order("criado_em");
-  if (soDe) q = q.eq("usuario_id", soDe);
-  const { data, error } = await q;
+  const consulta = (campos: string) => {
+    let q = supabase.from("stories_pessoas").select(campos).eq("oculto", false).gt("expira_em", new Date().toISOString()).order("criado_em");
+    if (soDe) q = q.eq("usuario_id", soDe);
+    return q;
+  };
+  const base = "id, usuario_id, foto_url, legenda, criado_em, local:estabelecimentos(id, nome)";
+  // Com vídeo (atualização 036); sem ela, busca só as fotos.
+  let { data, error } = await consulta(`${base}, video_url, duracao`);
+  if (error) ({ data, error } = await consulta(base));
   if (error || !data?.length) return [];
-  type Linha = { id: string; usuario_id: string; foto_url: string; legenda: string | null; criado_em: string; local: { id: string; nome: string } | null };
+  type Linha = {
+    id: string;
+    usuario_id: string;
+    foto_url: string;
+    legenda: string | null;
+    criado_em: string;
+    local: { id: string; nome: string } | null;
+    video_url?: string | null;
+    duracao?: number | null;
+  };
   const linhas = data as unknown as Linha[];
   const ids = [...new Set(linhas.map((l) => l.usuario_id))];
   const [p, v] = await Promise.all([
@@ -98,7 +113,16 @@ export async function buscarStoriesPessoas(usuario: string, soDe?: string): Prom
     if (!pe) continue;
     const autor: Autor = { id: pe.id, nome: pe.nome, logo_url: pe.foto_url, usuario: pe.usuario };
     const g = grupos.get(pe.id) ?? { autor, stories: [], vistos: true, tipo: "pessoa" as const, meu: pe.id === usuario };
-    g.stories.push({ id: l.id, foto_url: l.foto_url, legenda: l.legenda, criado_em: l.criado_em, estabelecimento: autor, local: l.local });
+    g.stories.push({
+      id: l.id,
+      foto_url: l.foto_url,
+      legenda: l.legenda,
+      criado_em: l.criado_em,
+      estabelecimento: autor,
+      local: l.local,
+      video_url: l.video_url ?? null,
+      duracao: l.duracao == null ? null : Number(l.duracao),
+    });
     if (!vistos.has(l.id) && !g.meu) g.vistos = false;
     grupos.set(pe.id, g);
   }
@@ -151,7 +175,16 @@ export async function buscarFeed(usuario: string): Promise<PublicacaoApp[]> {
   const misto = await supabase.rpc("feed_geral", { p_limite: 50 });
   if (!misto.error) {
     type Linha = Omit<PublicacaoApp, "estabelecimento" | "pessoa"> & { tipo: "lugar" | "pessoa"; autor: Record<string, string | null> };
-    return ((misto.data ?? []) as Linha[]).map((x) => ({
+    const linhas = (misto.data ?? []) as Linha[];
+    // Vídeos das publicações de pessoas (atualização 036).
+    const idsPessoa = linhas.filter((x) => x.tipo === "pessoa").map((x) => x.id);
+    const videos = new Map<string, string>();
+    if (idsPessoa.length) {
+      const { data: v } = await supabase.from("publicacoes_pessoas").select("id, video_url").in("id", idsPessoa).not("video_url", "is", null);
+      for (const x of (v ?? []) as { id: string; video_url: string }[]) videos.set(x.id, x.video_url);
+    }
+    return linhas.map((x) => ({
+      video_url: videos.get(x.id) ?? null,
       ...x,
       estabelecimento: x.tipo === "lugar" ? (x.autor as unknown as PublicacaoApp["estabelecimento"]) : { id: x.local?.id ?? "", nome: x.local?.nome ?? "", logo_url: null },
       pessoa: x.tipo === "pessoa" ? (x.autor as unknown as PublicacaoApp["pessoa"]) : null,

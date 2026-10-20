@@ -12,6 +12,7 @@ import { alternarCurtida, buscarFeed, buscarStories, seguirLugar, buscarStoriesP
 import { NovoStory } from "./NovoStory";
 import { AnelStory, VisorStories } from "./VisorStories";
 import { ParaVoceAgora } from "./ParaVoce";
+import { VideoPost } from "@/components/VideoPost";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
 function usePosicaoSilenciosa() {
@@ -276,7 +277,11 @@ export function Feed() {
                     )}
                   </div>
                 )}
-                {p.foto_url && <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />}
+                {p.video_url ? (
+                  <VideoPost src={p.video_url} capa={p.foto_url} />
+                ) : (
+                  p.foto_url && <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />
+                )}
                 <div className="space-y-2.5 px-3.5 py-3">
                   {p.texto && <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.texto}</p>}
                   {p.evento && (
