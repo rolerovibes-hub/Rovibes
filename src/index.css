@@ -275,6 +275,40 @@
 .folha {
   animation: subir-folha 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
+/* Primeira vibe: o card escolhido "acende" e a energia pulsa quando chega no mínimo. */
+@keyframes vibe-check {
+  0% { transform: scale(0.4); opacity: 0; }
+  70% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+@keyframes vibe-pulso {
+  0%, 100% { box-shadow: 0 0 0 0 rgb(var(--marca) / 0.45); }
+  50% { box-shadow: 0 0 0 8px rgb(var(--marca) / 0); }
+}
+@keyframes vibe-brilho {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+.vibe-check {
+  animation: vibe-check 260ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+.vibe-pulso {
+  animation: vibe-pulso 1.6s ease-out 2;
+}
+.vibe-brilho {
+  animation: vibe-brilho 1.4s ease-in-out infinite;
+}
+.trilho-vibe {
+  scrollbar-width: none;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 16px;
+}
+.trilho-vibe::-webkit-scrollbar {
+  display: none;
+}
+.trilho-vibe > * {
+  scroll-snap-align: start;
+}
 /* Quem desativou animações no aparelho não vê movimento. */
 @media (prefers-reduced-motion: reduce) {
   *,

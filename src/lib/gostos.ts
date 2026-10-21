@@ -41,3 +41,64 @@ export function useGostos() {
   }, []);
   return gostos;
 }
+
+export interface CapaGosto {
+  url: string;
+  /** Nome do lugar ou evento da foto (vazio quando a foto é da equipe RoVibes). */
+  lugar: string | null;
+}
+
+interface LinhaCapa {
+  gosto_id: number;
+  imagem_url: string | null;
+  candidatos: { url: string; lugar: string }[] | null;
+}
+
+/**
+ * Fotos dos cards da Primeira vibe. A foto da equipe vem primeiro; sem ela, usa a capa de um lugar ou evento
+ * com aquele gosto — sem repetir a mesma foto em dois cards. Sem foto nenhuma, o card fica no degradê da marca.
+ */
+export function useCapasGostos(ordem: number[] | undefined) {
+  const [capas, setCapas] = useState<Map<number, CapaGosto>>(new Map());
+  const chave = ordem?.join(",") ?? "";
+  useEffect(() => {
+    if (!ordem?.length) return;
+    let vivo = true;
+    supabase.rpc("capas_gostos").then(({ data, error }) => {
+      if (!vivo || error || !data) return;
+      const porGosto = new Map((data as LinhaCapa[]).map((l) => [l.gosto_id, l]));
+      const usadas = new Set<string>();
+      const final = new Map<number, CapaGosto>();
+      for (const id of ordem) {
+        const l = porGosto.get(id);
+        if (l?.imagem_url) {
+          final.set(id, { url: l.imagem_url, lugar: null });
+          usadas.add(l.imagem_url);
+        }
+      }
+      for (const id of ordem) {
+        if (final.has(id)) continue;
+        const livre = porGosto.get(id)?.candidatos?.find((c) => c.url && !usadas.has(c.url));
+        if (livre) {
+          final.set(id, { url: livre.url, lugar: livre.lugar });
+          usadas.add(livre.url);
+        }
+      }
+      setCapas(final);
+    });
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chave]);
+  return capas;
+}
+
+/** Toque leve no celular (onde houver vibração). */
+export function vibrarLeve() {
+  try {
+    navigator.vibrate?.(12);
+  } catch {
+    /* sem vibração */
+  }
+}

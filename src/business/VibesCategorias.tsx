@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import clsx from "clsx";
 import { Plus } from "lucide-react";
 import { TelaUniversal } from "./TelaUniversal";
+import { FotosGostos } from "./FotosGostos";
 import { Aviso, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 
@@ -54,6 +55,9 @@ export function VibesCategorias() {
           aoAlternar={(l) => executar(supabase.from("categorias").update({ ativa: !l.ativa }).eq("id", l.id))}
           aoRenomear={(l, nome) => executar(supabase.from("categorias").update({ nome }).eq("id", l.id))}
         />
+      </div>
+      <div className="mt-4">
+        <FotosGostos />
       </div>
     </TelaUniversal>
   );
