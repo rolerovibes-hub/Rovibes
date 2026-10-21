@@ -41,7 +41,7 @@ interface EdicaoMembro {
   retirados: string[];
 }
 
-type EdicaoFuncao = Omit<Funcao, "pessoas" | "ordem" | "modelo"> & { id: string | null };
+type EdicaoFuncao = Omit<Funcao, "id" | "pessoas" | "ordem" | "modelo"> & { id: string | null };
 
 // Aplicativos que entram nas funções (os padrão e os da Administração ficam fora).
 const LIBERAVEIS = CATALOGO.filter((a) => !a.padrao && a.area !== "Administração");
