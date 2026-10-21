@@ -4,7 +4,7 @@ import { gravar, ler } from "@/lib/armazenamento";
 
 export interface Notificacao {
   id: string;
-  tipo: "pedido" | "cupom" | "ingresso" | "evento" | "publicacao" | "promoter";
+  tipo: "pedido" | "cupom" | "ingresso" | "evento" | "publicacao" | "promoter" | "brinde" | "seguidor" | "role";
   titulo: string;
   texto: string;
   quando: string;
@@ -139,6 +139,14 @@ export function useNotificacoes(usuario: string | undefined, pedido: { comanda: 
           link: `/evento-pessoa/${c.evento_id}`,
         });
       }
+    }
+    // Brindes, seguidores e rolês (atualização 040: notificações criadas pelo banco).
+    const { data: doBanco } = await supabase.rpc("minhas_notificacoes", { p_limite: 50 });
+    const TIPO: Record<string, Notificacao["tipo"]> = { brinde: "brinde", brinde_comentario: "brinde", seguidor: "seguidor", pedido_seguir: "seguidor", convite_role: "role" };
+    for (const x of (doBanco ?? []) as { id: string; tipo: string; titulo: string; texto: string | null; link: string; criado_em: string }[]) {
+      const tipo = TIPO[x.tipo];
+      if (!tipo) continue;
+      itens.push({ id: `n-${x.id}`, tipo, titulo: x.titulo, texto: x.texto ?? "", quando: x.criado_em, link: x.link });
     }
     // Convites para ser promoter.
     const { data: conv } = await supabase

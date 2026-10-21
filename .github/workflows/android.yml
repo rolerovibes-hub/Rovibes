@@ -32,6 +32,9 @@ jobs:
           java-version: 17
 
       - name: Gerar o APK
+        env:
+          # Opcional: conteúdo do google-services.json do Firebase (notificações no Android).
+          FIREBASE_GOOGLE_SERVICES: ${{ secrets.FIREBASE_GOOGLE_SERVICES }}
         run: bash android-config/build-apk.sh ${{ github.run_number }}
 
       - name: Publicar para download

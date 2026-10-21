@@ -16,6 +16,7 @@ import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
 import { VisorPublicacao } from "@/components/VisorPublicacao";
 import { BotaoBrindar } from "@/components/Brindar";
+import { PedirNotificacoes } from "@/components/PedirNotificacoes";
 import { Ampliavel } from "@/components/FotoAmpliada";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
@@ -225,6 +226,7 @@ export function Feed() {
         </>
       )}
 
+      <PedirNotificacoes />
       {!carregando && <ParaVoceAgora lugares={lugares} pos={pos} usuario={usuario} />}
       <EventosDaGalera pos={pos} />
 

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CalendarHeart, CalendarPlus, ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
+import { Bell, CalendarHeart, CalendarPlus, ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { desbloquearPessoa } from "@/lib/pessoas";
+import { ativarPush, CATEGORIAS_PUSH, desativarPush, estadoPush, EstadoPush } from "@/lib/push";
 
 interface Bloqueado {
   id: string;
@@ -55,6 +56,8 @@ export function Configuracoes({ fechar }: { fechar: () => void }) {
           <h3 className="rotulo mb-2">Tema</h3>
           <SeletorTema />
         </section>
+
+        <SecaoNotificacoes />
 
         <section className="border-t border-borda">
           <h3 className="rotulo px-5 pb-1 pt-4">Eventos</h3>
@@ -151,5 +154,93 @@ export function Configuracoes({ fechar }: { fechar: () => void }) {
         </section>
       </div>
     </div>
+  );
+}
+
+const TEXTO_ESTADO: Record<EstadoPush, string> = {
+  ativo: "Ligadas neste aparelho.",
+  pendente: "Desligadas neste aparelho.",
+  negado: "Bloqueadas nas configurações do celular. Libere as notificações do RoVibes por lá.",
+  instalar: "No iPhone, adicione o RoVibes à Tela de Início (Compartilhar → Adicionar à Tela de Início) e abra por lá para ligar.",
+  app_antigo: "Neste app Android as notificações ainda não estão ligadas. Elas chegam numa atualização do app.",
+  indisponivel: "Este navegador não recebe notificações.",
+};
+
+/** Liga ou desliga as notificações deste aparelho e escolhe o que quer receber. */
+function SecaoNotificacoes() {
+  const { perfil, recarregar } = useSessao();
+  const [estado, setEstado] = useState<EstadoPush | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
+  const [prefs, setPrefs] = useState<Record<string, boolean>>(perfil?.notificacoes ?? {});
+
+  useEffect(() => {
+    estadoPush()
+      .then(setEstado)
+      .catch(() => setEstado("indisponivel"));
+  }, []);
+
+  const alternar = async () => {
+    setOcupado(true);
+    setErro("");
+    try {
+      if (estado === "ativo") {
+        await desativarPush();
+        setEstado("pendente");
+      } else setEstado(await ativarPush());
+    } catch (e) {
+      setErro(mensagemDeErro(e));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const mudar = async (id: string, v: boolean) => {
+    const novo = { ...prefs, [id]: v };
+    setPrefs(novo);
+    const { error } = await supabase.rpc("salvar_preferencias_notificacao", { p: novo });
+    if (error) {
+      setPrefs(prefs);
+      return setErro(/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 040 do banco." : mensagemDeErro(error));
+    }
+    void recarregar();
+  };
+
+  return (
+    <section className="border-t border-borda">
+      <h3 className="rotulo px-5 pb-1 pt-4">Notificações</h3>
+      <div className="flex items-start gap-3 px-5 py-3">
+        <Bell className="mt-0.5 h-4 w-4 shrink-0 text-destaque" />
+        <span className="min-w-0 flex-1">
+          <span className="block font-medium">Notificações no celular</span>
+          <span className="block text-[13px] text-suave">{estado ? TEXTO_ESTADO[estado] : "Verificando..."}</span>
+          {erro && <span className="block text-[13px] text-perigo">{erro}</span>}
+        </span>
+        {(estado === "ativo" || estado === "pendente") && (
+          <button className={estado === "ativo" ? "botao h-9 px-3" : "botao-principal h-9 px-3"} disabled={ocupado} onClick={() => void alternar()}>
+            {ocupado ? "..." : estado === "ativo" ? "Desligar" : "Ligar"}
+          </button>
+        )}
+      </div>
+      <ul className="pb-2">
+        {CATEGORIAS_PUSH.map((c) => (
+          <li key={c.id}>
+            <label className="flex cursor-pointer items-center gap-3 px-5 py-2">
+              <span className="min-w-0 flex-1 pl-7">
+                <span className="block text-sm">{c.nome}</span>
+                <span className="block text-[12px] text-suave">{c.explica}</span>
+              </span>
+              <input
+                type="checkbox"
+                role="switch"
+                checked={prefs[c.id] !== false}
+                onChange={(e) => void mudar(c.id, e.target.checked)}
+                className="h-5 w-5 accent-[rgb(var(--marca))]"
+              />
+            </label>
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }

@@ -1,12 +1,23 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, BadgePercent, Bell, CalendarDays, Newspaper, Ticket, Truck, Megaphone } from "lucide-react";
+import { ArrowLeft, BadgePercent, Bell, CalendarDays, Newspaper, Ticket, Truck, Megaphone, PartyPopper, UserPlus, Wine } from "lucide-react";
 import { tempoAtras } from "./conteudo";
 import { useAcessoRapido } from "./estadoAcesso";
 import { Notificacao } from "./dadosNotificacoes";
+import { PedirNotificacoes } from "@/components/PedirNotificacoes";
 
-const ICONE: Record<Notificacao["tipo"], typeof Bell> = { pedido: Truck, cupom: BadgePercent, ingresso: Ticket, evento: CalendarDays, publicacao: Newspaper, promoter: Megaphone };
+const ICONE: Record<Notificacao["tipo"], typeof Bell> = {
+  pedido: Truck,
+  cupom: BadgePercent,
+  ingresso: Ticket,
+  evento: CalendarDays,
+  publicacao: Newspaper,
+  promoter: Megaphone,
+  brinde: Wine,
+  seguidor: UserPlus,
+  role: PartyPopper,
+};
 
 export function Notificacoes() {
   const { notificacoes, marcarLidas, visto } = useAcessoRapido();
@@ -59,7 +70,7 @@ export function Notificacoes() {
           })}
         </ul>
       )}
-      <p className="px-4 pt-4 text-[12px] text-suave">Notificações com o App fechado (no celular) chegam numa próxima fase.</p>
+      <PedirNotificacoes />
     </div>
   );
 }

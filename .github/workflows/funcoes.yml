@@ -16,6 +16,8 @@ jobs:
     env:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       PROJETO: ${{ secrets.SUPABASE_PROJECT_REF }}
+      # Opcional: conta de serviço do Firebase (JSON) para as notificações do app Android.
+      FIREBASE_CONTA_SERVICO: ${{ secrets.FIREBASE_CONTA_SERVICO }}
     steps:
       - uses: actions/checkout@v4
       - uses: supabase/setup-cli@v1
@@ -37,3 +39,30 @@ jobs:
         run: supabase functions deploy mp-reembolso --project-ref "$PROJETO" --use-api
       - name: Publicar mp-anfitriao
         run: supabase functions deploy mp-anfitriao --project-ref "$PROJETO" --use-api
+      - name: Chaves das notificações (cria uma vez, sem mostrar no log)
+        run: |
+          if supabase secrets list --project-ref "$PROJETO" | grep -q VAPID_PRIVADA; then
+            echo "As chaves das notificações já existem."
+          else
+            npx --yes web-push@3.6.7 generate-vapid-keys --json > "$RUNNER_TEMP/vapid.json"
+            PUB=$(node -e "console.log(require(process.argv[1]).publicKey)" "$RUNNER_TEMP/vapid.json")
+            PRIV=$(node -e "console.log(require(process.argv[1]).privateKey)" "$RUNNER_TEMP/vapid.json")
+            echo "::add-mask::$PRIV"
+            rm -f "$RUNNER_TEMP/vapid.json"
+            supabase secrets set --project-ref "$PROJETO" "VAPID_PUBLICA=$PUB" "VAPID_PRIVADA=$PRIV" > /dev/null
+            echo "Chaves das notificações criadas."
+          fi
+      - name: Firebase para o Android (se o secret existir no GitHub)
+        run: |
+          if [ -z "$FIREBASE_CONTA_SERVICO" ]; then
+            echo "Sem FIREBASE_CONTA_SERVICO: notificações só no navegador e no iPhone por enquanto."
+          else
+            CONTA=$(printf '%s' "$FIREBASE_CONTA_SERVICO" | jq -c .)
+            echo "::add-mask::$CONTA"
+            supabase secrets set --project-ref "$PROJETO" "FCM_CONTA_SERVICO=$CONTA" > /dev/null
+            echo "Firebase configurado."
+          fi
+      - name: Publicar enviar-push (o banco chama, sem login)
+        run: supabase functions deploy enviar-push --project-ref "$PROJETO" --no-verify-jwt --use-api
+      - name: Ligar o banco à função de envio
+        run: curl -fsS "https://$PROJETO.supabase.co/functions/v1/enviar-push" > /dev/null && echo "Função de envio respondeu."

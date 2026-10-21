@@ -14,6 +14,8 @@ export interface Perfil {
   suspenso?: boolean;
   /** null = ainda não passou pela Primeira vibe (undefined = banco sem a atualização 031). */
   vibe_inicial_em?: string | null;
+  /** Preferências de notificação: categoria → false para desligar (atualização 040). */
+  notificacoes?: Record<string, boolean>;
 }
 
 interface SessaoContexto {

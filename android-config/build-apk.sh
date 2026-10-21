@@ -8,6 +8,14 @@ NUM="${1:-1}"
 
 # Plugin do botão voltar do aparelho / sair do app (precisa estar no package.json para o "cap sync" achar).
 npm pkg set "dependencies.@capacitor/app=^6.0.0"
+# Notificações (Firebase): só entra quando o secret FIREBASE_GOOGLE_SERVICES existe no GitHub.
+# Sem ele o app funciona normal, só não recebe notificações no Android.
+set +x
+if [ -n "${FIREBASE_GOOGLE_SERVICES:-}" ]; then TEM_FIREBASE=1; else TEM_FIREBASE=0; fi
+set -x
+if [ "$TEM_FIREBASE" = 1 ]; then
+  npm pkg set "dependencies.@capacitor/push-notifications=^6.0.0"
+fi
 npm install --no-audit --no-fund
 npm install --no-save --no-audit --no-fund @capacitor/cli@6 @capacitor/core@6 @capacitor/android@6
 test -d node_modules/@capacitor/app
@@ -15,7 +23,14 @@ npm run build
 
 rm -rf android
 npx cap add android
+if [ "$TEM_FIREBASE" = 1 ]; then
+  set +x
+  printf '%s' "$FIREBASE_GOOGLE_SERVICES" > android/app/google-services.json
+  set -x
+  python3 -c "import json;json.load(open('android/app/google-services.json'))"
+fi
 npx cap sync android
+if [ "$TEM_FIREBASE" = 1 ]; then grep -q "capacitor-push-notifications" android/capacitor.settings.gradle; fi
 
 RES=android/app/src/main/res
 # Ícone adaptativo (o Android recorta no formato do aparelho: gota, círculo, quadrado...).
