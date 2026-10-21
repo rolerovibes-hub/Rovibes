@@ -17,10 +17,14 @@ export function FilaPreparo({ estab }: { estab: string }) {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [erro, setErro] = useState("");
   const { itens, carregar, conectado } = useItensFila(estab, ["recebido", "preparo"], () => som && bip());
-  const { supervisor } = usePermissoesJob();
+  const { podeCancelar, setores } = usePermissoesJob();
   const [ok, setOk] = useState("");
+  // Barman e ajudantes de bar só veem o bar; cozinha só a cozinha (funções com setor).
+  const umSetor = setores.length === 1 ? (setores[0] as Setor) : null;
+  const doMeuSetor = (d: string) => setores.includes(d);
+  const setorAtivo: Setor | "todos" = umSetor ?? setor;
 
-  const visiveis = (itens ?? []).filter((i) => i.destino !== "sem_preparo" && (setor === "todos" || i.destino === setor));
+  const visiveis = (itens ?? []).filter((i) => i.destino !== "sem_preparo" && doMeuSetor(i.destino) && (setorAtivo === "todos" || i.destino === setorAtivo));
   const grupos = porPedido(visiveis);
 
   const agir = async (chave: string, ids: string[], acao: "iniciar" | "liberar" | "cancelar") => {
@@ -30,9 +34,9 @@ export function FilaPreparo({ estab }: { estab: string }) {
     if (acao === "cancelar") {
       const item = (itens ?? []).find((i) => i.id === ids[0]);
       if (item) {
-        const r = await cancelarOuPedir(item, supervisor);
+        const r = await cancelarOuPedir(item, podeCancelar(item));
         if (r.error) setErro(mensagemDeErro(r.error));
-        else if (r.pedido) setOk("Pedido de cancelamento enviado para a supervisão.");
+        else if (r.pedido) setOk("Pedido de cancelamento enviado para quem lidera o setor.");
       }
     } else {
       const { error } = await mudarItens(ids, acao);
@@ -47,6 +51,14 @@ export function FilaPreparo({ estab }: { estab: string }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
+        {umSetor ? (
+          <p className="flex flex-1 items-center gap-2 text-lg font-semibold">
+            {umSetor === "bar" ? <Martini className="h-5 w-5 text-destaque" /> : <ChefHat className="h-5 w-5 text-destaque" />}
+            {umSetor === "bar" ? "Bar" : "Cozinha"} · {contar(umSetor)}
+          </p>
+        ) : setores.length === 0 ? (
+          <p className="flex-1 text-sm text-suave">Sua função não tem setor de preparo. Peça ao gestor para ajustar em Equipe e permissões.</p>
+        ) : (
         <div className="grid flex-1 grid-cols-3 gap-1 rounded-lg border border-borda bg-superficie p-1" role="tablist" aria-label="Setor">
           {(["todos", "cozinha", "bar"] as const).map((s) => (
             <button
@@ -64,6 +76,7 @@ export function FilaPreparo({ estab }: { estab: string }) {
             </button>
           ))}
         </div>
+        )}
         <button
           className="botao h-11 w-11 px-0"
           aria-label={som ? "Desligar som" : "Ligar som"}

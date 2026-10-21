@@ -27,7 +27,8 @@ export function FilaEntregas({ estab }: { estab: string }) {
   const [conf, setConf] = useState<Conferencia | null>(null);
   const [digitado, setDigitado] = useState("");
   const { itens, carregar, conectado, nomes } = useItensFila(estab, ["pronto", "saiu"], bip);
-  const { eu, supervisor } = usePermissoesJob();
+  const { eu, pode } = usePermissoesJob();
+  const supervisor = pode("transferir");
   const [problema, setProblema] = useState<{ ids: string[]; titulo: string; tipo: TipoOcorrencia; descricao: string } | null>(null);
 
   const pegar = async (ids: string[], para?: string) => {

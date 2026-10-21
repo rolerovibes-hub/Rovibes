@@ -2,6 +2,8 @@ import { useState } from "react";
 import clsx from "clsx";
 import { ChefHat, History, Martini, PackageCheck, Smartphone, Users } from "lucide-react";
 import { Historico } from "./Historico";
+import { usePermissoesJob } from "./permissoes";
+import { pedirAutorizacao } from "@/lib/autorizacoes";
 import { PagamentosComanda } from "./PagamentosComanda";
 import { reais } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -14,9 +16,13 @@ export interface ComandaResumo {
 }
 
 export interface Desconto {
+  id?: string;
   comanda_id: string;
   titulo: string;
   valor: number;
+  /** "manual" = desconto dado pela equipe (pode ser removido por quem tem a ação Desconto). */
+  tipo?: string;
+  motivo?: string | null;
 }
 
 export function resumoDaComanda(pedidos: Pedido[], descontos: Desconto[]) {
@@ -38,19 +44,23 @@ export function DetalheComanda({
   pedidos,
   descontos,
   podeEntregar,
-  supervisor = false,
   aoMudar,
   aoErro,
+  aoAviso,
 }: {
   comanda: ComandaResumo;
   pedidos: Pedido[];
   descontos: Desconto[];
   podeEntregar: boolean;
+  /** Mantido por compatibilidade: as permissões vêm das funções da pessoa. */
   supervisor?: boolean;
   aoMudar: () => void;
   aoErro: (t: string) => void;
+  aoAviso?: (t: string) => void;
 }) {
   const [ocupado, setOcupado] = useState(false);
+  const perm = usePermissoesJob();
+  const avisar = aoAviso ?? ((t: string) => window.alert(t));
   const [historico, setHistorico] = useState(false);
 
   const entregar = async (ids: string[]) => {
@@ -63,13 +73,20 @@ export function DetalheComanda({
 
   const cancelar = async (i: ItemPedido) => {
     setOcupado(true);
-    const res = await cancelarOuPedir(i, supervisor);
+    const res = await cancelarOuPedir(i, perm.podeCancelar(i));
     setOcupado(false);
     if (res.error) aoErro(mensagemDeErro(res.error));
+    else if (res.pedido) avisar("Pedido de cancelamento enviado para quem lidera o setor.");
     aoMudar();
   };
 
   const estornar = async (i: ItemPedido) => {
+    if (!perm.pode("estornar")) {
+      const r = await pedirAutorizacao("estornar_item", i.id, `Estornar ${i.quantidade}× ${i.nome}`);
+      if (r && "erro" in r) aoErro(r.erro);
+      else if (r) avisar(r.ok);
+      return;
+    }
     const motivo = window.prompt(`Motivo do estorno de ${i.quantidade}× ${i.nome}:`);
     if (!motivo?.trim()) return;
     setOcupado(true);
@@ -128,12 +145,12 @@ export function DetalheComanda({
                       </span>
                       {itemPendente(i.situacao) && !i.bloqueado && (
                         <button className="shrink-0 rounded px-1.5 py-0.5 text-[12px] text-suave hover:bg-elevado hover:text-perigo" disabled={ocupado} onClick={() => void cancelar(i)}>
-                          {supervisor || i.situacao === "recebido" ? "Cancelar" : "Pedir cancelamento"}
+                          {perm.podeCancelar(i) || i.situacao === "recebido" || (i.situacao === "pronto" && i.destino === "sem_preparo") ? "Cancelar" : "Pedir cancelamento"}
                         </button>
                       )}
-                      {supervisor && i.situacao === "entregue" && (
+                      {i.situacao === "entregue" && (
                         <button className="shrink-0 rounded px-1.5 py-0.5 text-[12px] text-suave hover:bg-elevado hover:text-perigo" disabled={ocupado} onClick={() => void estornar(i)}>
-                          Estornar
+                          {perm.pode("estornar") ? "Estornar" : "Pedir estorno"}
                         </button>
                       )}
                     </li>
@@ -149,7 +166,7 @@ export function DetalheComanda({
           })}
         </ul>
       )}
-      <PagamentosComanda comanda={comanda.id} descontos={descontos} supervisor={supervisor} aoMudar={aoMudar} aoErro={aoErro} />
+      <PagamentosComanda comanda={comanda.id} descontos={descontos} aoMudar={aoMudar} aoErro={aoErro} aoAviso={avisar} />
     </div>
   );
 }

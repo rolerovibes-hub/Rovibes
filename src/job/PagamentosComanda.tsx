@@ -5,6 +5,8 @@ import { reais } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { buscarPagamentos, buscarTotais, NOME_MEIO, PagamentoComanda, Totais, useAoVivo } from "@/lib/salao";
 import { Desconto } from "./DetalheComanda";
+import { usePermissoesJob } from "./permissoes";
+import { pedirAutorizacao } from "@/lib/autorizacoes";
 
 const MEIOS: { v: string; nome: string; icone: typeof Banknote }[] = [
   { v: "dinheiro", nome: "Dinheiro", icone: Banknote },
@@ -20,16 +22,17 @@ const paraTexto = (v: number) => v.toFixed(2).replace(".", ",");
 export function PagamentosComanda({
   comanda,
   descontos,
-  supervisor,
   aoMudar,
   aoErro,
+  aoAviso,
 }: {
   comanda: string;
   descontos: Desconto[];
-  supervisor: boolean;
   aoMudar: () => void;
   aoErro: (t: string) => void;
+  aoAviso: (t: string) => void;
 }) {
+  const perm = usePermissoesJob();
   const [t, setT] = useState<Totais | null>(null);
   const [pagos, setPagos] = useState<PagamentoComanda[]>([]);
   const [registrando, setRegistrando] = useState(false);
@@ -63,7 +66,14 @@ export function PagamentosComanda({
     if (data) window.alert("Conta quitada. A comanda foi fechada.");
   };
 
+  const pedir = async (...args: Parameters<typeof pedirAutorizacao>) => {
+    const r = await pedirAutorizacao(...args);
+    if (r && "erro" in r) aoErro(r.erro);
+    else if (r) aoAviso(r.ok);
+  };
+
   const servico = async (tirar: boolean) => {
+    if (tirar && !perm.pode("desconto")) return pedir("tirar_servico", comanda, "Tirar a taxa de serviço desta conta");
     const { error } = await supabase.rpc("tirar_servico", { p_comanda: comanda, p_tirar: tirar });
     if (error) return aoErro(mensagemDeErro(error));
     await carregar();
@@ -71,9 +81,34 @@ export function PagamentosComanda({
   };
 
   const cancelar = async (p: PagamentoComanda) => {
+    if (!perm.pode("estornar")) return pedir("cancelar_pagamento", p.id, `Cancelar o pagamento de ${reais(p.valor)}`);
     const motivo = window.prompt(`Motivo para cancelar o pagamento de ${reais(p.valor)}:`);
     if (!motivo?.trim()) return;
     const { error } = await supabase.rpc("cancelar_pagamento", { p_pagamento: p.id, p_motivo: motivo });
+    if (error) return aoErro(mensagemDeErro(error));
+    await carregar();
+    aoMudar();
+  };
+
+  const limite = Math.max(0, Math.round(t.subtotal * perm.descontoMax) / 100 - descontos.filter((d) => d.tipo === "manual").reduce((s, d) => s + d.valor, 0));
+
+  const darDesconto = async () => {
+    const dica = perm.pode("desconto") && perm.descontoMax > 0 ? `\nSeu limite nesta conta: ${reais(limite)} (${perm.descontoMax}% do consumo). Acima disso vira pedido de autorização.` : "";
+    const texto = window.prompt(`Valor do desconto em R$:${dica}`);
+    const v = paraNumero(texto ?? "");
+    if (!texto || v <= 0) return;
+    if (!perm.pode("desconto") || v > limite + 0.009) return pedir("desconto", comanda, `Desconto de ${reais(v)}`, v);
+    const motivo = window.prompt("Motivo do desconto (fica no histórico):");
+    if (!motivo?.trim()) return;
+    const { error } = await supabase.rpc("dar_desconto", { p_comanda: comanda, p_valor: v, p_motivo: motivo });
+    if (error) return aoErro(mensagemDeErro(error));
+    await carregar();
+    aoMudar();
+  };
+
+  const tirarDesconto = async (d: Desconto) => {
+    if (!d.id || !window.confirm(`Tirar o desconto de ${reais(d.valor)}?`)) return;
+    const { error } = await supabase.rpc("remover_desconto", { p_desconto: d.id });
     if (error) return aoErro(mensagemDeErro(error));
     await carregar();
     aoMudar();
@@ -88,18 +123,26 @@ export function PagamentosComanda({
         </p>
         {descontos.map((d, i) => (
           <p key={i} className="flex justify-between text-ok">
-            <span className="flex items-center gap-1">
-              <BadgePercent className="h-3.5 w-3.5" />
-              {d.titulo}
+            <span className="flex min-w-0 items-center gap-1">
+              <BadgePercent className="h-3.5 w-3.5 shrink-0" />
+              <span className="truncate">
+                {d.titulo}
+                {d.motivo && <span className="text-suave"> · {d.motivo}</span>}
+              </span>
+              {d.tipo === "manual" && d.id && perm.pode("desconto") && (
+                <button className="rounded p-0.5 text-suave hover:text-perigo" onClick={() => void tirarDesconto(d)} aria-label="Tirar desconto">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
             </span>
-            <span className="codigo">−{reais(d.valor)}</span>
+            <span className="codigo shrink-0">−{reais(d.valor)}</span>
           </p>
         ))}
         <p className="flex items-center justify-between">
           <span className="text-suave">
             Serviço {t.taxa_servico > 0 ? `(${String(t.taxa_servico).replace(".", ",")}%)` : ""}
             <button className="ml-2 text-[12px] font-medium text-destaque" onClick={() => void servico(t.taxa_servico > 0)}>
-              {t.taxa_servico > 0 ? "Tirar" : "Incluir"}
+              {t.taxa_servico > 0 ? (perm.pode("desconto") ? "Tirar" : "Pedir para tirar") : "Incluir"}
             </button>
           </span>
           <span className="codigo">{reais(t.servico)}</span>
@@ -119,6 +162,12 @@ export function PagamentosComanda({
           <span className="codigo">{reais(t.falta)}</span>
         </p>
         {t.pendente > 0 && <p className="text-[12px] text-alerta">{reais(t.pendente)} sendo pago pelo App agora.</p>}
+        {t.falta > 0 && (
+          <button className="inline-flex items-center gap-1 text-[12px] font-medium text-destaque" onClick={() => void darDesconto()}>
+            <BadgePercent className="h-3.5 w-3.5" />
+            {perm.pode("desconto") ? "Dar desconto" : "Pedir desconto"}
+          </button>
+        )}
       </div>
 
       {pagos.length > 0 && (
@@ -131,8 +180,8 @@ export function PagamentosComanda({
                 <span className="text-suave"> · {new Date(p.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
               </span>
               <span className="codigo font-semibold">{reais(p.valor)}</span>
-              {supervisor && p.origem === "caixa" && p.situacao === "aprovado" && (
-                <button className="rounded p-0.5 text-suave hover:text-perigo" onClick={() => void cancelar(p)} aria-label="Cancelar pagamento">
+              {p.origem === "caixa" && p.situacao === "aprovado" && (
+                <button className="rounded p-0.5 text-suave hover:text-perigo" onClick={() => void cancelar(p)} aria-label={perm.pode("estornar") ? "Cancelar pagamento" : "Pedir cancelamento do pagamento"}>
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}

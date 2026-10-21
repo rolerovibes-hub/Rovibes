@@ -22,6 +22,8 @@ interface SessaoContexto {
   perfil: Perfil | null;
   email: string | null;
   ehAdmin: boolean;
+  /** Níveis da equipe RoVibes (geral, comercial, moderacao, catalogo, financeiro, suporte). */
+  niveis: string[];
   recarregar: () => Promise<void>;
   sair: () => Promise<void>;
 }
@@ -32,6 +34,7 @@ const Contexto = createContext<SessaoContexto>({
   perfil: null,
   email: null,
   ehAdmin: false,
+  niveis: [],
   recarregar: async () => {},
   sair: async () => {},
 });
@@ -41,19 +44,28 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
   const [sessao, setSessao] = useState<Session | null>(null);
   const [perfil, setPerfil] = useState<Perfil | null>(null);
   const [ehAdmin, setEhAdmin] = useState(false);
+  const [niveis, setNiveis] = useState<string[]>([]);
 
   const carregarDados = useCallback(async (s: Session | null) => {
     if (!s) {
       setPerfil(null);
       setEhAdmin(false);
+      setNiveis([]);
       return;
     }
     const [p, a] = await Promise.all([
       supabase.from("perfis").select("*").eq("id", s.user.id).maybeSingle(),
-      supabase.from("administradores").select("usuario_id").eq("usuario_id", s.user.id).maybeSingle(),
+      supabase
+        .from("administradores")
+        .select("usuario_id, niveis")
+        .eq("usuario_id", s.user.id)
+        .maybeSingle()
+        .then(async (r) => (r.error ? await supabase.from("administradores").select("usuario_id").eq("usuario_id", s.user.id).maybeSingle() : r)),
     ]);
     setPerfil((p.data as Perfil | null) ?? null);
     setEhAdmin(!!a.data);
+    // Sem a atualização 039 ainda, quem é da equipe RoVibes tem o nível geral.
+    setNiveis(a.data ? ((a.data as { niveis?: string[] }).niveis ?? ["geral"]) : []);
   }, []);
 
   useEffect(() => {
@@ -82,6 +94,7 @@ export function SessaoProvider({ children }: { children: ReactNode }) {
     perfil,
     email: sessao?.user.email ?? null,
     ehAdmin,
+    niveis,
     recarregar: () => carregarDados(sessao),
     sair: async () => {
       await supabase.auth.signOut();

@@ -8,6 +8,7 @@ import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { CAMPOS_PEDIDO, faltaAoFechar, normalizarPedidos, Pedido, useAoVivo } from "@/lib/salao";
 import { DetalheComanda, Desconto, resumoDaComanda } from "./DetalheComanda";
 import { FormularioPedido } from "./FormularioPedido";
+import { pedirAutorizacao } from "@/lib/autorizacoes";
 
 interface Mesa {
   id: string;
@@ -26,8 +27,9 @@ interface Comanda {
 
 type Selecao = { tipo: "mesa"; id: string } | { tipo: "comanda"; id: string };
 
-/** Garçom: mesas, comandas, venda direta e fechamento. */
-export function Garcom({ estab }: { estab: string }) {
+/** Garçom: mesas, comandas, venda direta e fechamento. No modo caixa: todas as contas, para receber e fechar. */
+export function Garcom({ estab, modo = "garcom" }: { estab: string; modo?: "garcom" | "caixa" }) {
+  const caixa = modo === "caixa";
   const [mesas, setMesas] = useState<Mesa[]>([]);
   const [comandas, setComandas] = useState<Comanda[]>([]);
   const [pedidos, setPedidos] = useState<(Pedido & { comanda_id: string })[]>([]);
@@ -38,9 +40,14 @@ export function Garcom({ estab }: { estab: string }) {
   const [erro, setErro] = useState("");
   const [ok, setOk] = useState("");
   const [ocupado, setOcupado] = useState(false);
-  const { eu, supervisor } = usePermissoesJob();
+  const { eu, pode } = usePermissoesJob();
   const nomes = useNomesEquipe(estab);
   const [filtro, setFiltro] = useState<"minhas" | "todas">("todas");
+  const pedir = async (...args: Parameters<typeof pedirAutorizacao>) => {
+    const r = await pedirAutorizacao(...args);
+    if (r && "erro" in r) setErro(r.erro);
+    else if (r) setOk(r.ok);
+  };
   const [mover, setMover] = useState<"transferir" | "trocar" | "juntar" | null>(null);
   const [garcons, setGarcons] = useState<{ usuario_id: string; nome: string }[]>([]);
 
@@ -60,7 +67,7 @@ export function Garcom({ estab }: { estab: string }) {
     }
     const [p, d] = await Promise.all([
       supabase.from("pedidos").select(`comanda_id, ${CAMPOS_PEDIDO}`).in("comanda_id", ids).order("criado_em"),
-      supabase.from("comanda_descontos").select("comanda_id, titulo, valor").in("comanda_id", ids),
+      supabase.from("comanda_descontos").select("*").in("comanda_id", ids),
     ]);
     setPedidos(normalizarPedidos(p.data) as (Pedido & { comanda_id: string })[]);
     setDescontos(((d.data ?? []) as Desconto[]).map((x) => ({ ...x, valor: Number(x.valor) })));
@@ -133,6 +140,11 @@ export function Garcom({ estab }: { estab: string }) {
     setOcupado(false);
     if (error) {
       const falta = faltaAoFechar(error.message);
+      if (falta && !pode("fechar_em_aberto")) {
+        if (window.confirm(`Ainda falta receber R$ ${falta}. Sua função não fecha conta em aberto. Pedir autorização ao gerente?`))
+          return void pedir("fechar_em_aberto", comanda.id, `Fechar ${titulo} com R$ ${falta} em aberto`);
+        return setErro(`Ainda falta receber R$ ${falta}. Registre o pagamento em "Receber no caixa".`);
+      }
       if (falta && window.confirm(`Ainda falta receber R$ ${falta}. Fechar mesmo assim (cortesia ou pagamento por fora)?`)) return void fecharConta(true);
       return setErro(falta ? `Ainda falta receber R$ ${falta}. Registre o pagamento em "Receber no caixa".` : mensagemDeErro(error));
     }
@@ -174,6 +186,7 @@ export function Garcom({ estab }: { estab: string }) {
       {erro && !sel && <p role="alert" className="rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
       {ok && !sel && <p role="status" className="rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{ok}</p>}
 
+      {!caixa && (
       <div className="grid grid-cols-2 gap-1 rounded-lg border border-borda bg-superficie p-1" role="tablist" aria-label="Mesas">
         {(["minhas", "todas"] as const).map((f) => (
           <button
@@ -187,6 +200,7 @@ export function Garcom({ estab }: { estab: string }) {
           </button>
         ))}
       </div>
+      )}
 
       {mesas.length === 0 && avulsas.length === 0 ? (
         <div className="cartao px-6 py-12 text-center">
@@ -294,13 +308,21 @@ export function Garcom({ estab }: { estab: string }) {
                     {comanda.responsavel_id ? <>Responsável: <strong>{primeiroNome(comanda.responsavel_id)}</strong></> : <span className="text-suave">Sem garçom responsável</span>}
                   </span>
                   <span className="ml-auto flex flex-wrap gap-2">
-                    {comanda.responsavel_id !== eu && (!comanda.responsavel_id || supervisor) && (
-                      <button className="botao h-9 px-3" disabled={ocupado} onClick={() => void executarRpc("assumir_comanda", { p_comanda: comanda.id, p_para: null }, `Você assumiu ${titulo}.`)}>
+                    {!caixa && comanda.responsavel_id !== eu && (
+                      <button
+                        className="botao h-9 px-3"
+                        disabled={ocupado}
+                        onClick={() =>
+                          !comanda.responsavel_id || pode("transferir")
+                            ? void executarRpc("assumir_comanda", { p_comanda: comanda.id, p_para: null }, `Você assumiu ${titulo}.`)
+                            : void pedir("assumir_comanda", comanda.id, `Assumir ${titulo}, que hoje é de ${primeiroNome(comanda.responsavel_id)}`)
+                        }
+                      >
                         <Hand className="h-4 w-4" />
-                        Assumir
+                        {!comanda.responsavel_id || pode("transferir") ? "Assumir" : "Pedir para assumir"}
                       </button>
                     )}
-                    {(comanda.responsavel_id === eu || supervisor) && (
+                    {(comanda.responsavel_id === eu || pode("transferir")) && (
                       <button className="botao h-9 px-3" disabled={ocupado} onClick={() => void abrirMover("transferir")}>
                         <ArrowRightLeft className="h-4 w-4" />
                         Transferir
@@ -370,13 +392,16 @@ export function Garcom({ estab }: { estab: string }) {
                   </div>
                 )}
                 <DetalheComanda
-                  supervisor={supervisor}
                   comanda={comanda}
                   pedidos={pedidos.filter((p) => p.comanda_id === comanda.id)}
                   descontos={descontos.filter((d) => d.comanda_id === comanda.id)}
                   podeEntregar
                   aoMudar={() => void carregar()}
                   aoErro={setErro}
+                  aoAviso={(t) => {
+                    setErro("");
+                    setOk(t);
+                  }}
                 />
               </>
             )}

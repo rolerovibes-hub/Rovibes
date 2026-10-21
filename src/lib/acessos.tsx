@@ -4,7 +4,7 @@ import { supabase } from "./supabase";
 import { useSessao } from "./sessao";
 import { ler, gravar } from "./armazenamento";
 
-export type Papel = "proprietario" | "gestor" | "equipe";
+export type Papel = "proprietario" | "gestor" | "equipe" | "suporte";
 export type Situacao = "pendente" | "aprovado" | "recusado" | "suspenso";
 
 export interface Vinculo {
@@ -26,12 +26,47 @@ export interface EstiloApp {
   icone: string | null;
 }
 
+/** O que a pessoa pode fazer no estabelecimento atual (funções + apps só dela − apps tirados). */
+export interface MeusAcessos {
+  codigos: Set<string>;
+  acoes: Set<string>;
+  setores: string[];
+  cancelarSetores: string[];
+  descontoMax: number;
+  funcoes: { id: string; nome: string; nivel: string; setor: string | null }[];
+}
+
+const VAZIO: MeusAcessos = { codigos: new Set(), acoes: new Set(), setores: [], cancelarSetores: [], descontoMax: 0, funcoes: [] };
+const TODOS: Omit<MeusAcessos, "codigos" | "funcoes"> = {
+  acoes: new Set(["cancelar_item", "resolver_ocorrencias", "desconto", "estornar", "reabrir_comanda", "fechar_em_aberto", "transferir"]),
+  setores: ["cozinha", "bar"],
+  cancelarSetores: ["cozinha", "bar"],
+  descontoMax: 100,
+};
+
+/** Nível da equipe RoVibes que abre cada app da Administração. */
+export const NIVEL_DO_APP: Record<string, string[]> = {
+  A1001: ["comercial"],
+  A1002: ["comercial", "suporte"],
+  A1003: ["moderacao"],
+  A1004: ["catalogo"],
+  A1005: ["catalogo"],
+  A1006: ["catalogo"],
+  A1007: ["moderacao", "financeiro"],
+  A1008: [],
+};
+
+export const temNivel = (niveis: string[], codigo: string) => niveis.includes("geral") || (NIVEL_DO_APP[codigo] ?? []).some((n) => niveis.includes(n));
+
 interface BusinessContexto {
   carregando: boolean;
   vinculos: Vinculo[];
   atual: Vinculo | null;
   escolherEstabelecimento: (id: string) => void;
   temAcesso: (a: Aplicativo) => boolean;
+  /** Ação sensível liberada (cancelar_item, desconto, estornar, reabrir_comanda, fechar_em_aberto, transferir, resolver_ocorrencias). */
+  pode: (acao: string) => boolean;
+  meus: MeusAcessos;
   favoritos: Aplicativo[];
   maisUsados: Aplicativo[];
   usoPercentual: { app: Aplicativo; pct: number }[];
@@ -53,12 +88,12 @@ const Contexto = createContext<BusinessContexto | null>(null);
 const apps = (codigos: string[]) => codigos.map(porCodigo).filter((a): a is Aplicativo => !!a);
 
 export function BusinessProvider({ children }: { children: ReactNode }) {
-  const { sessao, ehAdmin } = useSessao();
+  const { sessao, ehAdmin, niveis } = useSessao();
   const usuario = sessao?.user.id;
   const [carregando, setCarregando] = useState(true);
   const [vinculos, setVinculos] = useState<Vinculo[]>([]);
   const [atualId, setAtualId] = useState<string | null>(() => ler<string | null>("estabelecimento_id", null));
-  const [liberados, setLiberados] = useState<Set<string>>(new Set());
+  const [meus, setMeus] = useState<MeusAcessos>(VAZIO);
   const [favoritos, setFavoritos] = useState<string[]>([]);
   const [usos, setUsos] = useState<Uso[]>([]);
   const [estilos, setEstilos] = useState<Record<string, EstiloApp>>(() => ler<Record<string, EstiloApp>>("estilos_apps", {}));
@@ -89,7 +124,21 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       supabase.from("usos_aplicativo").select("codigo, vezes, ultimo_em").eq("usuario_id", usuario),
       supabase.from("solicitacoes_acesso").select("codigo").eq("usuario_id", usuario).eq("situacao", "pendente"),
     ]);
-    setVinculos(((v.data ?? []) as unknown as Vinculo[]).filter((x) => x.estabelecimento));
+    const proprios = ((v.data ?? []) as unknown as Vinculo[]).filter((x) => x.estabelecimento);
+    // Equipe RoVibes (nível suporte): estabelecimentos em que o dono liberou o modo suporte.
+    let suporte: Vinculo[] = [];
+    if (niveis.includes("geral") || niveis.includes("suporte")) {
+      const { data } = await supabase.rpc("estabelecimentos_em_suporte");
+      suporte = ((data ?? []) as { estabelecimento_id: string; nome: string; situacao: Situacao; motivo_situacao: string | null }[])
+        .filter((s) => !proprios.some((p) => p.estabelecimento_id === s.estabelecimento_id))
+        .map((s) => ({
+          estabelecimento_id: s.estabelecimento_id,
+          papel: "suporte" as Papel,
+          cargo: "Suporte RoVibes",
+          estabelecimento: { id: s.estabelecimento_id, nome: s.nome, situacao: s.situacao, motivo_situacao: s.motivo_situacao },
+        }));
+    }
+    setVinculos([...proprios, ...suporte]);
     const linhas = (f.data ?? []) as { codigo: string; cor?: string | null; icone?: string | null }[];
     setFavoritos(linhas.map((x) => x.codigo));
     setEstiloNoBanco(f.novo);
@@ -97,34 +146,60 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     setUsos((u.data ?? []) as Uso[]);
     setSolicitados((s.data ?? []).map((x) => x.codigo as string));
     setCarregando(false);
-  }, [usuario]);
+  }, [usuario, niveis]);
 
   useEffect(() => {
     void recarregar();
   }, [recarregar]);
 
-  // Aplicativos liberados individualmente no estabelecimento atual.
+  // O que a pessoa pode no estabelecimento atual: funções + apps só dela − apps tirados (atualização 039).
+  const atualChave = atual ? `${atual.estabelecimento_id}:${atual.papel}` : "";
   useEffect(() => {
-    if (!usuario || !atual || atual.papel === "proprietario") {
-      setLiberados(new Set());
+    if (!usuario || !atual) {
+      setMeus(VAZIO);
       return;
     }
-    supabase
-      .from("acessos")
-      .select("codigo")
-      .eq("usuario_id", usuario)
-      .eq("estabelecimento_id", atual.estabelecimento_id)
-      .then(({ data }) => setLiberados(new Set((data ?? []).map((x) => x.codigo as string))));
-  }, [usuario, atual]);
+    let vivo = true;
+    supabase.rpc("meus_acessos", { p_estab: atual.estabelecimento_id }).then(async ({ data, error }) => {
+      if (!vivo) return;
+      if (!error && data) {
+        const d = data as { codigos: string[]; acoes: string[]; setores: string[]; cancelar_setores?: string[]; desconto_max: number; funcoes: MeusAcessos["funcoes"] };
+        setMeus({
+          codigos: new Set(d.codigos ?? []),
+          acoes: new Set(d.acoes ?? []),
+          setores: d.setores ?? [],
+          cancelarSetores: d.cancelar_setores ?? [],
+          descontoMax: Number(d.desconto_max ?? 0),
+          funcoes: d.funcoes ?? [],
+        });
+        return;
+      }
+      // Banco sem a atualização 039: apps liberados um a um; gestor e dono supervisionam.
+      const { data: a } = await supabase.from("acessos").select("codigo").eq("usuario_id", usuario).eq("estabelecimento_id", atual.estabelecimento_id);
+      if (!vivo) return;
+      const codigos = new Set((a ?? []).map((x) => x.codigo as string));
+      const chefe = atual.papel !== "equipe" || codigos.has("T7004");
+      setMeus(chefe ? { ...TODOS, codigos, funcoes: [] } : { ...VAZIO, codigos, setores: ["cozinha", "bar"] });
+    });
+    return () => {
+      vivo = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [usuario, atualChave]);
 
   const temAcesso = useCallback(
     (a: Aplicativo) => {
       if (a.padrao) return true;
-      if (a.area === "Administração") return ehAdmin;
+      if (a.area === "Administração") return ehAdmin && temNivel(niveis, a.codigo);
       if (!atual) return false;
-      return atual.papel === "proprietario" || liberados.has(a.codigo);
+      return atual.papel === "proprietario" || atual.papel === "suporte" || meus.codigos.has(a.codigo);
     },
-    [ehAdmin, atual, liberados],
+    [ehAdmin, niveis, atual, meus],
+  );
+
+  const pode = useCallback(
+    (acao: string) => !!atual && (atual.papel === "proprietario" || atual.papel === "suporte" || atual.papel === "gestor" || meus.acoes.has(acao)),
+    [atual, meus],
   );
 
   const alternarFavorito = useCallback(
@@ -231,6 +306,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       atual,
       escolherEstabelecimento,
       temAcesso,
+      pode,
+      meus,
       favoritos: apps(favoritos).filter(temAcesso),
       maisUsados: apps([...usos].sort((a, b) => b.vezes - a.vezes).slice(0, 5).map((u) => u.codigo)).filter(temAcesso),
       usoPercentual: (() => {
@@ -259,7 +336,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       recarregar,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carregando, vinculos, atual, temAcesso, favoritos, usos, solicitados, alternarFavorito, moverFavorito, ordenarFavoritos, estilos, definirEstilo, registrarUso, solicitarAcesso, recarregar],
+    [carregando, vinculos, atual, temAcesso, pode, meus, favoritos, usos, solicitados, alternarFavorito, moverFavorito, ordenarFavoritos, estilos, definirEstilo, registrarUso, solicitarAcesso, recarregar],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;
@@ -271,7 +348,7 @@ export function useBusiness() {
   return c;
 }
 
-export const NOME_PAPEL: Record<Papel, string> = { proprietario: "Proprietário", gestor: "Gestor", equipe: "Equipe" };
+export const NOME_PAPEL: Record<Papel, string> = { proprietario: "Proprietário", gestor: "Gerente", equipe: "Equipe", suporte: "Suporte RoVibes" };
 
 export const NOME_SITUACAO: Record<Situacao, string> = {
   pendente: "Aguardando aprovação",

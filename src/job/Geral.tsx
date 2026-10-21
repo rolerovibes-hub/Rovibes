@@ -6,6 +6,8 @@ import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { COR_SITUACAO_ITEM, minutosDesde, NOME_DESTINO, NOME_OCORRENCIA, NOME_SITUACAO_ITEM, origemDoItem, TipoOcorrencia, useAoVivo } from "@/lib/salao";
 import { useItensFila, useNomesEquipe } from "./fila";
 import { Historico } from "./Historico";
+import { usePermissoesJob } from "./permissoes";
+import { pedirAutorizacao, PainelAutorizacoes } from "@/lib/autorizacoes";
 
 interface Ocorrencia {
   id: string;
@@ -36,6 +38,7 @@ function PainelSupervisao({ estab }: { estab: string }) {
   const [ocupado, setOcupado] = useState<string | null>(null);
   const [historico, setHistorico] = useState<string | null>(null);
   const nomes = useNomesEquipe(estab);
+  const { pode } = usePermissoesJob();
 
   const carregar = useCallback(async () => {
     const inicio = new Date();
@@ -82,6 +85,12 @@ function PainelSupervisao({ estab }: { estab: string }) {
   };
 
   const reabrir = async (c: Fechada) => {
+    if (!pode("reabrir_comanda")) {
+      const r = await pedirAutorizacao("reabrir_comanda", c.id, `Reabrir ${c.mesa ? `a mesa ${c.mesa.numero}` : c.nome}`);
+      if (r && "erro" in r) setErro(r.erro);
+      else if (r) setOk(r.ok);
+      return;
+    }
     const motivo = window.prompt(`Motivo para reabrir ${c.mesa ? `a mesa ${c.mesa.numero}` : c.nome}:`);
     if (!motivo?.trim()) return;
     setOcupado(c.id);
@@ -97,6 +106,11 @@ function PainelSupervisao({ estab }: { estab: string }) {
     <div className="space-y-5">
       {erro && <p role="alert" className="rounded-cartao border border-perigo/40 bg-perigo/10 px-4 py-3 text-sm text-perigo">{erro}</p>}
       {ok && <p role="status" className="rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{ok}</p>}
+
+      <section className="cartao p-4">
+        <h2 className="mb-3 font-semibold">Pedidos de autorização</h2>
+        <PainelAutorizacoes estab={estab} />
+      </section>
 
       <section className="cartao overflow-hidden">
         <h2 className="flex items-center gap-2 border-b border-borda px-4 py-3 font-semibold">
@@ -176,7 +190,7 @@ function PainelSupervisao({ estab }: { estab: string }) {
                   <History className="h-3.5 w-3.5" />
                 </button>
                 <button className="botao h-8 px-3 text-[13px]" disabled={ocupado === c.id} onClick={() => void reabrir(c)}>
-                  Reabrir
+                  {pode("reabrir_comanda") ? "Reabrir" : "Pedir para reabrir"}
                 </button>
               </li>
             ))}

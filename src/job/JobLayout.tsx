@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, useLocation, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { Armchair, Boxes, Briefcase, ChefHat, ChevronDown, LayoutDashboard, LogOut, Menu, MessagesSquare, PackageCheck, Smartphone, X, Radio, ClipboardList } from "lucide-react";
+import { Armchair, Boxes, Briefcase, ChefHat, ChevronDown, LayoutDashboard, LogOut, Menu, MessagesSquare, PackageCheck, Smartphone, X, Radio, ClipboardList, ShieldCheck, Wallet } from "lucide-react";
+import { PainelAutorizacoes, useAutorizacoes } from "@/lib/autorizacoes";
+import { usePermissoesJob } from "./permissoes";
 import { MensagensEstab } from "@/business/Mensagens";
 import { EstoqueEquipe } from "./EstoqueEquipe";
 import { Marca } from "@/components/Marca";
@@ -27,13 +29,14 @@ interface Modulo {
 
 const MODULOS: Modulo[] = [
   { id: "garcom", nome: "Mesas", descricao: "Garçom: mesas, venda e comandas", icone: Armchair, codigo: "T7001" },
+  { id: "caixa", nome: "Caixa", descricao: "Receber, fechar contas e vender no balcão", icone: Wallet, codigo: "T7005" },
   { id: "preparo", nome: "Preparo", descricao: "Cozinha e bar", icone: ChefHat, codigo: "T7002" },
   { id: "entregas", nome: "Entregas", descricao: "Cumim: levar e confirmar", icone: PackageCheck, codigo: "T7003" },
   { id: "estoque", nome: "Estoque", descricao: "Saldos dos locais e transferências", icone: Boxes, codigo: "T4004" },
   { id: "mensagens", nome: "Mensagens", descricao: "Responder os clientes pelo chat", icone: MessagesSquare, codigo: "T2001" },
   { id: "ao-vivo", nome: "Chat ao vivo", descricao: "Moderar o chat da noite", icone: Radio, codigo: "T2002" },
   { id: "portaria", nome: "Portaria", descricao: "Conferir as listas de presença", icone: ClipboardList, codigo: "T5005" },
-  { id: "geral", nome: "Supervisão", descricao: "Ocorrências, atrasos e visão da operação", icone: LayoutDashboard },
+  { id: "geral", nome: "Supervisão", descricao: "Autorizações, ocorrências e visão da operação", icone: LayoutDashboard },
 ];
 
 /** RoVibes Job: aplicativo de trabalho da equipe, com telas por função. */
@@ -52,8 +55,18 @@ export function JobLayout() {
 function Job() {
   const { modulo } = useParams();
   const negocio = useBusiness();
-  const { ehAdmin } = useSessao();
+  const perm = usePermissoesJob();
   const [menu, setMenu] = useState(false);
+  const [pedidos, setPedidos] = useState(false);
+  const [aviso, setAviso] = useState("");
+  const auts = useAutorizacoes(negocio.atual?.estabelecimento_id, (a) =>
+    setAviso(`${a.resumo}: ${a.situacao === "aprovada" ? "aprovado" : a.situacao === "recusada" ? `recusado${a.resposta ? ` (${a.resposta})` : ""}` : a.situacao}.`),
+  );
+  useEffect(() => {
+    if (!aviso) return;
+    const t = window.setTimeout(() => setAviso(""), 8000);
+    return () => window.clearTimeout(t);
+  }, [aviso]);
 
   useEffect(() => {
     document.title = "RoVibes Job";
@@ -61,8 +74,9 @@ function Job() {
 
   if (negocio.carregando) return <Carregando />;
   const atual = negocio.atual;
-  const gerencia = ehAdmin || atual?.papel === "proprietario" || atual?.papel === "gestor" || negocio.temAcesso(porCodigo("T7004")!);
-  const meus = MODULOS.filter((m) => (m.codigo ? negocio.temAcesso(porCodigo(m.codigo)!) : gerencia));
+  // Supervisão: quem tem alguma ação sensível (gerente, líder de setor, caixa com desconto...).
+  const meus = MODULOS.filter((m) => (m.codigo ? negocio.temAcesso(porCodigo(m.codigo)!) : perm.supervisor));
+  const pendentesParaMim = auts.paraMim.length;
 
   if (!atual) {
     return (
@@ -92,7 +106,7 @@ function Job() {
               >
                 {negocio.vinculos.map((v) => (
                   <option key={v.estabelecimento_id} value={v.estabelecimento_id}>
-                    {v.estabelecimento.nome}
+                    {v.estabelecimento.nome}{v.papel === "suporte" ? " (suporte)" : ""}
                   </option>
                 ))}
               </select>
@@ -100,6 +114,16 @@ function Job() {
             </label>
           ) : (
             <span className="hidden max-w-[180px] truncate text-sm font-medium sm:block">{atual.estabelecimento.nome}</span>
+          )}
+          {(pendentesParaMim > 0 || auts.meusPendentes.length > 0) && (
+            <button
+              onClick={() => setPedidos(true)}
+              className={clsx("relative inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[13px] font-semibold", pendentesParaMim ? "bg-alerta/15 text-alerta" : "bg-elevado text-suave")}
+              aria-label="Pedidos de autorização"
+            >
+              <ShieldCheck className="h-4 w-4" />
+              {pendentesParaMim || auts.meusPendentes.length}
+            </button>
           )}
           <button onClick={() => setMenu(true)} className="rounded-full p-2 hover:bg-elevado" aria-label="Menu">
             <Menu className="h-5 w-5" />
@@ -110,7 +134,7 @@ function Job() {
       <main className={clsx("flex-1 px-4 py-4", meus.length > 1 && "pb-24")}>
         {!ativo ? (
           meus.length === 0 ? (
-            <Vazio titulo="Nenhuma função liberada" texto="Peça ao gestor para liberar Mesas e comandas, Fila de pedidos ou Entregas para você na tela Equipe e permissões." />
+            <Vazio titulo="Nenhuma função liberada" texto="Peça ao gerente para escolher a sua função (Garçom, Caixa, Barman, Cozinha...) em Equipe e permissões, no Business." />
           ) : (
             <div className="space-y-3">
               <h1 className="text-lg font-semibold">O que você vai fazer agora?</h1>
@@ -133,6 +157,8 @@ function Job() {
           )
         ) : ativo.id === "garcom" ? (
           <Garcom key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
+        ) : ativo.id === "caixa" ? (
+          <Garcom key={`caixa-${atual.estabelecimento_id}`} estab={atual.estabelecimento_id} modo="caixa" />
         ) : ativo.id === "preparo" ? (
           <FilaPreparo key={atual.estabelecimento_id} estab={atual.estabelecimento_id} />
         ) : ativo.id === "entregas" ? (
@@ -174,6 +200,24 @@ function Job() {
       )}
 
       {menu && <MenuJob fechar={() => setMenu(false)} />}
+      {aviso && (
+        <p role="status" className="surgir fixed inset-x-4 top-16 z-[80] mx-auto max-w-md rounded-cartao border border-borda bg-superficie px-4 py-3 text-sm shadow-lg" onClick={() => setAviso("")}>
+          {aviso}
+        </p>
+      )}
+      {pedidos && (
+        <div className="fixed inset-0 z-[75] flex items-end justify-center bg-black/50 sm:items-center" role="dialog" aria-modal="true" aria-label="Pedidos de autorização" onClick={() => setPedidos(false)}>
+          <div className="folha max-h-[85vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-superficie p-4 pb-[max(16px,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="font-semibold">Pedidos de autorização</h2>
+              <button onClick={() => setPedidos(false)} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <PainelAutorizacoes estab={atual.estabelecimento_id} compacto />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

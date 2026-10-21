@@ -78,7 +78,7 @@ function Estrutura() {
                 >
                   {negocio.vinculos.map((v) => (
                     <option key={v.estabelecimento_id} value={v.estabelecimento_id}>
-                      {v.estabelecimento.nome}
+                      {v.estabelecimento.nome}{v.papel === "suporte" ? " (suporte)" : ""}
                     </option>
                   ))}
                 </select>

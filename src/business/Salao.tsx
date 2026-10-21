@@ -76,7 +76,7 @@ export function Salao() {
     if (ids.length) {
       const [p, d] = await Promise.all([
         supabase.from("pedidos").select(`comanda_id, ${CAMPOS_PEDIDO}`).in("comanda_id", ids).order("criado_em"),
-        supabase.from("comanda_descontos").select("comanda_id, titulo, valor").in("comanda_id", ids),
+        supabase.from("comanda_descontos").select("*").in("comanda_id", ids),
       ]);
       setPedidos(normalizarPedidos(p.data) as (Pedido & { comanda_id: string })[]);
       setDescontos(((d.data ?? []) as Desconto[]).map((x) => ({ ...x, valor: Number(x.valor) })));
@@ -458,6 +458,7 @@ export function Salao() {
                   supervisor={supervisor}
                   aoMudar={() => void carregar()}
                   aoErro={(t) => setAviso({ tipo: "erro", texto: t })}
+                  aoAviso={(t) => setAviso({ tipo: "ok", texto: t })}
                 />
                 </>
               )}

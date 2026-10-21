@@ -29,6 +29,8 @@ import {
   UserRound,
   Users,
   UtensilsCrossed,
+  Wallet,
+  UserCog,
 } from "lucide-react";
 
 // Catálogo único de aplicativos do Business e da Administração.
@@ -66,7 +68,8 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "T7001", nome: "Mesas e comandas", area: "Operação", icone: Armchair, fase: 5 },
   { codigo: "T7002", nome: "Fila de pedidos", area: "Operação", icone: ListOrdered, fase: 5 },
   { codigo: "T7003", nome: "Entregas", area: "Operação", icone: PackageCheck, fase: 5 },
-  { codigo: "T7004", nome: "Supervisão da operação", area: "Operação", icone: ShieldAlert, fase: 5 },
+  { codigo: "T7004", nome: "Supervisão (todas as ações)", area: "Operação", icone: ShieldAlert, fase: 5 },
+  { codigo: "T7005", nome: "Caixa", area: "Operação", icone: Wallet, fase: 7 },
   { codigo: "C8001", nome: "Indicadores", area: "Estabelecimento", icone: TrendingUp, fase: 3 },
   { codigo: "G9001", nome: "Programa de pontos", area: "Vitrine", icone: Award, fase: 4 },
   { codigo: "A1001", nome: "Aprovação de estabelecimentos", area: "Administração", icone: ShieldCheck, fase: 1 },
@@ -76,6 +79,7 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "A1005", nome: "Biblioteca de produtos", area: "Administração", icone: Library, fase: 5 },
   { codigo: "A1006", nome: "Músicas dos vídeos", area: "Administração", icone: Music, fase: 6 },
   { codigo: "A1007", nome: "Eventos de pessoas", area: "Administração", icone: PartyPopper, fase: 7 },
+  { codigo: "A1008", nome: "Equipe RoVibes", area: "Administração", icone: UserCog, fase: 8 },
 ];
 
 export const AREAS: Area[] = ["Estabelecimento", "Vitrine", "Conteúdo", "Operação", "Equipe", "Administração"];

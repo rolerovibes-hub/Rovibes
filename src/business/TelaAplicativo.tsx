@@ -9,6 +9,7 @@ import { PerfilEstabelecimento } from "./PerfilEstabelecimento";
 import { Cardapio } from "./Cardapio";
 import { Eventos } from "./Eventos";
 import { VibesCategorias } from "./VibesCategorias";
+import { EquipeRoVibes } from "./EquipeRoVibes";
 import { StatusAoVivo } from "./StatusAoVivo";
 import { Publicacoes } from "./Publicacoes";
 import { Stories } from "./Stories";
@@ -33,6 +34,7 @@ import { Salao } from "./Salao";
 import { FilaPreparo } from "@/job/Preparo";
 import { FilaEntregas } from "@/job/Entregas";
 import { VisaoGeral } from "@/job/Geral";
+import { Garcom } from "@/job/Garcom";
 import { Link } from "react-router-dom";
 
 // Colunas previstas da consulta de cada aplicativo (o conteúdo chega em cada fase).
@@ -100,6 +102,7 @@ export function TelaAplicativo() {
   if (app.codigo === "A1005") return <BibliotecaAdmin />;
   if (app.codigo === "A1006") return <MusicasAdmin />;
   if (app.codigo === "A1007") return <EventosPessoasAdmin />;
+  if (app.codigo === "A1008") return <EquipeRoVibes />;
   if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "G4003") return <Produtos />;
   if (app.codigo === "T4004") {
@@ -145,6 +148,21 @@ export function TelaAplicativo() {
     return (
       <div className="mx-auto max-w-6xl">
         <VisaoGeral estab={estab} />
+      </div>
+    );
+  }
+  if (app.codigo === "T7005") {
+    const estab = acessos.atual?.estabelecimento_id;
+    if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
+    return (
+      <div className="mx-auto max-w-6xl space-y-4">
+        <p className="cartao flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm text-suave">
+          No dia a dia, o caixa usa esta tela pelo RoVibes Job, no celular ou num tablet.
+          <Link to="/job/caixa" className="font-semibold text-destaque">
+            Abrir no Job
+          </Link>
+        </p>
+        <Garcom key={`caixa-${estab}`} estab={estab} modo="caixa" />
       </div>
     );
   }
