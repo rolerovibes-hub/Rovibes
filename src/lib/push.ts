@@ -128,6 +128,8 @@ export async function desativarPush(): Promise<void> {
  * e prepara o toque na notificação (abre a tela certa) e o aviso com o App aberto.
  */
 export async function iniciarPush(abrir: (link: string) => void, avisar: (n: { titulo: string; texto: string; link: string }) => void) {
+  // Mantém o banco sabendo o endereço da função de envio (barato: uma chamada por abertura do App).
+  void supabase.functions.invoke("enviar-push", { method: "GET" }).catch(() => undefined);
   if ("serviceWorker" in navigator && !ehApp()) {
     navigator.serviceWorker.addEventListener("message", (e) => {
       const d = e.data as { tipo?: string; link?: string; titulo?: string; texto?: string };
