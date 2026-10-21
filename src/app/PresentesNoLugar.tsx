@@ -62,7 +62,7 @@ export function PresentesNoLugar({ estab, nome, fechar }: { estab: string; nome:
                 <li key={p.id}>
                   <Link to={p.relacao === "voce" ? "/perfil" : `/p/${p.usuario}`} onClick={fechar} className="flex items-center gap-3 px-5 py-2.5 hover:bg-elevado">
                     <span className={clsx("rounded-full", p.relacao === "amigo" && "ring-2 ring-ok ring-offset-2 ring-offset-superficie")}>
-                      <Avatar nome={p.nome} foto={p.foto_url} />
+                      <Avatar nome={p.nome} foto={p.foto_url} ampliar />
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{p.nome}</span>

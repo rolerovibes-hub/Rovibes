@@ -41,6 +41,7 @@ import { BeneficiosLugar } from "./BeneficiosLugar";
 import { Navegacao } from "./Navegacao";
 import { ListasPresenca } from "@/components/ListasPresenca";
 import { CompartilharNoChat } from "@/components/CompartilharNoChat";
+import { FotoAmpliada } from "@/components/FotoAmpliada";
 import { capturarRef, compartilhar, linkDivulgacao } from "@/lib/promoters";
 import { mudarPresenca, posicaoSeLiberada, sairDoLugar, useAgora, useMinhaPresenca, Visibilidade, VISIBILIDADES } from "@/lib/agora";
 import { AmigosAqui, CartaoComoEsta, FolhaComoEsta } from "./AgoraLugar";
@@ -118,6 +119,7 @@ export function LugarPagina() {
   const usuario = sessao?.user.id ?? "";
   const [stories, setStories] = useState<GrupoStories[]>([]);
   const [visorAberto, setVisorAberto] = useState(false);
+  const [logoAberta, setLogoAberta] = useState(false);
   const [navegando, setNavegando] = useState(false);
   const [comoEsta, setComoEsta] = useState(false);
   const [verPresentes, setVerPresentes] = useState(false);
@@ -253,9 +255,9 @@ export function LugarPagina() {
       <div className="relative -mt-12 px-4">
         <button
           type="button"
-          onClick={() => stories.length > 0 && setVisorAberto(true)}
-          disabled={stories.length === 0}
-          aria-label={stories.length ? `Ver stories de ${lugar.nome}` : undefined}
+          onClick={() => (stories.length > 0 ? setVisorAberto(true) : lugar.logo_url && setLogoAberta(true))}
+          disabled={stories.length === 0 && !lugar.logo_url}
+          aria-label={stories.length ? `Ver stories de ${lugar.nome}` : lugar.logo_url ? `Ampliar logo de ${lugar.nome}` : undefined}
           className={clsx("rounded-full p-[3px]", stories.length ? (stories[0].vistos ? "bg-borda" : "bg-magenta") : "bg-fundo")}
         >
           <span className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-full border-[3px] border-fundo bg-superficie">
@@ -502,6 +504,7 @@ export function LugarPagina() {
         />
       )}
       {navegando && ponto && <Navegacao destino={{ nome: lugar.nome, lat: ponto[0], lng: ponto[1] }} fechar={() => setNavegando(false)} />}
+      {logoAberta && lugar.logo_url && <FotoAmpliada src={lugar.logo_url} nome={lugar.nome} fechar={() => setLogoAberta(false)} />}
       {visorAberto && stories.length > 0 && (
         <VisorStories
           grupos={stories}

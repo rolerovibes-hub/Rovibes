@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 
-/** Vídeo de publicação: toca sozinho (mudo) quando aparece na tela e pausa quando sai; toque liga o som. */
-export function VideoPost({ src, capa, className }: { src: string; capa?: string | null; className?: string }) {
+/** Vídeo de publicação: toca sozinho (mudo) quando aparece na tela e pausa quando sai; toque liga o som (ou abre em tela cheia, com `aoAbrir`). */
+export function VideoPost({ src, capa, className, aoAbrir }: { src: string; capa?: string | null; className?: string; aoAbrir?: () => void }) {
   const v = useRef<HTMLVideoElement>(null);
   const [mudo, setMudo] = useState(true);
 
@@ -30,7 +30,7 @@ export function VideoPost({ src, capa, className }: { src: string; capa?: string
         loop
         playsInline
         preload="metadata"
-        onClick={() => setMudo((m) => !m)}
+        onClick={() => (aoAbrir ? aoAbrir() : setMudo((m) => !m))}
         className={className ?? "max-h-[520px] w-full object-cover"}
       />
       <button onClick={() => setMudo((m) => !m)} className="absolute bottom-3 right-3 rounded-full bg-black/55 p-2 text-white" aria-label={mudo ? "Ligar o som" : "Tirar o som"}>

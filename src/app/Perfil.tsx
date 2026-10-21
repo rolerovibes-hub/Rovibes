@@ -117,15 +117,15 @@ function Cabecalho() {
   return (
     <section>
       <div className="flex items-center gap-5">
-        <button onClick={() => temStory && setVisor(true)} disabled={!temStory} aria-label={temStory ? "Ver seu story" : undefined}>
-          {temStory ? (
+        {temStory ? (
+          <button onClick={() => setVisor(true)} aria-label="Ver seu story">
             <AnelStory visto={false}>
               <Avatar nome={perfil.nome || "?"} foto={perfil.foto_url} tamanho="xl" />
             </AnelStory>
-          ) : (
-            <Avatar nome={perfil.nome || "?"} foto={perfil.foto_url} tamanho="xl" />
-          )}
-        </button>
+          </button>
+        ) : (
+          <Avatar nome={perfil.nome || "?"} foto={perfil.foto_url} tamanho="xl" ampliar />
+        )}
         {dados ? <Contadores pessoa={dados} /> : <span className="flex-1" />}
       </div>
       <h1 className="mt-3 text-lg font-semibold">{perfil.nome}</h1>

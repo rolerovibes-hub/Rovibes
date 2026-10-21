@@ -14,6 +14,8 @@ import { AnelStory, VisorStories } from "./VisorStories";
 import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
+import { VisorPublicacao } from "@/components/VisorPublicacao";
+import { Ampliavel } from "@/components/FotoAmpliada";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
 function usePosicaoSilenciosa() {
@@ -41,6 +43,7 @@ export function Feed() {
   const [meuStory, setMeuStory] = useState(false);
   const [totais, setTotais] = useState<Map<string, number>>(new Map());
   const [comentando, setComentando] = useState<{ tipo: "lugar" | "pessoa"; id: string } | null>(null);
+  const [abertaId, setAbertaId] = useState<string | null>(null);
   // Link de notificação: /?comentarios=pessoa:ID abre os comentários direto.
   const [params, setParams] = useSearchParams();
   const pedidoComentarios = params.get("comentarios");
@@ -124,6 +127,9 @@ export function Feed() {
       setPubs((l) => l?.map((x) => (x.estabelecimento.id === estab ? { ...x, sigo: false } : x)) ?? null);
     }
   };
+
+  const aberta = abertaId ? pubs?.find((x) => x.id === abertaId) ?? null : null;
+  const fecharAberta = useCallback(() => setAbertaId(null), []);
 
   const curtir = async (p: PublicacaoApp) => {
     setPubs((l) => l?.map((x) => (x.id === p.id ? { ...x, curti: !p.curti, curtidas: x.curtidas + (p.curti ? -1 : 1) } : x)) ?? null);
@@ -241,7 +247,7 @@ export function Feed() {
                 {p.tipo === "pessoa" && p.pessoa ? (
                   <div className="flex items-center gap-2.5 px-3.5 py-3">
                     <Link to={p.pessoa.id === usuario ? "/perfil" : `/p/${p.pessoa.usuario}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                      <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} />
+                      <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} ampliar />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">{p.pessoa.nome}</span>
                         <span className="block truncate text-[12px] text-suave">
@@ -260,7 +266,9 @@ export function Feed() {
                 <div className="flex items-center gap-2.5 px-3.5 py-3">
                     <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
                       {p.estabelecimento.logo_url ? (
-                        <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                        <Ampliavel src={p.estabelecimento.logo_url} nome={p.estabelecimento.nome}>
+                          <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                        </Ampliavel>
                       ) : (
                         <Avatar nome={p.estabelecimento.nome} />
                       )}
@@ -280,9 +288,13 @@ export function Feed() {
                   </div>
                 )}
                 {p.video_url ? (
-                  <VideoPost src={p.video_url} capa={p.foto_url} />
+                  <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setAbertaId(p.id)} />
                 ) : (
-                  p.foto_url && <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />
+                  p.foto_url && (
+                    <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
+                      <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />
+                    </button>
+                  )
                 )}
                 <div className="space-y-2.5 px-3.5 py-3">
                   {p.texto && <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.texto}</p>}
@@ -327,7 +339,49 @@ export function Feed() {
         )}
       </section>
 
-      {comentando && (
+      {aberta && (
+        <VisorPublicacao
+          dados={{
+            autor:
+              aberta.tipo === "pessoa" && aberta.pessoa
+                ? { nome: aberta.pessoa.nome, foto: aberta.pessoa.foto_url, link: aberta.pessoa.id === usuario ? "/perfil" : `/p/${aberta.pessoa.usuario}` }
+                : { nome: aberta.estabelecimento.nome, foto: aberta.estabelecimento.logo_url, link: `/lugar/${aberta.estabelecimento.id}` },
+            local: aberta.tipo === "pessoa" ? aberta.local ?? null : null,
+            foto: aberta.foto_url,
+            video: aberta.video_url,
+            texto: aberta.texto,
+            criado_em: aberta.criado_em,
+            curtidas: aberta.curtidas,
+            curti: aberta.curti,
+            comentarios: totais.get(chaveComentario(aberta)) ?? 0,
+          }}
+          fechar={fecharAberta}
+          aoCurtir={() => void curtir(aberta)}
+          aoComentar={() => setComentando({ tipo: aberta.tipo === "pessoa" ? "pessoa" : "lugar", id: aberta.id })}
+          extra={
+            (aberta.tipo !== "pessoa" || aberta.local) && (
+              <Link
+                to={`/lugar/${aberta.tipo === "pessoa" ? aberta.local!.id : aberta.estabelecimento.id}/role`}
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-[13px] font-medium backdrop-blur"
+              >
+                <PartyPopper className="h-4 w-4" />
+                Marcar rolê
+              </Link>
+            )
+          }
+        >
+          {comentando && (
+            <FolhaComentarios
+              tipo={comentando.tipo}
+              id={comentando.id}
+              fechar={() => setComentando(null)}
+              aoMudarTotal={(n) => setTotais((m) => new Map(m).set(`${comentando.tipo}:${comentando.id}`, n))}
+            />
+          )}
+        </VisorPublicacao>
+      )}
+
+      {comentando && !aberta && (
         <FolhaComentarios
           tipo={comentando.tipo}
           id={comentando.id}

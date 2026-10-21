@@ -1,6 +1,18 @@
 import clsx from "clsx";
+import { Ampliavel } from "./FotoAmpliada";
 
-export function Avatar({ nome, tamanho = "md", foto }: { nome: string; tamanho?: "sm" | "md" | "lg" | "xl" | "story"; foto?: string | null }) {
+/** Foto de perfil. Com `ampliar`, o toque mostra a foto grande (para reconhecer a pessoa). */
+export function Avatar({
+  nome,
+  tamanho = "md",
+  foto,
+  ampliar = false,
+}: {
+  nome: string;
+  tamanho?: "sm" | "md" | "lg" | "xl" | "story";
+  foto?: string | null;
+  ampliar?: boolean;
+}) {
   const iniciais = nome
     .split(" ")
     .filter(Boolean)
@@ -14,7 +26,16 @@ export function Avatar({ nome, tamanho = "md", foto }: { nome: string; tamanho?:
     tamanho === "xl" && "h-24 w-24 text-2xl",
     tamanho === "story" && "h-[58px] w-[58px] text-lg",
   );
-  if (foto) return <img src={foto} alt="" className={clsx("shrink-0 rounded-full object-cover", medida)} />;
+  if (foto) {
+    const img = <img src={foto} alt="" className={clsx("shrink-0 rounded-full object-cover", medida)} />;
+    return ampliar ? (
+      <Ampliavel src={foto} nome={nome}>
+        {img}
+      </Ampliavel>
+    ) : (
+      img
+    );
+  }
   return (
     <span
       aria-hidden="true"

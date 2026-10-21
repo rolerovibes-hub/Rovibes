@@ -31,7 +31,7 @@ export function AmigosAqui({ amigos, compacto = false }: { amigos: Amigos | null
         <span className="flex -space-x-2">
           {amigos.pessoas.slice(0, 3).map((p) => (
             <span key={p.id} className="rounded-full ring-2 ring-fundo">
-              <Avatar nome={p.nome} foto={p.foto_url} tamanho="sm" />
+              <Avatar nome={p.nome} foto={p.foto_url} tamanho="sm" ampliar />
             </span>
           ))}
         </span>

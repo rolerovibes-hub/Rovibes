@@ -1,10 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import clsx from "clsx";
-import { Camera, Flag, Heart, Lock, MapPin, MessageCircle, Play, Trash2, X } from "lucide-react";
-import { VideoPost } from "./VideoPost";
+import { Camera, Flag, Lock, Play, Trash2 } from "lucide-react";
+import { VisorPublicacao } from "./VisorPublicacao";
 import { contarComentarios, FolhaComentarios } from "./Comentarios";
-import { Avatar } from "./Avatar";
 import { JanelaDenuncia } from "./Denunciar";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
@@ -137,55 +134,36 @@ function VisorPost({
   };
 
   return (
-    <div className="fixed inset-0 z-[70] flex items-end justify-center bg-black/70 sm:items-center" role="dialog" aria-modal="true" aria-label="Publicação" onClick={fechar}>
-      <div className="folha max-h-[94vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-superficie pb-[max(12px,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center gap-2.5 px-4 py-3">
-          <Avatar nome={autor.nome} foto={autor.foto_url} tamanho="sm" />
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold">{autor.usuario ?? autor.nome}</span>
-            {post.local && (
-              <Link to={`/lugar/${post.local.id}`} className="flex items-center gap-1 truncate text-[12px] text-suave hover:text-texto">
-                <MapPin className="h-3 w-3" />
-                {post.local.nome}
-              </Link>
-            )}
-          </span>
-          {minha ? (
-            <button onClick={() => void apagar()} className="rounded-full p-2 text-suave hover:bg-elevado hover:text-perigo" aria-label="Apagar publicação">
-              <Trash2 className="h-5 w-5" />
-            </button>
-          ) : (
-            <button onClick={() => setDenunciando(true)} className="rounded-full p-2 text-suave hover:bg-elevado" aria-label="Denunciar publicação">
-              <Flag className="h-5 w-5" />
-            </button>
-          )}
-          <button onClick={fechar} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">
-            <X className="h-5 w-5" />
+    <VisorPublicacao
+      dados={{
+        autor: { nome: autor.usuario ?? autor.nome, foto: autor.foto_url, link: minha ? "/perfil" : autor.usuario ? `/p/${autor.usuario}` : undefined },
+        local: post.local,
+        foto: post.foto_url,
+        video: post.video_url,
+        texto: post.texto,
+        criado_em: post.criado_em,
+        curtidas: post.curtidas,
+        curti: post.curti,
+        comentarios: totalComentarios,
+      }}
+      fechar={fechar}
+      aoCurtir={() => void curtir()}
+      aoComentar={() => setComentando(true)}
+      acoes={
+        minha ? (
+          <button onClick={() => void apagar()} className="rounded-full p-2 hover:bg-white/10" aria-label="Apagar publicação">
+            <Trash2 className="h-5 w-5" />
           </button>
-        </div>
-        {post.video_url ? (
-          <VideoPost src={post.video_url} capa={post.foto_url} className="max-h-[70vh] w-full bg-black object-contain" />
         ) : (
-          <img src={post.foto_url} alt={post.texto ?? ""} className="max-h-[70vh] w-full bg-black object-contain" />
-        )}
-        <div className="space-y-2 px-4 py-3">
-          <span className="-ml-1 inline-flex items-center gap-2">
-            <button onClick={() => void curtir()} aria-pressed={post.curti} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
-              <Heart className={clsx("h-5 w-5", post.curti ? "fill-current text-magenta" : "text-suave")} />
-              <span className={post.curti ? "font-medium" : "text-suave"}>{post.curtidas}</span>
-            </button>
-            <button onClick={() => setComentando(true)} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave" aria-label="Comentários">
-              <MessageCircle className="h-5 w-5" />
-              {totalComentarios}
-            </button>
-          </span>
-          {post.texto && <p className="whitespace-pre-line text-[15px]">{post.texto}</p>}
-          <p className="text-[12px] text-suave">{new Date(post.criado_em).toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" })}</p>
-          {erro && <p className="text-sm text-perigo">{erro}</p>}
-        </div>
-      </div>
+          <button onClick={() => setDenunciando(true)} className="rounded-full p-2 hover:bg-white/10" aria-label="Denunciar publicação">
+            <Flag className="h-5 w-5" />
+          </button>
+        )
+      }
+      extra={erro ? <p className="text-sm text-red-300">{erro}</p> : undefined}
+    >
       {denunciando && <JanelaDenuncia tipo="post" alvo={post.id} titulo="Denunciar publicação" fechar={() => setDenunciando(false)} />}
       {comentando && <FolhaComentarios tipo="pessoa" id={post.id} fechar={() => setComentando(false)} aoMudarTotal={setTotalComentarios} />}
-    </div>
+    </VisorPublicacao>
   );
 }

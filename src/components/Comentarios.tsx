@@ -166,7 +166,7 @@ export function FolhaComentarios({
         </Link>
       ) : (
         <Link to={c.meu ? "/perfil" : `/p/${c.autor.usuario}`} onClick={fechar} className="shrink-0">
-          <Avatar nome={c.autor.nome} foto={c.autor.foto_url} tamanho="sm" />
+          <Avatar nome={c.autor.nome} foto={c.autor.foto_url} tamanho="sm" ampliar />
         </Link>
       )}
       <div className="min-w-0 flex-1">
