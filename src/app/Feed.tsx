@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, Heart, LocateFixed, MapPin, MessageCircle, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
+import { CalendarDays, ChevronRight, LocateFixed, MapPin, MessageCircle, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
 import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
@@ -15,6 +15,7 @@ import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
 import { VisorPublicacao } from "@/components/VisorPublicacao";
+import { BotaoBrindar } from "@/components/Brindar";
 import { Ampliavel } from "@/components/FotoAmpliada";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
@@ -309,10 +310,7 @@ export function Feed() {
                   )}
                   <div className="flex items-center justify-between">
                     <span className="-ml-1 inline-flex items-center gap-2">
-                      <button onClick={() => void curtir(p)} aria-pressed={p.curti} className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm">
-                        <Heart className={clsx("h-5 w-5", p.curti ? "fill-current text-magenta" : "text-suave")} />
-                        <span className={p.curti ? "font-medium" : "text-suave"}>{p.curtidas}</span>
-                      </button>
+                      <BotaoBrindar ativo={p.curti} total={p.curtidas} aoBrindar={() => void curtir(p)} />
                       <button
                         onClick={() => setComentando({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
                         className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave"

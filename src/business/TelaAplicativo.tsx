@@ -48,7 +48,7 @@ const COLUNAS: Record<string, string[]> = {
   T5002: ["Evento", "Check-ins", "Movimento", "Atualizado"],
   G5003: ["Promoção", "Tipo", "Vigência", "Resgates"],
   G5004: ["Ingresso", "Evento", "Vendidos", "Preço"],
-  G6001: ["Publicação", "Publicada em", "Curtidas", "Situação"],
+  G6001: ["Publicação", "Publicada em", "Brindes", "Situação"],
   G6002: ["Story", "Expira em", "Visualizações"],
   T7001: ["Mesa", "Zona", "Pessoas", "Situação"],
   T7002: ["Pedido", "Mesa", "Itens", "Situação"],

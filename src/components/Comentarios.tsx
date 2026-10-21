@@ -1,8 +1,9 @@
 import { FormEvent, Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Flag, Heart, MessageCircle, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
+import { Flag, MessageCircle, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
 import { Avatar } from "./Avatar";
+import { BotaoBrindar } from "./Brindar";
 import { JanelaDenuncia } from "./Denunciar";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
@@ -183,7 +184,7 @@ export function FolhaComentarios({
             </p>
             <div className="mt-0.5 flex items-center gap-3 text-[12px] text-suave">
               <span>{tempo(c.criado_em)}</span>
-              {c.curtidas > 0 && <span>{c.curtidas === 1 ? "1 curtida" : `${c.curtidas} curtidas`}</span>}
+              {c.curtidas > 0 && <span>{c.curtidas === 1 ? "1 brinde" : `${c.curtidas} brindes`}</span>}
               <button onClick={() => responder(c)} className="font-semibold hover:text-texto">
                 Responder
               </button>
@@ -219,9 +220,7 @@ export function FolhaComentarios({
         )}
       </div>
       {!c.apagado && (
-        <button onClick={() => void curtir(c)} aria-pressed={c.curti} className="shrink-0 self-start p-1" aria-label={c.curti ? "Descurtir comentário" : "Curtir comentário"}>
-          <Heart className={clsx("h-4 w-4", c.curti ? "fill-current text-magenta" : "text-suave")} />
-        </button>
+        <BotaoBrindar ativo={c.curti} aoBrindar={() => void curtir(c)} tamanho="sm" rotulo="comentário" className="shrink-0 self-start" />
       )}
     </li>
   );

@@ -309,6 +309,85 @@
 .trilho-vibe > * {
   scroll-snap-align: start;
 }
+/* Brindar: duas taças fazem "tim-tim" (1 s) e volta uma taça cheia com a estrela. */
+.brinde-duas {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 185%;
+  height: 110%;
+  transform: translate(-62%, -60%);
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  animation: brinde-aparece 1000ms ease-out;
+}
+.brinde-esq,
+.brinde-dir {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+}
+.brinde-esq {
+  animation: brinde-esq 1000ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.brinde-dir {
+  animation: brinde-dir 1000ms cubic-bezier(0.3, 0.7, 0.2, 1);
+}
+.brinde-tim {
+  opacity: 0;
+  animation: brinde-tim 1000ms ease-out;
+}
+.brinde-faisca {
+  opacity: 0;
+  fill: #ec4899;
+  animation: brinde-faisca 600ms ease-out 380ms;
+}
+.brinde-faisca-0 { --fx: -9px; --fy: -7px; fill: #a855f7; }
+.brinde-faisca-1 { --fx: 9px; --fy: -8px; }
+.brinde-faisca-2 { --fx: -11px; --fy: 3px; fill: #f97316; }
+.brinde-faisca-3 { --fx: 11px; --fy: 4px; fill: #a855f7; }
+.brindando > .taca-icone {
+  animation: brinde-volta 1000ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.brindando > .taca-icone .taca-estrela {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: brinde-estrela 1000ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes brinde-aparece {
+  0% { opacity: 0; }
+  8%, 70% { opacity: 1; }
+  85%, 100% { opacity: 0; }
+}
+@keyframes brinde-esq {
+  0% { transform: translateX(-7px) rotate(-12deg); }
+  40% { transform: translateX(3px) rotate(16deg); }
+  52%, 100% { transform: translateX(0) rotate(8deg); }
+}
+@keyframes brinde-dir {
+  0% { transform: translateX(7px) rotate(12deg); }
+  40% { transform: translateX(-3px) rotate(-16deg); }
+  52%, 100% { transform: translateX(0) rotate(-8deg); }
+}
+@keyframes brinde-tim {
+  0%, 38% { opacity: 0; }
+  45% { opacity: 1; }
+  70%, 100% { opacity: 0; }
+}
+@keyframes brinde-faisca {
+  0% { opacity: 1; transform: translate(0, 0); }
+  100% { opacity: 0; transform: translate(var(--fx), var(--fy)); }
+}
+@keyframes brinde-volta {
+  0%, 72% { opacity: 0; transform: scale(0.5); }
+  88% { opacity: 1; transform: scale(1.2); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes brinde-estrela {
+  0%, 80% { opacity: 0; transform: scale(0.2) rotate(-40deg); }
+  92% { opacity: 1; transform: scale(1.4) rotate(15deg); }
+  100% { opacity: 1; transform: none; }
+}
 /* Quem desativou animações no aparelho não vê movimento. */
 @media (prefers-reduced-motion: reduce) {
   *,

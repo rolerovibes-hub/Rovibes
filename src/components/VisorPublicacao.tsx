@@ -2,8 +2,9 @@ import { ReactNode, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Heart, MapPin, MessageCircle, Volume2, VolumeX, X } from "lucide-react";
+import { MapPin, MessageCircle, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar } from "./Avatar";
+import { BotaoBrindar } from "./Brindar";
 
 export interface DadosVisor {
   autor: { nome: string; foto: string | null; link?: string };
@@ -103,17 +104,14 @@ export function VisorPublicacao({
         </div>
       </div>
 
-      {/* Rodapé: texto, curtidas, comentários */}
+      {/* Rodapé: texto, brindes, comentários */}
       <div
         className={clsx("absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-12", some)}
         onClick={parar}
       >
         {dados.texto && <p className="mb-2 max-h-[28vh] overflow-y-auto whitespace-pre-line text-[15px] leading-relaxed">{dados.texto}</p>}
         <div className="flex items-center gap-3">
-          <button onClick={aoCurtir} aria-pressed={dados.curti} className="inline-flex items-center gap-1.5 py-1 text-sm">
-            <Heart className={clsx("h-6 w-6", dados.curti && "fill-current text-magenta")} />
-            <span className="font-medium">{dados.curtidas}</span>
-          </button>
+          <BotaoBrindar ativo={dados.curti} total={dados.curtidas} aoBrindar={aoCurtir} tamanho="lg" sobreFoto className="-ml-1" />
           <button onClick={aoComentar} className="inline-flex items-center gap-1.5 py-1 text-sm" aria-label="Comentários">
             <MessageCircle className="h-6 w-6" />
             <span className="font-medium">{dados.comentarios}</span>

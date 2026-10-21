@@ -1,7 +1,8 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Eye, EyeOff, Heart, ImagePlus, MessageCircle, Newspaper, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, MessageCircle, Newspaper, Plus, Trash2, X } from "lucide-react";
 import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
+import { IconeTaca } from "@/components/Brindar";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -224,7 +225,7 @@ export function Publicacoes() {
                     <span className="inline-flex items-center gap-3">
                       {p.situacao === "oculta" && <span className="font-medium text-alerta">Oculta</span>}
                       <span className="inline-flex items-center gap-1">
-                        <Heart className="h-3.5 w-3.5" />
+                        <IconeTaca className="h-3.5 w-3.5" />
                         {curtidas[p.id] ?? 0}
                       </span>
                       <span className="inline-flex items-center gap-1">
