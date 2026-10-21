@@ -31,7 +31,8 @@ type Posicao = { x: number; y: number };
 const limites = () => ({
   maxX: window.innerWidth - TAMANHO - MARGEM,
   maxY: window.innerHeight - TAMANHO - BARRA - MARGEM,
-  minY: 64,
+  // Abaixo do topo do app e da linha de ações das telas (três pontinhos do perfil, do lugar...), para não cobrir esses botões.
+  minY: 116,
 });
 const prender = (p: Posicao): Posicao => {
   const l = limites();

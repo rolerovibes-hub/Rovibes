@@ -176,12 +176,13 @@ export function Perfil() {
 
   return (
     <div className="pb-6">
-      <div className="flex items-center justify-between px-4 pt-2">
-        <p className="flex items-center gap-1.5 truncate text-[17px] font-semibold">
+      {/* Fica preso embaixo do topo do app: os três pontinhos aparecem mesmo com a tela rolada. */}
+      <div className="sticky top-14 z-20 flex items-center justify-between gap-2 bg-fundo/95 px-4 py-1 backdrop-blur">
+        <p className="flex min-w-0 items-center gap-1.5 truncate text-[17px] font-semibold">
           {perfil.usuario ?? perfil.nome}
           {perfil.privado && <Lock className="h-3.5 w-3.5 text-suave" aria-label="Perfil privado" />}
         </p>
-        <button onClick={() => setConfig(true)} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Configurações">
+        <button onClick={() => setConfig(true)} className="-mr-2 shrink-0 rounded-full p-2 hover:bg-elevado" aria-label="Configurações">
           <MoreVertical className="h-5 w-5" />
         </button>
       </div>
