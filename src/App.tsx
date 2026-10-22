@@ -34,11 +34,13 @@ import { Privacidade } from "./app/Privacidade";
 import { ConversaPagina } from "./app/ConversaPagina";
 import { LinksDoApp } from "./components/LinksDoApp";
 import { BotaoVoltarAparelho } from "./components/BotaoVoltarAparelho";
+import { PuxarParaAtualizar } from "./components/PuxarParaAtualizar";
 
 export default function App() {
   return (
     <>
     <BotaoVoltarAparelho />
+    <PuxarParaAtualizar />
     <LinksDoApp />
     <Routes>
       <Route path="/business" element={<BusinessLayout />}>
