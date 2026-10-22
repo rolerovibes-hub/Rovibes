@@ -2,7 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { gravar, ler } from "@/lib/armazenamento";
 import clsx from "clsx";
 
-// Som do brinde: o "tim" do arquivo cai em ~0,4 s, junto com as taças batendo na animação.
+// Som do brinde: começa direto no "tim" (sem silêncio antes), tocando no instante do toque.
 let somBrinde: HTMLAudioElement | null = null;
 const prepararSom = () => {
   if (somBrinde || typeof Audio === "undefined") return;
