@@ -86,7 +86,18 @@ export interface Mensagem {
   como_estab: boolean;
   apagada: boolean;
   criado_em: string;
+  /** Mensagem que esta responde (arrastou para o lado). Chegou com a atualização 044. */
+  resposta_a?: string | null;
 }
+
+export interface ReacaoMensagem {
+  mensagem_id: string;
+  usuario_id: string;
+  emoji: string;
+}
+
+/** Emojis rápidos para reagir a uma mensagem (a taça do brinde vem primeiro). */
+export const EMOJIS_REACAO = ["🥂", "❤️", "😂", "😮", "😢", "🔥"];
 
 export interface MembroConversa {
   id: string;
@@ -100,8 +111,8 @@ export interface MembroConversa {
 }
 
 const CAMPOS_BASE = "id, conversa_id, autor_id, tipo, texto, foto, estabelecimento_id, plano_id, como_estab, apagada, criado_em";
-// "dados" chegou com a atualização 026 (cartões de evento e de lista).
-let CAMPOS = `${CAMPOS_BASE}, dados`;
+// "dados" chegou com a atualização 026 (cartões de evento e de lista); "resposta_a" com a 044.
+let CAMPOS = `${CAMPOS_BASE}, dados, resposta_a`;
 const PAGINA = 60;
 
 export const faltaBanco = (msg: string) => /function|schema cache|does not exist|relation/i.test(msg);
@@ -151,6 +162,10 @@ export function useChatNaoLidas(ativo: boolean) {
 /** Busca mensagens; se o banco ainda não tem a coluna "dados", repete sem ela. */
 async function consultarMensagens(montar: (campos: string) => PromiseLike<{ data: unknown; error: { message: string } | null }>): Promise<{ data: Mensagem[] | null }> {
   let r = await montar(CAMPOS);
+  if (r.error && /resposta_a/.test(r.error.message) && CAMPOS.includes("resposta_a")) {
+    CAMPOS = `${CAMPOS_BASE}, dados`;
+    r = await montar(CAMPOS);
+  }
   if (r.error && /dados/.test(r.error.message) && CAMPOS !== CAMPOS_BASE) {
     CAMPOS = CAMPOS_BASE;
     r = await montar(CAMPOS);
@@ -208,7 +223,7 @@ export async function linksDasFotos(caminhos: string[]): Promise<Record<string, 
   return Object.fromEntries(caminhos.map((c) => [c, linksFotos.get(c)?.url ?? ""]));
 }
 
-export async function enviarMensagem(conversa: string, texto: string, arquivo?: File | null, lugar?: string | null) {
+export async function enviarMensagem(conversa: string, texto: string, arquivo?: File | null, lugar?: string | null, resposta?: string | null) {
   let foto: string | null = null;
   if (arquivo) {
     const blob = await reduzirImagem(arquivo, 1600);
@@ -219,7 +234,13 @@ export async function enviarMensagem(conversa: string, texto: string, arquivo?: 
   // p_lugar só vai quando há lugar (assim texto e foto funcionam mesmo antes da atualização 015 do banco).
   const args: Record<string, unknown> = { p_conversa: conversa, p_texto: texto, p_foto: foto };
   if (lugar) args.p_lugar = lugar;
-  const { error } = await supabase.rpc("enviar_mensagem", args);
+  if (resposta) args.p_resposta = resposta;
+  let { error } = await supabase.rpc("enviar_mensagem", args);
+  // Banco sem a atualização 044: manda sem a citação em vez de falhar.
+  if (error && resposta && faltaBanco(error.message)) {
+    delete args.p_resposta;
+    ({ error } = await supabase.rpc("enviar_mensagem", args));
+  }
   if (error) {
     if (foto) await supabase.storage.from("chat").remove([foto]);
     throw error;
@@ -322,4 +343,61 @@ export function quandoPlano(iso: string | null) {
   if (d.toDateString() === hoje.toDateString()) return `Hoje às ${hora}`;
   if (d.toDateString() === amanha.toDateString()) return `Amanhã às ${hora}`;
   return `${d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit" })} às ${hora}`;
+}
+
+/** Reações com emoji de todas as mensagens da conversa, com tempo real. */
+export function useReacoes(conversa: string, ativo = true) {
+  const [reacoes, setReacoes] = useState<ReacaoMensagem[]>([]);
+  const [disponivel, setDisponivel] = useState(true);
+
+  const carregar = useCallback(async () => {
+    const { data, error } = await supabase.from("reacoes_mensagem").select("mensagem_id, usuario_id, emoji").eq("conversa_id", conversa).order("criado_em");
+    if (error) {
+      if (faltaBanco(error.message)) setDisponivel(false);
+      return;
+    }
+    setDisponivel(true);
+    setReacoes((data ?? []) as ReacaoMensagem[]);
+  }, [conversa]);
+
+  useEffect(() => {
+    setReacoes([]);
+    void carregar();
+  }, [carregar]);
+
+  useEffect(() => {
+    if (!ativo || !disponivel) return;
+    let espera: number | undefined;
+    const avisar = () => {
+      window.clearTimeout(espera);
+      espera = window.setTimeout(() => void carregar(), 200);
+    };
+    const canal = supabase
+      .channel(`reacoes-${conversa}-${Math.random().toString(36).slice(2)}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "reacoes_mensagem", filter: `conversa_id=eq.${conversa}` }, avisar)
+      .subscribe();
+    const reserva = window.setInterval(() => void carregar(), 30000);
+    return () => {
+      window.clearTimeout(espera);
+      window.clearInterval(reserva);
+      void supabase.removeChannel(canal);
+    };
+  }, [conversa, ativo, disponivel, carregar]);
+
+  /** Reage (ou tira, se for o mesmo emoji). Atualiza na hora e confirma com o banco. */
+  const reagir = useCallback(
+    async (mensagem: string, emoji: string, eu: string) => {
+      setReacoes((l) => {
+        const atual = l.find((r) => r.mensagem_id === mensagem && r.usuario_id === eu);
+        const sem = l.filter((r) => !(r.mensagem_id === mensagem && r.usuario_id === eu));
+        return atual?.emoji === emoji ? sem : [...sem, { mensagem_id: mensagem, usuario_id: eu, emoji }];
+      });
+      const { error } = await supabase.rpc("reagir_mensagem", { p_mensagem: mensagem, p_emoji: emoji });
+      await carregar();
+      if (error) throw error;
+    },
+    [carregar],
+  );
+
+  return { reacoes, disponivel, reagir };
 }

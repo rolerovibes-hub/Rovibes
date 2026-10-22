@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { PointerEvent as EventoPonteiro, ReactNode, useEffect, useRef, useState } from "react";
 import { IconePapo } from "@/components/IconesRoVibes";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
@@ -22,7 +22,7 @@ export interface DadosVisor {
 
 /**
  * Publicação em tela cheia. Um toque na tela esconde tudo e deixa só o nome e o local marcado;
- * outro toque traz as informações de volta.
+ * outro toque traz as informações de volta. Arrastar para baixo fecha e volta para onde estava.
  */
 export function VisorPublicacao({
   dados,
@@ -62,6 +62,48 @@ export function VisorPublicacao({
     };
   }, [fechar]);
 
+  // Arrastar para baixo: a foto acompanha o dedo; passou do ponto, fecha.
+  const [puxado, setPuxado] = useState(0);
+  const puxadoRef = useRef(0);
+  const arrasto = useRef<{ x: number; y: number; id: number; ativo: boolean } | null>(null);
+  const arrastou = useRef(false);
+  const mudarPuxado = (v: number) => {
+    puxadoRef.current = v;
+    setPuxado(v);
+  };
+  const descer = (e: EventoPonteiro<HTMLDivElement>) => {
+    if ((e.pointerType === "mouse" && e.button !== 0) || (e.target as Element).closest("[data-visor-folhas],[data-rolagem]")) return;
+    arrasto.current = { x: e.clientX, y: e.clientY, id: e.pointerId, ativo: false };
+    arrastou.current = false;
+  };
+  const mover = (e: EventoPonteiro<HTMLDivElement>) => {
+    const s = arrasto.current;
+    if (!s || s.id !== e.pointerId) return;
+    const dy = e.clientY - s.y;
+    const dx = e.clientX - s.x;
+    if (!s.ativo) {
+      if (dy > 12 && dy > Math.abs(dx) * 1.3) {
+        s.ativo = true;
+        arrastou.current = true;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          /* sem captura */
+        }
+      } else if (Math.abs(dx) > 12 || dy < -12) arrasto.current = null;
+      return;
+    }
+    mudarPuxado(Math.max(0, dy - 12));
+  };
+  const soltar = () => {
+    const s = arrasto.current;
+    arrasto.current = null;
+    if (!s?.ativo) return;
+    if (puxadoRef.current > 110) fechar();
+    else mudarPuxado(0);
+  };
+  const p = Math.min(1, puxado / 300);
+
   const alternar = () => setLimpo((l) => !l);
   const parar = (e: { stopPropagation: () => void }) => e.stopPropagation();
   const some = clsx("transition-opacity duration-200", limpo && "pointer-events-none opacity-0");
@@ -76,9 +118,36 @@ export function VisorPublicacao({
   );
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] select-none bg-black text-white" role="dialog" aria-modal="true" aria-label="Publicação" onClick={alternar}>
+    <div
+      className="fixed inset-0 z-[70] select-none text-white"
+      style={{ backgroundColor: `rgba(0,0,0,${1 - p * 0.75})` }}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Publicação"
+      onClick={alternar}
+      onPointerDown={descer}
+      onPointerMove={mover}
+      onPointerUp={soltar}
+      onPointerCancel={soltar}
+      onClickCapture={(e) => {
+        if (arrastou.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          arrastou.current = false;
+        }
+      }}
+    >
       {/* Mídia ocupando a tela toda */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      <div
+        className="absolute inset-0 flex items-center justify-center"
+        style={{
+          touchAction: "none",
+          transform: puxado ? `translateY(${puxado}px) scale(${1 - p * 0.25})` : undefined,
+          transition: puxado ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)",
+          borderRadius: puxado ? 18 : 0,
+          overflow: "hidden",
+        }}
+      >
         {dados.video ? (
           <video src={dados.video} poster={dados.foto ?? undefined} autoPlay loop playsInline muted={mudo} className="h-full w-full object-contain" />
         ) : (
@@ -87,7 +156,10 @@ export function VisorPublicacao({
       </div>
 
       {/* Topo: nome e local ficam sempre; o resto some no toque */}
-      <div className="absolute inset-x-0 top-0 bg-gradient-to-b from-black/70 via-black/30 to-transparent px-3 pb-10 pt-[max(12px,env(safe-area-inset-top))]">
+      <div
+        className={clsx("absolute inset-x-0 top-0 bg-gradient-to-b from-black/70 via-black/30 to-transparent px-3 pb-10 pt-[max(12px,env(safe-area-inset-top))] transition-opacity", puxado > 0 && "opacity-0")}
+        style={{ touchAction: "none" }}
+      >
         <div className="flex items-center gap-2.5">
           <span className={some} onClick={parar}>
             <Avatar nome={dados.autor.nome} foto={dados.autor.foto} tamanho="sm" ampliar />
@@ -112,10 +184,11 @@ export function VisorPublicacao({
 
       {/* Rodapé: texto, brindes, comentários */}
       <div
-        className={clsx("absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-12", some)}
+        className={clsx("absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/50 to-transparent px-4 pb-[max(14px,env(safe-area-inset-bottom))] pt-12", some, puxado > 0 && "opacity-0")}
+        style={{ touchAction: "none" }}
         onClick={parar}
       >
-        {dados.texto && <p className="mb-2 max-h-[28vh] overflow-y-auto whitespace-pre-line text-[15px] leading-relaxed">{dados.texto}</p>}
+        {dados.texto && <p data-rolagem className="mb-2 max-h-[28vh] overflow-y-auto whitespace-pre-line text-[15px] leading-relaxed">{dados.texto}</p>}
         <div className="flex items-center gap-3">
           <BotaoBrindar
             ativo={dados.curti}
@@ -140,7 +213,7 @@ export function VisorPublicacao({
         {extra && <div className="mt-2.5">{extra}</div>}
       </div>
 
-      <div onClick={parar}>
+      <div data-visor-folhas onClick={parar}>
         {children}
         {verBrindes && referencia && <QuemBrindou tipo={referencia.tipo} id={referencia.id} fechar={() => setVerBrindes(false)} />}
       </div>

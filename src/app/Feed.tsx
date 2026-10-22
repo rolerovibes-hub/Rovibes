@@ -16,6 +16,8 @@ import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
 import { VisorPublicacao } from "@/components/VisorPublicacao";
+import { VideosEmSequencia } from "./VideosEmSequencia";
+import type { Corte } from "./VibeCut";
 import { BotaoBrindar } from "@/components/Brindar";
 import { PedirNotificacoes } from "@/components/PedirNotificacoes";
 import { QuemBrindou } from "@/components/QuemBrindou";
@@ -48,6 +50,7 @@ export function Feed() {
   const [totais, setTotais] = useState<Map<string, number>>(new Map());
   const [comentando, setComentando] = useState<{ tipo: "lugar" | "pessoa"; id: string } | null>(null);
   const [abertaId, setAbertaId] = useState<string | null>(null);
+  const [videoAberto, setVideoAberto] = useState<string | null>(null);
   const [quemBrindou, setQuemBrindou] = useState<{ tipo: "pessoa" | "lugar"; id: string } | null>(null);
   // Link de notificação: /?comentarios=pessoa:ID abre os comentários direto.
   const [params, setParams] = useSearchParams();
@@ -135,6 +138,42 @@ export function Feed() {
 
   const aberta = abertaId ? pubs?.find((x) => x.id === abertaId) ?? null : null;
   const fecharAberta = useCallback(() => setAbertaId(null), []);
+  const fecharVideo = useCallback(() => setVideoAberto(null), []);
+
+  // Vídeos do Feed no formato VibeCut (abre no tocado; rola para os próximos).
+  const cortes = useMemo<Corte[]>(() => {
+    const porId = new Map(lugares.map((l) => [l.id, l]));
+    return (pubs ?? [])
+      .filter((p) => p.video_url)
+      .map((p) => {
+        const dePessoa = p.tipo === "pessoa" && !!p.pessoa;
+        const marcado = dePessoa ? p.local ?? null : { id: p.estabelecimento.id, nome: p.estabelecimento.nome };
+        const lugar = marcado ? porId.get(marcado.id) : undefined;
+        const d = lugar ? dist(lugar) : null;
+        return {
+          id: p.id,
+          tipo: dePessoa ? "pessoa" : "lugar",
+          video_url: p.video_url!,
+          foto_url: p.foto_url,
+          texto: p.texto,
+          criado_em: p.criado_em,
+          autor: dePessoa
+            ? { id: p.pessoa!.id, nome: p.pessoa!.nome, usuario: p.pessoa!.usuario, foto_url: p.pessoa!.foto_url, link: p.pessoa!.id === usuario ? "/perfil" : `/p/${p.pessoa!.usuario}` }
+            : { id: p.estabelecimento.id, nome: p.estabelecimento.nome, usuario: null, foto_url: p.estabelecimento.logo_url, link: `/lugar/${p.estabelecimento.id}` },
+          local: marcado
+            ? { id: marcado.id, nome: marcado.nome, logo_url: lugar?.logo_url ?? null, latitude: lugar?.latitude ?? null, longitude: lugar?.longitude ?? null }
+            : null,
+          musica: null,
+          tocando_agora: null,
+          curtidas: p.curtidas,
+          curti: p.curti,
+          comentarios: totais.get(chaveComentario(p)) ?? 0,
+          ao_vivo: !!marcado && Date.now() - Date.parse(p.criado_em) < 2 * 3600 * 1000,
+          distancia_km: d == null ? null : Math.round(d * 10) / 10,
+        } satisfies Corte;
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pubs, lugares, totais, dist, usuario]);
 
   const curtir = async (p: PublicacaoApp) => {
     setPubs((l) => l?.map((x) => (x.id === p.id ? { ...x, curti: !p.curti, curtidas: x.curtidas + (p.curti ? -1 : 1) } : x)) ?? null);
@@ -286,7 +325,7 @@ export function Feed() {
                   </div>
                 )}
                 {p.video_url ? (
-                  <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setAbertaId(p.id)} />
+                  <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setVideoAberto(p.id)} />
                 ) : (
                   p.foto_url && (
                     <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
@@ -389,6 +428,20 @@ export function Feed() {
             />
           )}
         </VisorPublicacao>
+      )}
+
+      {videoAberto && cortes.some((c) => c.id === videoAberto) && (
+        <VideosEmSequencia
+          lista={cortes}
+          inicio={Math.max(0, cortes.findIndex((c) => c.id === videoAberto))}
+          fechar={fecharVideo}
+          aoMudar={(id, m) => {
+            const p = pubs?.find((x) => x.id === id);
+            if (m.comentarios !== undefined && p) setTotais((t) => new Map(t).set(chaveComentario(p), m.comentarios!));
+            if (m.curti !== undefined || m.curtidas !== undefined)
+              setPubs((l) => l?.map((x) => (x.id === id ? { ...x, curti: m.curti ?? x.curti, curtidas: m.curtidas ?? x.curtidas } : x)) ?? null);
+          }}
+        />
       )}
 
       {quemBrindou && <QuemBrindou tipo={quemBrindou.tipo} id={quemBrindou.id} fechar={() => setQuemBrindou(null)} />}

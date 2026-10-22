@@ -431,3 +431,12 @@ button:active .icone-convite-seta {
     scroll-behavior: auto !important;
   }
 }
+
+/* Reação no chat: o selinho "pula" ao aparecer. */
+.reacao-pop {
+  animation: reacao-pop 260ms cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+@keyframes reacao-pop {
+  0% { transform: scale(0.3); opacity: 0; }
+  100% { transform: none; opacity: 1; }
+}

@@ -1,8 +1,8 @@
-import { KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { KeyboardEvent, PointerEvent as EventoPonteiro, ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { CartaoDivulgacao } from "./CartaoDivulgacao";
-import { AlertCircle, Ban, Check, CheckCheck, Clock3, Copy, Flag, Image as ImagemIcone, MapPin, PartyPopper, Plus, RotateCw, Send, Store, Trash2, Users, X } from "lucide-react";
+import { AlertCircle, Ban, Check, CheckCheck, Clock3, Copy, Flag, Image as ImagemIcone, MapPin, PartyPopper, Plus, Reply, RotateCw, Send, Store, Trash2, Users, X } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { Carregando } from "./Carregando";
 import { JanelaDenuncia } from "./Denunciar";
@@ -12,6 +12,7 @@ import {
   apagarMensagem,
   DadosConversa,
   diaMensagem,
+  EMOJIS_REACAO,
   enviarMensagem,
   linksDasFotos,
   MembroConversa,
@@ -19,7 +20,9 @@ import {
   Plano,
   quandoPlano,
   rpcPlano,
+  ReacaoMensagem,
   useMensagens,
+  useReacoes,
 } from "@/lib/chat";
 import { Lugar, useVitrine } from "@/app/dados";
 
@@ -29,9 +32,33 @@ interface Pendente {
   arquivo: File | null;
   previa: string | null;
   lugar: string | null;
+  /** Mensagem citada (arrastou para o lado). */
+  resposta: string | null;
   estado: "enviando" | "falhou";
   erro?: string;
 }
+
+/** Resumo curto de uma mensagem (para a citação de resposta). */
+const resumo = (m?: Mensagem) => {
+  if (!m) return "Mensagem anterior";
+  if (m.apagada) return "Mensagem apagada";
+  const t = m.texto?.trim();
+  if (t && !(m.tipo === "story" && !m.dados?.resposta)) return t;
+  if (m.foto) return "📷 Foto";
+  if (m.tipo === "lugar") return "📍 Lugar compartilhado";
+  if (m.tipo === "evento") return "🎟️ Evento";
+  if (m.tipo === "lista") return "Lista";
+  if (m.tipo === "story") return m.dados?.emoji ? `${m.dados.emoji} Story` : "Story";
+  return "Mensagem";
+};
+
+const vibrar = (ms = 10) => {
+  try {
+    navigator.vibrate?.(ms);
+  } catch {
+    /* sem vibração */
+  }
+};
 
 const hora = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
@@ -59,6 +86,9 @@ export function CorpoConversa({
   abrirPlano?: (id: string) => void;
 }) {
   const { mensagens, temMais, anteriores, recarregar } = useMensagens(dados.id);
+  const { reacoes, disponivel: comReacoes, reagir: reagirBanco } = useReacoes(dados.id);
+  const [respondendo, setRespondendo] = useState<Mensagem | null>(null);
+  const [destacada, setDestacada] = useState<string | null>(null);
   const { lugares } = useVitrine();
   const [texto, setTexto] = useState("");
   const [pendentes, setPendentes] = useState<Pendente[]>([]);
@@ -79,6 +109,12 @@ export function CorpoConversa({
   const porId = useMemo(() => new Map(membros.map((m) => [m.id, m])), [membros]);
   const lugarPorId = useMemo(() => new Map(lugares.map((l) => [l.id, l])), [lugares]);
   const planoPorId = useMemo(() => new Map(planos.map((p) => [p.id, p])), [planos]);
+  const msgPorId = useMemo(() => new Map((mensagens ?? []).map((m) => [m.id, m])), [mensagens]);
+  const reacoesPorMsg = useMemo(() => {
+    const mapa = new Map<string, ReacaoMensagem[]>();
+    for (const r of reacoes) mapa.set(r.mensagem_id, [...(mapa.get(r.mensagem_id) ?? []), r]);
+    return mapa;
+  }, [reacoes]);
   const minha = (m: Mensagem) => (modo === "estab" ? m.como_estab : m.autor_id === eu && !m.como_estab);
   const podePlanejar = modo === "app" && dados.tipo !== "estabelecimento" && dados.situacao === "ativo" && !dados.bloqueado;
 
@@ -112,7 +148,7 @@ export function CorpoConversa({
     setPendentes((l) => [...l.filter((x) => x.id !== p.id), { ...p, estado: "enviando", erro: undefined }]);
     perto.current = true;
     try {
-      await enviarMensagem(dados.id, p.texto, p.arquivo, p.lugar);
+      await enviarMensagem(dados.id, p.texto, p.arquivo, p.lugar, p.resposta);
       await recarregar();
       setPendentes((l) => l.filter((x) => x.id !== p.id));
       if (p.previa) URL.revokeObjectURL(p.previa);
@@ -122,13 +158,38 @@ export function CorpoConversa({
     }
   };
 
-  const novo = (parcial: Partial<Pendente>): Pendente => ({ id: crypto.randomUUID(), texto: "", arquivo: null, previa: null, lugar: null, estado: "enviando", ...parcial });
+  const novo = (parcial: Partial<Pendente>): Pendente => ({ id: crypto.randomUUID(), texto: "", arquivo: null, previa: null, lugar: null, resposta: null, estado: "enviando", ...parcial });
+
+  // Responder: a próxima mensagem sai citando esta.
+  const responder = (m: Mensagem) => {
+    setRespondendo(m);
+    window.setTimeout(() => campo.current?.focus(), 0);
+  };
+  const citando = () => {
+    const id = respondendo?.id ?? null;
+    setRespondendo(null);
+    return id;
+  };
+
+  const reagir = (m: Mensagem, emoji: string) => {
+    vibrar(8);
+    reagirBanco(m.id, emoji, eu).catch((e) => setErro(mensagemDeErro(e)));
+  };
+
+  // Toque na citação: rola até a mensagem original e marca ela por um instante.
+  const irPara = (id: string) => {
+    const el = document.getElementById(`msg-${id}`);
+    if (!el) return;
+    el.scrollIntoView({ block: "center", behavior: "smooth" });
+    setDestacada(null);
+    window.setTimeout(() => setDestacada(id), 30);
+  };
 
   const enviarTexto = () => {
     const t = texto.trim();
     if (!t) return;
     setTexto("");
-    void mandar(novo({ texto: t }));
+    void mandar(novo({ texto: t, resposta: citando() }));
     campo.current?.focus();
   };
 
@@ -136,7 +197,7 @@ export function CorpoConversa({
     const f = l?.[0];
     if (seletor.current) seletor.current.value = "";
     if (!f) return;
-    void mandar(novo({ arquivo: f, previa: URL.createObjectURL(f), texto: texto.trim() }));
+    void mandar(novo({ arquivo: f, previa: URL.createObjectURL(f), texto: texto.trim(), resposta: citando() }));
     setTexto("");
   };
 
@@ -144,7 +205,7 @@ export function CorpoConversa({
     const acao = escolher;
     setEscolher(null);
     if (acao === "compartilhar") {
-      void mandar(novo({ lugar: l.id, texto: texto.trim() }));
+      void mandar(novo({ lugar: l.id, texto: texto.trim(), resposta: citando() }));
       setTexto("");
     } else {
       try {
@@ -186,6 +247,29 @@ export function CorpoConversa({
     if (m.como_estab) return `${nomeEstab ?? "Equipe"}${modo === "estab" && m.autor_id && porId.get(m.autor_id) ? ` · ${porId.get(m.autor_id)!.nome.split(" ")[0]}` : ""}`;
     return (m.autor_id ? porId.get(m.autor_id)?.nome.split(" ")[0] : null) ?? "Alguém";
   };
+  const nomeDe = (usuario: string) => (usuario === eu ? "Você" : porId.get(usuario)?.nome.split(" ")[0] ?? "Alguém");
+
+  /** Citação da mensagem respondida (dentro do balão). */
+  const citacao = (id: string, eMinha: boolean) => {
+    const original = msgPorId.get(id);
+    return (
+      <span
+        role="button"
+        tabIndex={0}
+        onClick={(e) => {
+          e.stopPropagation();
+          irPara(id);
+        }}
+        className={clsx(
+          "mx-1.5 mt-1.5 block max-w-full rounded-[14px] border-l-[3px] px-2.5 py-1.5 text-[13px] leading-snug",
+          eMinha ? "border-white/70 bg-black/15" : "border-marca bg-black/[0.06] dark:bg-white/[0.07]",
+        )}
+      >
+        <span className={clsx("block text-[12px] font-semibold", !eMinha && "text-destaque")}>{original ? (minha(original) ? "Você" : nomeAutor(original)) : "Resposta"}</span>
+        <span className="line-clamp-2 break-words opacity-85">{resumo(original)}</span>
+      </span>
+    );
+  };
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -225,7 +309,7 @@ export function CorpoConversa({
                 const mostrarAutor = !eMinha && !mesmoAutor && (dados.tipo === "role" || (modo === "estab" && m.como_estab));
                 const nova = iniciais.current && !iniciais.current.has(m.id);
                 return (
-                  <li key={m.id} className={clsx(nova && "surgir")}>
+                  <li key={m.id} id={`msg-${m.id}`} className={clsx(nova && "surgir", destacada === m.id && "comentario-destaque")}>
                     {novoDia && <p className="my-4 text-center text-[12px] font-medium capitalize text-suave">{diaMensagem(m.criado_em)}</p>}
                     {m.tipo === "sistema" ? (
                       <p className="mx-auto my-2 max-w-[85%] text-center text-[12px] text-suave">{m.texto}</p>
@@ -234,6 +318,7 @@ export function CorpoConversa({
                         <CartaoPlano plano={m.plano_id ? planoPorId.get(m.plano_id) : undefined} autor={eMinha ? "Você" : nomeAutor(m)} abrir={() => m.plano_id && abrirPlano?.(m.plano_id)} />
                       </div>
                     ) : (
+                      <Deslizar ativo={podeEscrever && !m.apagada} aoResponder={() => responder(m)}>
                       <div className={clsx("flex items-end gap-2", eMinha ? "justify-end" : "justify-start", mesmoAutor ? "mt-0.5" : "mt-3")}>
                         {!eMinha && emGrupo && dados.tipo === "role" && (
                           <span className="w-7 shrink-0">{ultimoDoBloco && <Avatar nome={autor?.nome ?? "?"} foto={autor?.foto_url} tamanho="sm" />}</span>
@@ -254,6 +339,7 @@ export function CorpoConversa({
                               <span className="block px-3.5 py-2">Mensagem apagada</span>
                             ) : (
                               <>
+                                {m.resposta_a && citacao(m.resposta_a, eMinha)}
                                 {m.foto &&
                                   (fotos[m.foto] ? (
                                     <img
@@ -297,6 +383,9 @@ export function CorpoConversa({
                               </>
                             )}
                           </button>
+                          {!m.apagada && reacoesPorMsg.get(m.id) && (
+                            <Reacoes lista={reacoesPorMsg.get(m.id)!} eu={eu} direita={eMinha} nomeDe={nomeDe} aoTocar={(emoji) => reagir(m, emoji)} />
+                          )}
                           {m.tipo === "lugar" && podePlanejar && m.estabelecimento_id && !m.apagada && (
                             <button onClick={() => void virarPlano(m)} className="mt-1 inline-flex items-center gap-1 px-2 py-0.5 text-[13px] font-semibold text-destaque">
                               <PartyPopper className="h-3.5 w-3.5" />
@@ -317,6 +406,7 @@ export function CorpoConversa({
                           )}
                         </div>
                       </div>
+                      </Deslizar>
                     )}
                   </li>
                 );
@@ -329,6 +419,7 @@ export function CorpoConversa({
                       disabled={p.estado === "enviando"}
                       className={clsx("overflow-hidden rounded-[20px] bg-marca text-left text-[15px] leading-snug text-marca-texto", p.estado === "enviando" && "opacity-70")}
                     >
+                      {p.resposta && citacao(p.resposta, true)}
                       {p.previa && <img src={p.previa} alt="Foto sendo enviada" className="max-h-80 w-full object-cover" />}
                       {p.lugar && <PreviaLugar lugar={lugarPorId.get(p.lugar)} minha />}
                       {p.texto && <span className="block whitespace-pre-wrap break-words px-3.5 py-2">{p.texto}</span>}
@@ -369,6 +460,18 @@ export function CorpoConversa({
                 <X className="h-3.5 w-3.5" />
               </button>
             </p>
+          )}
+          {respondendo && (
+            <div className="surgir mx-1 mb-1.5 flex items-center gap-2.5 rounded-2xl bg-elevado px-3 py-2">
+              <Reply className="h-4 w-4 shrink-0 text-destaque" aria-hidden />
+              <span className="min-w-0 flex-1 border-l-[3px] border-marca pl-2.5">
+                <span className="block text-[12px] font-semibold text-destaque">Respondendo {minha(respondendo) ? "a você" : `a ${nomeAutor(respondendo)}`}</span>
+                <span className="block truncate text-[13px] text-suave">{resumo(respondendo)}</span>
+              </span>
+              <button onClick={() => setRespondendo(null)} className="rounded-full p-1.5 text-suave hover:bg-borda/50 hover:text-texto" aria-label="Cancelar resposta">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
           )}
           <div className="flex items-end gap-1.5 pb-2">
             <input ref={seletor} type="file" accept="image/*" className="hidden" onChange={(e) => escolherFoto(e.target.files)} />
@@ -456,6 +559,47 @@ export function CorpoConversa({
       {menu && (
         <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/50 sm:items-center" role="dialog" aria-modal="true" aria-label="Opções da mensagem" onClick={() => setMenu(null)}>
           <div className="folha w-full max-w-sm overflow-hidden rounded-t-2xl bg-superficie pb-[env(safe-area-inset-bottom)] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+            {comReacoes && podeEscrever && (
+              <div className="flex items-center justify-around border-b border-borda px-3 py-3" role="group" aria-label="Reagir à mensagem">
+                {EMOJIS_REACAO.map((emoji) => {
+                  const marcada = reacoesPorMsg.get(menu.id)?.some((r) => r.usuario_id === eu && r.emoji === emoji);
+                  return (
+                    <button
+                      key={emoji}
+                      onClick={() => {
+                        reagir(menu, emoji);
+                        setMenu(null);
+                      }}
+                      className={clsx("flex h-11 w-11 items-center justify-center rounded-full text-[26px] transition-transform active:scale-125", marcada ? "bg-marca/20 ring-2 ring-marca" : "hover:bg-elevado")}
+                      aria-pressed={marcada}
+                      aria-label={marcada ? `Tirar reação ${emoji}` : `Reagir com ${emoji}`}
+                    >
+                      {emoji}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+            {(reacoesPorMsg.get(menu.id)?.length ?? 0) > 0 && (
+              <p className="border-b border-borda px-5 py-2.5 text-[13px] text-suave">
+                {reacoesPorMsg
+                  .get(menu.id)!
+                  .map((r) => `${r.emoji} ${nomeDe(r.usuario_id)}`)
+                  .join("  ·  ")}
+              </p>
+            )}
+            {podeEscrever && (
+              <button
+                className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado"
+                onClick={() => {
+                  responder(menu);
+                  setMenu(null);
+                }}
+              >
+                <Reply className="h-4 w-4" />
+                Responder
+              </button>
+            )}
             {menu.texto && (
               <button
                 className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado"
@@ -510,6 +654,112 @@ export function CorpoConversa({
         </div>
       )}
     </div>
+  );
+}
+
+/** Arrastar o balão para a direita cita a mensagem na próxima resposta (como um "responder"). */
+function Deslizar({ ativo, aoResponder, children }: { ativo: boolean; aoResponder: () => void; children: ReactNode }) {
+  const LIMITE = 56;
+  const [dx, setDx] = useState(0);
+  const inicio = useRef<{ x: number; y: number; id: number; lado: boolean | null; passou: boolean } | null>(null);
+  const arrastou = useRef(false);
+
+  const descer = (e: EventoPonteiro<HTMLDivElement>) => {
+    if (!ativo || (e.pointerType === "mouse" && e.button !== 0)) return;
+    inicio.current = { x: e.clientX, y: e.clientY, id: e.pointerId, lado: null, passou: false };
+    arrastou.current = false;
+  };
+  const mover = (e: EventoPonteiro<HTMLDivElement>) => {
+    const s = inicio.current;
+    if (!s || s.id !== e.pointerId) return;
+    const ddx = e.clientX - s.x;
+    const ddy = e.clientY - s.y;
+    if (s.lado === null) {
+      if (Math.abs(ddx) < 10 && Math.abs(ddy) < 10) return;
+      s.lado = ddx > 0 && Math.abs(ddx) > Math.abs(ddy) * 1.4;
+      if (!s.lado) {
+        inicio.current = null;
+        return;
+      }
+      arrastou.current = true;
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        /* sem captura */
+      }
+    }
+    // Resistência: puxa fácil até o limite e fica "pesado" depois.
+    const bruto = Math.max(0, ddx - 10);
+    const v = bruto < LIMITE ? bruto : LIMITE + (bruto - LIMITE) * 0.25;
+    if (v >= LIMITE && !s.passou) {
+      s.passou = true;
+      vibrar(12);
+    } else if (v < LIMITE) s.passou = false;
+    setDx(Math.min(v, LIMITE + 30));
+  };
+  const soltar = () => {
+    const s = inicio.current;
+    inicio.current = null;
+    if (s?.lado && s.passou) aoResponder();
+    setDx(0);
+  };
+
+  const p = Math.min(1, dx / LIMITE);
+  return (
+    <div
+      className="relative"
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={descer}
+      onPointerMove={mover}
+      onPointerUp={soltar}
+      onPointerCancel={soltar}
+      onClickCapture={(e) => {
+        if (arrastou.current) {
+          e.preventDefault();
+          e.stopPropagation();
+          arrastou.current = false;
+        }
+      }}
+    >
+      <span
+        aria-hidden
+        className={clsx("pointer-events-none absolute bottom-3 left-1 flex h-8 w-8 items-center justify-center rounded-full", p >= 1 ? "bg-marca text-marca-texto" : "bg-elevado text-suave")}
+        style={{ opacity: p, transform: `scale(${0.5 + 0.5 * p})` }}
+      >
+        <Reply className="h-4 w-4" />
+      </span>
+      <div style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? "none" : "transform 220ms cubic-bezier(.2,.8,.2,1)" }}>{children}</div>
+    </div>
+  );
+}
+
+/** Reações embaixo do balão: um selinho por emoji com a contagem. Tocar no seu tira; tocar em outro reage igual. */
+function Reacoes({ lista, eu, direita, nomeDe, aoTocar }: { lista: ReacaoMensagem[]; eu: string; direita: boolean; nomeDe: (u: string) => string; aoTocar: (emoji: string) => void }) {
+  const grupos: { emoji: string; quem: string[]; minha: boolean }[] = [];
+  for (const r of lista) {
+    let g = grupos.find((x) => x.emoji === r.emoji);
+    if (!g) grupos.push((g = { emoji: r.emoji, quem: [], minha: false }));
+    g.quem.push(nomeDe(r.usuario_id));
+    if (r.usuario_id === eu) g.minha = true;
+  }
+  return (
+    <span className={clsx("relative z-[1] -mt-2 flex flex-wrap gap-1 px-2", direita && "justify-end")}>
+      {grupos.map((g) => (
+        <button
+          key={g.emoji}
+          onClick={() => aoTocar(g.emoji)}
+          title={g.quem.join(", ")}
+          aria-label={`${g.emoji} ${g.quem.join(", ")}${g.minha ? " (toque para tirar a sua)" : ""}`}
+          className={clsx(
+            "reacao-pop inline-flex h-6 items-center gap-0.5 rounded-full bg-superficie px-1.5 text-[14px] leading-none shadow-sm ring-1",
+            g.minha ? "ring-marca" : "ring-borda",
+          )}
+        >
+          <span key={g.quem.length}>{g.emoji}</span>
+          {g.quem.length > 1 && <span className="text-[11px] font-semibold text-suave">{g.quem.length}</span>}
+        </button>
+      ))}
+    </span>
   );
 }
 

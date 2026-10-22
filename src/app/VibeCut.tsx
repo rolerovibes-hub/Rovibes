@@ -16,13 +16,15 @@ import { NovoStory } from "./NovoStory";
 
 type Modo = "ao_vivo" | "para_voce";
 
-interface Corte {
+export interface Corte {
   id: string;
+  /** Publicação de pessoa (padrão) ou de lugar (vídeos do Feed). */
+  tipo?: "pessoa" | "lugar";
   video_url: string;
   foto_url: string | null;
   texto: string | null;
   criado_em: string;
-  autor: { id: string; nome: string; usuario: string | null; foto_url: string | null };
+  autor: { id: string; nome: string; usuario: string | null; foto_url: string | null; link?: string };
   local: { id: string; nome: string; logo_url: string | null; latitude: number | null; longitude: number | null } | null;
   musica: { id: string; titulo: string; artista: string | null } | null;
   tocando_agora: string | null;
@@ -35,7 +37,7 @@ interface Corte {
 
 const POR_VEZ = 8;
 const ALTURA_NAV = "calc(64px + env(safe-area-inset-bottom))";
-const km = (d: number) => (d < 1 ? `${Math.round(d * 1000)} m` : `${String(d).replace(".", ",")} km`);
+export const km = (d: number) => (d < 1 ? `${Math.round(d * 1000)} m` : `${String(d).replace(".", ",")} km`);
 
 /**
  * VibeCut: vídeos verticais dos rolês em tela cheia.
@@ -262,7 +264,7 @@ export function VibeCut() {
   );
 }
 
-function Video({
+export function Video({
   c,
   ativo,
   perto,
@@ -298,13 +300,18 @@ function Video({
   useEffect(() => {
     const el = v.current;
     if (!el) return;
-    if (ativo && !pausado) void el.play().catch(() => undefined);
+    if (ativo && !pausado)
+      void el.play().catch(() => {
+        // O aparelho não deixou tocar com som: toca mudo (o botão de som liga depois).
+        el.muted = true;
+        void el.play().catch(() => undefined);
+      });
     else el.pause();
   }, [ativo, pausado]);
 
   const trilha = c.musica ? `${c.musica.titulo}${c.musica.artista ? ` · ${c.musica.artista}` : ""}` : c.tocando_agora ? `Tocando agora: ${c.tocando_agora}` : "Som original";
   const temRota = c.ao_vivo && c.local?.latitude != null && c.local?.longitude != null;
-  const perfil = c.autor.id === eu ? "/perfil" : c.autor.usuario ? `/p/${c.autor.usuario}` : "/";
+  const perfil = c.autor.link ?? (c.autor.id === eu ? "/perfil" : c.autor.usuario ? `/p/${c.autor.usuario}` : "/");
   const sombra = "drop-shadow-[0_1px_3px_rgba(0,0,0,0.7)]";
 
   return (
@@ -371,7 +378,7 @@ function Video({
       <div className={clsx("absolute inset-x-0 bottom-0 z-[5] bg-gradient-to-t from-black/80 via-black/30 to-transparent px-3 pt-16", temRota ? "pb-20" : "pb-4")}>
         <div className={clsx("max-w-[78%] space-y-1.5", sombra)}>
           <Link to={perfil} className="block text-[15px] font-semibold">
-            @{c.autor.usuario ?? c.autor.nome}
+            {c.autor.usuario ? `@${c.autor.usuario}` : c.autor.nome}
             {!c.ao_vivo && <span className="ml-2 text-[12px] font-normal text-white/75">{tempoAtras(c.criado_em)}</span>}
           </Link>
           {c.texto && <p className="line-clamp-2 text-[14px] leading-snug">{c.texto}</p>}
@@ -413,7 +420,7 @@ function Video({
 }
 
 /** Toque na trilha: o que está tocando no lugar agora e outros VibeCuts gravados lá. */
-function FolhaTrilha({ c, fechar, verDoLugar }: { c: Corte; fechar: () => void; verDoLugar: () => void }) {
+export function FolhaTrilha({ c, fechar, verDoLugar }: { c: Corte; fechar: () => void; verDoLugar: () => void }) {
   const [outros, setOutros] = useState<Corte[] | null>(null);
   useEffect(() => {
     if (!c.local) return setOutros([]);
