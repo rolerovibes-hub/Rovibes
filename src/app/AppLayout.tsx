@@ -15,7 +15,6 @@ import { EnviosProvider } from "@/lib/envios";
 import { BarraEnvios } from "@/components/BarraEnvios";
 import { useChatNaoLidas } from "@/lib/chat";
 import { iniciarPush } from "@/lib/push";
-import { AvisoNotificacao } from "@/components/PedirNotificacoes";
 
 const ABAS = [
   { para: "/mapa", nome: "Mapa", icone: Map },
@@ -57,10 +56,19 @@ function Estrutura() {
   const chat = useChatNaoLidas(true);
   const seloChat = chat.conversas + chat.pedidos;
   const { perfil } = useSessao();
-  const [avisoPush, setAvisoPush] = useState<{ titulo: string; texto: string; link: string } | null>(null);
   // Notificações: renova o registro do aparelho e abre a tela certa ao tocar na notificação.
+  // Com o App aberto não aparece notificação: o celular só vibra rapidinho.
   useEffect(() => {
-    void iniciarPush((link) => navegar(link), setAvisoPush);
+    void iniciarPush(
+      (link) => navegar(link),
+      () => {
+        try {
+          navigator.vibrate?.(60);
+        } catch {
+          /* sem vibração */
+        }
+      },
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   // Telas de fluxo (criar evento, marcar rolê, primeira vibe) têm o próprio botão no rodapé: sem abas embaixo.
@@ -123,16 +131,6 @@ function Estrutura() {
         </div>
       )}
 
-      {avisoPush && (
-        <AvisoNotificacao
-          n={avisoPush}
-          fechar={() => setAvisoPush(null)}
-          abrir={() => {
-            navegar(avisoPush.link);
-            setAvisoPush(null);
-          }}
-        />
-      )}
       <main className="flex-1 pb-24">
         <Outlet />
       </main>

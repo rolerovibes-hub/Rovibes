@@ -59,12 +59,15 @@ export function FolhaComentarios({
   titulo = "Comentários",
   fechar,
   aoMudarTotal,
+  destaque,
 }: {
   tipo: TipoPublicacao;
   id: string;
   titulo?: string;
   fechar: () => void;
   aoMudarTotal?: (n: number) => void;
+  /** Comentário para ir direto e destacar (vindo de uma notificação). */
+  destaque?: string | null;
 }) {
   const { perfil } = useSessao();
   const [dados, setDados] = useState<Dados | null | undefined>(undefined);
@@ -98,6 +101,14 @@ export function FolhaComentarios({
   useEffect(() => {
     void carregar();
   }, [carregar]);
+
+  // Veio de uma notificação: rola até o comentário e destaca.
+  const jaRolou = useRef(false);
+  useEffect(() => {
+    if (!destaque || !dados || jaRolou.current) return;
+    jaRolou.current = true;
+    window.setTimeout(() => document.getElementById(`comentario-${destaque}`)?.scrollIntoView({ behavior: "smooth", block: "center" }), 120);
+  }, [destaque, dados]);
 
   useEffect(() => {
     const tecla = (e: KeyboardEvent) => e.key === "Escape" && !denunciando && fechar();
@@ -150,7 +161,7 @@ export function FolhaComentarios({
   const respostasDe = (pai: string) => (dados?.comentarios ?? []).filter((c) => c.resposta_a === pai);
 
   const Linha = ({ c, resposta }: { c: Comentario; resposta?: boolean }) => (
-    <li className={clsx("flex gap-2.5 py-2", resposta && "pl-11")}>
+    <li id={`comentario-${c.id}`} className={clsx("flex gap-2.5 py-2", resposta && "pl-11", c.id === destaque && "comentario-destaque")}>
       {c.apagado ? (
         <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevado text-suave">
           <X className="h-3.5 w-3.5" />

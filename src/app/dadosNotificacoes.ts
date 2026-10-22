@@ -114,7 +114,7 @@ export function useNotificacoes(usuario: string | undefined, pedido: { comanda: 
         titulo: x.tipo === "resposta" ? `${x.quem.split(" ")[0]} respondeu seu comentário` : `${x.quem.split(" ")[0]} comentou sua publicação`,
         texto: x.texto,
         quando: x.criado_em,
-        link: `/?comentarios=${x.pub_tipo}:${x.pub_id}`,
+        link: `/publicacao/${x.pub_tipo}/${x.pub_id}?comentario=${x.id}`,
       });
     }
     // Convites para eventos de amigos (atualização 037).

@@ -388,6 +388,15 @@
   92% { opacity: 1; transform: scale(1.4) rotate(15deg); }
   100% { opacity: 1; transform: none; }
 }
+/* Comentário aberto pela notificação: fica marcado por alguns segundos. */
+.comentario-destaque {
+  border-radius: 10px;
+  animation: comentario-destaque 3.5s ease-out;
+}
+@keyframes comentario-destaque {
+  0%, 60% { background-color: rgb(var(--marca) / 0.14); box-shadow: 0 0 0 6px rgb(var(--marca) / 0.14); }
+  100% { background-color: transparent; box-shadow: 0 0 0 6px transparent; }
+}
 /* Quem desativou animações no aparelho não vê movimento. */
 @media (prefers-reduced-motion: reduce) {
   *,

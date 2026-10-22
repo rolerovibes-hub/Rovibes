@@ -122,7 +122,7 @@ declare v_dono uuid;
 begin
   select usuario_id into v_dono from public.publicacoes_pessoas where id = new.publicacao_id;
   perform public.notificar(v_dono, new.usuario_id, 'brinde', public.primeiro_nome(new.usuario_id) || ' brindou sua publicação 🥂', null,
-                           '/?comentarios=pessoa:' || new.publicacao_id, 'brinde:' || new.publicacao_id || ':' || new.usuario_id, 'brinde:' || new.publicacao_id);
+                           '/publicacao/pessoa/' || new.publicacao_id, 'brinde:' || new.publicacao_id || ':' || new.usuario_id, 'brinde:' || new.publicacao_id);
   return new;
 end $$;
 drop trigger if exists curtidas_pessoas_notif on public.curtidas_pessoas;
@@ -136,7 +136,7 @@ begin
   select * into c from public.comentarios where id = new.comentario_id;
   if c.id is null or c.como_estab then return new; end if;
   perform public.notificar(c.usuario_id, new.usuario_id, 'brinde_comentario', public.primeiro_nome(new.usuario_id) || ' brindou seu comentário 🥂', left(c.texto, 80),
-                           '/?comentarios=' || case when c.publicacao_pessoa_id is not null then 'pessoa:' || c.publicacao_pessoa_id else 'lugar:' || c.publicacao_lugar_id end,
+                           '/publicacao/' || case when c.publicacao_pessoa_id is not null then 'pessoa/' || c.publicacao_pessoa_id else 'lugar/' || c.publicacao_lugar_id end || '?comentario=' || c.id,
                            'brinde_com:' || c.id || ':' || new.usuario_id);
   return new;
 end $$;
@@ -149,7 +149,8 @@ returns trigger language plpgsql security definer set search_path = public as $$
 declare v_dono uuid; v_pai uuid; v_link text; v_quem text;
 begin
   if new.apagado then return new; end if;
-  v_link := '/?comentarios=' || case when new.publicacao_pessoa_id is not null then 'pessoa:' || new.publicacao_pessoa_id else 'lugar:' || new.publicacao_lugar_id end;
+  v_link := '/publicacao/' || case when new.publicacao_pessoa_id is not null then 'pessoa/' || new.publicacao_pessoa_id else 'lugar/' || new.publicacao_lugar_id end
+            || '?comentario=' || new.id;
   v_quem := case when new.como_estab then coalesce((select e.nome from public.publicacoes p join public.estabelecimentos e on e.id = p.estabelecimento_id where p.id = new.publicacao_lugar_id), 'O lugar')
                  else public.primeiro_nome(new.usuario_id) end;
   if new.resposta_a is not null then
@@ -341,5 +342,34 @@ language sql volatile security definer set search_path = public as $$
             coalesce((select (p.notificacoes ->> public.categoria_notificacao(n.tipo))::boolean from public.perfis p where p.id = n.usuario_id), true);
 $$;
 revoke execute on function public.reservar_envios(int) from public, anon, authenticated;
+
+-- Abre uma publicação pelo link da notificação (/publicacao/pessoa/ID ou /publicacao/lugar/ID).
+create or replace function public.publicacao_para_abrir(p_tipo text, p_id uuid)
+returns jsonb language sql stable security definer set search_path = public as $$
+  select case p_tipo
+    when 'pessoa' then (
+      select jsonb_build_object(
+        'id', p.id, 'tipo', 'pessoa', 'foto_url', p.foto_url, 'video_url', p.video_url, 'texto', p.texto, 'criado_em', p.criado_em,
+        'autor', jsonb_build_object('id', a.id, 'nome', a.nome, 'usuario', a.usuario, 'foto_url', a.foto_url),
+        'local', (select jsonb_build_object('id', e.id, 'nome', e.nome) from public.estabelecimentos e where e.id = p.estabelecimento_id),
+        'curtidas', (select count(*) from public.curtidas_pessoas c where c.publicacao_id = p.id),
+        'curti', exists (select 1 from public.curtidas_pessoas c where c.publicacao_id = p.id and c.usuario_id = auth.uid()),
+        'comentarios', (select count(*) from public.comentarios c where c.publicacao_pessoa_id = p.id and not c.apagado))
+        from public.publicacoes_pessoas p join public.perfis a on a.id = p.usuario_id
+       where p.id = p_id and (p.usuario_id = auth.uid() or (not p.oculto and public.ve_publicacoes_de(p.usuario_id))))
+    when 'lugar' then (
+      select jsonb_build_object(
+        'id', p.id, 'tipo', 'lugar', 'foto_url', p.foto_url, 'video_url', null, 'texto', p.texto, 'criado_em', p.criado_em,
+        'autor', jsonb_build_object('id', e.id, 'nome', e.nome, 'usuario', null, 'foto_url', e.logo_url, 'lugar', true),
+        'local', null,
+        'curtidas', (select count(*) from public.curtidas c where c.publicacao_id = p.id),
+        'curti', exists (select 1 from public.curtidas c where c.publicacao_id = p.id and c.usuario_id = auth.uid()),
+        'comentarios', (select count(*) from public.comentarios c where c.publicacao_lugar_id = p.id and not c.apagado))
+        from public.publicacoes p join public.estabelecimentos e on e.id = p.estabelecimento_id
+       where p.id = p_id and (p.situacao = 'publicada' or public.eh_membro(p.estabelecimento_id)))
+  end;
+$$;
+revoke execute on function public.publicacao_para_abrir(text, uuid) from public, anon;
+grant execute on function public.publicacao_para_abrir(text, uuid) to authenticated;
 
 select 'Atualização 040 aplicada: notificações no celular.' as resultado;
