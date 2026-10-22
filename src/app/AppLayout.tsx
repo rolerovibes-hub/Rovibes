@@ -81,7 +81,7 @@ function Estrutura() {
   }
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-xl flex-col border-borda sm:border-x">
+    <div className="mx-auto flex min-h-screen min-h-[100dvh] max-w-xl flex-col border-borda sm:border-x">
       {!vibecut && (
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-fundo/95 px-4 backdrop-blur">
         <Link to="/" aria-label="RoVibes, início">
@@ -150,6 +150,8 @@ function Estrutura() {
       <nav
         aria-label="Navegação principal"
         hidden={telaDeFluxo}
+        // Camada própria (translateZ): a barra fica presa no rodapé durante a rolagem, sem tremer nem se deslocar.
+        style={{ transform: "translateZ(0)", willChange: "transform" }}
         className={clsx("pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t sm:border-x", vibecut ? "dark border-white/10 bg-black" : "border-borda bg-superficie")}
       >
         <ul className="grid grid-cols-5">

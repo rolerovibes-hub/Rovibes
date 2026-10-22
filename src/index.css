@@ -52,6 +52,12 @@
   #root {
     min-height: 100%;
   }
+  /* Sem o "esticar/quicar" do Android e do iPhone ao rolar além do topo ou do fim:
+     esse efeito arrastava junto a barra de abas fixa no rodapé. */
+  html,
+  body {
+    overscroll-behavior-y: none;
+  }
   body {
     @apply bg-fundo text-texto font-sans antialiased;
     font-size: 15px;
