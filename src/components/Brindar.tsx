@@ -1,5 +1,28 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
+import { gravar, ler } from "@/lib/armazenamento";
 import clsx from "clsx";
+
+// Som do brinde: o "tim" do arquivo cai em ~0,4 s, junto com as taças batendo na animação.
+let somBrinde: HTMLAudioElement | null = null;
+const prepararSom = () => {
+  if (somBrinde || typeof Audio === "undefined") return;
+  somBrinde = new Audio("/sons/brinde.mp3");
+  somBrinde.preload = "auto";
+  somBrinde.volume = 0.7;
+};
+export const somBrindeLigado = () => ler<boolean>("som_brinde", true);
+export const ligarSomBrinde = (v: boolean) => gravar("som_brinde", v);
+function tocarBrinde() {
+  if (!somBrindeLigado()) return;
+  prepararSom();
+  if (!somBrinde) return;
+  try {
+    somBrinde.currentTime = 0;
+    void somBrinde.play().catch(() => undefined);
+  } catch {
+    /* sem som */
+  }
+}
 
 const TACA = "M4.5 6.2h8.2M19 6.2l-7 7.6-7.5-7.6M12 13.8v6.4M8.6 20.6c2.2-.5 4.6-.5 6.8 0";
 const LIQUIDO = "M7.6 8.6h8.8L12 13.4z";
@@ -82,6 +105,7 @@ export function BotaoBrindar({
   aoVerQuem?: () => void;
 }) {
   const [animacao, setAnimacao] = useState(0);
+  useEffect(prepararSom, []);
   const medida = tamanho === "sm" ? "h-4 w-4" : tamanho === "lg" ? "h-6 w-6" : "h-[22px] w-[22px]";
 
   const botao = (
@@ -91,6 +115,7 @@ export function BotaoBrindar({
         e.stopPropagation();
         if (!ativo) {
           setAnimacao((n) => n + 1);
+          tocarBrinde();
           try {
             navigator.vibrate?.(12);
           } catch {

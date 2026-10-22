@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Bell, CalendarHeart, CalendarPlus, ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
+import { Bell, Volume2, CalendarHeart, CalendarPlus, ChevronRight, Lock, LogOut, Shield, Sparkles, UserX, X } from "lucide-react";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { desbloquearPessoa } from "@/lib/pessoas";
 import { ativarPush, CATEGORIAS_PUSH, desativarPush, estadoPush, EstadoPush } from "@/lib/push";
+import { ligarSomBrinde, somBrindeLigado } from "@/components/Brindar";
 
 interface Bloqueado {
   id: string;
@@ -58,6 +59,11 @@ export function Configuracoes({ fechar }: { fechar: () => void }) {
         </section>
 
         <SecaoNotificacoes />
+
+        <section className="border-t border-borda">
+          <h3 className="rotulo px-5 pb-1 pt-4">Sons</h3>
+          <SomBrinde />
+        </section>
 
         <section className="border-t border-borda">
           <h3 className="rotulo px-5 pb-1 pt-4">Eventos</h3>
@@ -242,5 +248,29 @@ function SecaoNotificacoes() {
         ))}
       </ul>
     </section>
+  );
+}
+
+/** Liga ou desliga o "tim-tim" ao brindar (fica salvo neste aparelho). */
+function SomBrinde() {
+  const [ligado, setLigado] = useState(somBrindeLigado);
+  return (
+    <label className="flex cursor-pointer items-start gap-3 px-5 py-3">
+      <Volume2 className="mt-0.5 h-4 w-4 shrink-0 text-destaque" />
+      <span className="flex-1">
+        <span className="block font-medium">Som ao brindar</span>
+        <span className="block text-[13px] text-suave">O “tim-tim” das taças quando você brinda uma publicação.</span>
+      </span>
+      <input
+        type="checkbox"
+        role="switch"
+        checked={ligado}
+        onChange={(e) => {
+          setLigado(e.target.checked);
+          ligarSomBrinde(e.target.checked);
+        }}
+        className="mt-1 h-5 w-5 accent-[rgb(var(--marca))]"
+      />
+    </label>
   );
 }
