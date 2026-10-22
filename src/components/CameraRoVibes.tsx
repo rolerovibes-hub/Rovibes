@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { RefreshCw, X } from "lucide-react";
+import { Moon, RefreshCw, X } from "lucide-react";
+import { gravar as guardar, ler } from "@/lib/armazenamento";
 import { formatoGravacao, MAX_VIDEO } from "@/lib/midia";
 
 type Modo = "foto" | "video";
+
+// Modo Atmosfera (noite): realça LED, velas e neon — mais brilho nas luzes, contraste e cor.
+const ATMOSFERA = "brightness(1.08) contrast(1.22) saturate(1.5)";
 
 /**
  * Câmera do RoVibes: foto ou vídeo de até 15 s com o som do ambiente.
@@ -20,6 +24,8 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
   const [falhou, setFalhou] = useState("");
   const [gravando, setGravando] = useState(false);
   const [segundos, setSegundos] = useState(0);
+  const [atmosfera, setAtmosfera] = useState(() => ler<boolean>("camera_atmosfera", false));
+  const quadro = useRef<number | null>(null);
 
   const desligar = () => {
     fluxo.current?.getTracks().forEach((t) => t.stop());
@@ -77,6 +83,7 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
     c.width = v.videoWidth;
     c.height = v.videoHeight;
     const g = c.getContext("2d")!;
+    if (atmosfera) g.filter = ATMOSFERA;
     if (frente) {
       g.translate(c.width, 0);
       g.scale(-1, 1);
@@ -97,9 +104,28 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
     if (!fluxo.current) return;
     const tipo = formatoGravacao();
     const partes: Blob[] = [];
-    const g = new MediaRecorder(fluxo.current, { mimeType: tipo, videoBitsPerSecond: 3_000_000 });
+    let origem: MediaStream = fluxo.current;
+    // Com o Modo Atmosfera, o vídeo passa por um quadro com o filtro antes de gravar (o som segue o original).
+    const v = tela.current;
+    if (atmosfera && v?.videoWidth) {
+      const c = document.createElement("canvas");
+      c.width = v.videoWidth;
+      c.height = v.videoHeight;
+      const ctx = c.getContext("2d")!;
+      ctx.filter = ATMOSFERA;
+      const desenhar = () => {
+        ctx.drawImage(v, 0, 0, c.width, c.height);
+        quadro.current = requestAnimationFrame(desenhar);
+      };
+      desenhar();
+      const imagem = (c as HTMLCanvasElement & { captureStream(fps?: number): MediaStream }).captureStream(30);
+      origem = new MediaStream([...imagem.getVideoTracks(), ...fluxo.current.getAudioTracks()]);
+    }
+    const g = new MediaRecorder(origem, { mimeType: tipo, videoBitsPerSecond: 3_000_000 });
     g.ondataavailable = (e) => e.data.size && partes.push(e.data);
     g.onstop = () => {
+      if (quadro.current) cancelAnimationFrame(quadro.current);
+      quadro.current = null;
       const base = tipo.split(";")[0];
       desligar();
       capturado(new File([new Blob(partes, { type: base })], `video-${Date.now()}.${base.includes("mp4") ? "mp4" : "webm"}`, { type: base }));
@@ -127,7 +153,13 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
 
   return (
     <div className="fixed inset-0 z-[90] flex flex-col bg-black text-white" role="dialog" aria-modal="true" aria-label="Câmera">
-      <video ref={tela} muted playsInline className={clsx("absolute inset-0 h-full w-full object-cover", frente && "-scale-x-100")} />
+      <video
+        ref={tela}
+        muted
+        playsInline
+        className={clsx("absolute inset-0 h-full w-full object-cover", frente && "-scale-x-100")}
+        style={atmosfera ? { filter: ATMOSFERA } : undefined}
+      />
 
       <div className="relative z-10 flex items-center justify-between p-3 pt-[max(12px,env(safe-area-inset-top))]">
         <button onClick={fechar} className="rounded-full bg-black/40 p-2.5" aria-label="Fechar câmera">
@@ -138,6 +170,24 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
             {Math.floor(segundos)}s / {MAX_VIDEO}s
           </span>
         )}
+        <button
+          onClick={() => {
+            if (gravando) return;
+            setAtmosfera((a) => {
+              guardar("camera_atmosfera", !a);
+              return !a;
+            });
+          }}
+          disabled={gravando}
+          aria-pressed={atmosfera}
+          className={clsx(
+            "ml-auto mr-2 inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-[13px] font-semibold backdrop-blur transition-colors",
+            atmosfera ? "bg-gradient-to-r from-[#7C3AED] to-[#EC4899] text-white shadow-[0_0_16px_rgba(236,72,153,0.6)]" : "bg-black/40 text-white/85",
+          )}
+        >
+          <Moon className="h-4 w-4" />
+          Modo Atmosfera
+        </button>
         <button onClick={() => !gravando && setFrente((f) => !f)} className="rounded-full bg-black/40 p-2.5" aria-label="Virar a câmera" disabled={gravando}>
           <RefreshCw className="h-6 w-6" />
         </button>

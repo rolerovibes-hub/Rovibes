@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Armchair, Bell, ChevronRight, Home, Map, MessageCircle, PlusSquare, Search, UserRound, X } from "lucide-react";
+import { Armchair, Bell, ChevronRight, Clapperboard, Home, Map, PlusSquare, Search, UserRound, X } from "lucide-react";
 import { LeitorQr } from "@/components/Qr";
 import { codigoDaMesa } from "@/lib/salao";
 import { Marca } from "@/components/Marca";
@@ -13,14 +13,14 @@ import { MenuFlutuante } from "./AcessoRapido";
 import { NovoStory } from "./NovoStory";
 import { EnviosProvider } from "@/lib/envios";
 import { BarraEnvios } from "@/components/BarraEnvios";
-import { useChatNaoLidas } from "@/lib/chat";
 import { iniciarPush } from "@/lib/push";
 
 const ABAS = [
   { para: "/mapa", nome: "Mapa", icone: Map },
   { para: "/pesquisar", nome: "Pesquisar", icone: Search },
   { para: "/", nome: "Feed", icone: Home, fim: true, central: true },
-  { para: "/chats", nome: "Chat", icone: MessageCircle },
+  // O chat foi para o botão RoV (acesso rápido); no lugar dele, o VibeCut.
+  { para: "/vibecut", nome: "VibeCut", icone: Clapperboard },
   { para: "/perfil", nome: "Perfil", icone: UserRound },
 ];
 
@@ -53,8 +53,6 @@ function Estrutura() {
   const navegar = useNavigate();
   const { mesa, lendo, setLendo } = useAcessoRapido();
   const [publicar, setPublicar] = useState(false);
-  const chat = useChatNaoLidas(true);
-  const seloChat = chat.conversas + chat.pedidos;
   const { perfil } = useSessao();
   // Notificações: renova o registro do aparelho e abre a tela certa ao tocar na notificação.
   // Com o App aberto não aparece notificação: o celular só vibra rapidinho.
@@ -74,6 +72,8 @@ function Estrutura() {
   // Telas de fluxo (criar evento, marcar rolê, primeira vibe) têm o próprio botão no rodapé: sem abas embaixo.
   const telaDeFluxo = /^\/(lugar\/[^/]+\/role|eventos\/(novo|[^/]+\/editar)|primeira-vibe)/.test(local.pathname);
   const comMenu = !SEM_MENU.some((r) => local.pathname.startsWith(r)) && !telaDeFluxo;
+  // VibeCut: vídeo em tela cheia, sem o topo do app e com a barra de baixo escura.
+  const vibecut = local.pathname.startsWith("/vibecut");
 
   // Primeira vez no App: mostra a "Primeira vibe" (uma vez; dá para pular).
   if (local.pathname === "/" && perfil && perfil.vibe_inicial_em === null && !ler<boolean>("vibe_inicial_feita", false)) {
@@ -82,6 +82,7 @@ function Estrutura() {
 
   return (
     <div className="mx-auto flex min-h-screen max-w-xl flex-col border-borda sm:border-x">
+      {!vibecut && (
       <header className="sticky top-0 z-30 flex h-14 items-center justify-between bg-fundo/95 px-4 backdrop-blur">
         <Link to="/" aria-label="RoVibes, início">
           <Marca />
@@ -90,6 +91,7 @@ function Estrutura() {
           <PlusSquare className="h-6 w-6" />
         </button>
       </header>
+      )}
 
       {mesa && !local.pathname.startsWith("/comanda") && (
         <Link
@@ -145,7 +147,11 @@ function Estrutura() {
         />
       )}
 
-      <nav aria-label="Navegação principal" hidden={telaDeFluxo} className="pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t border-borda bg-superficie sm:border-x">
+      <nav
+        aria-label="Navegação principal"
+        hidden={telaDeFluxo}
+        className={clsx("pb-seguro fixed inset-x-0 bottom-0 z-30 mx-auto max-w-xl border-t sm:border-x", vibecut ? "dark border-white/10 bg-black" : "border-borda bg-superficie")}
+      >
         <ul className="grid grid-cols-5">
           {ABAS.map(({ para, nome, icone: Icone, fim, central }) => (
             <li key={para}>
@@ -155,7 +161,7 @@ function Estrutura() {
                 className={({ isActive }) =>
                   clsx(
                     "flex flex-col items-center gap-1 py-2.5 text-[12px] transition-colors",
-                    isActive ? "font-semibold text-destaque" : "text-suave hover:text-texto",
+                    isActive ? (vibecut ? "font-semibold text-white" : "font-semibold text-destaque") : vibecut ? "text-white/60 hover:text-white" : "text-suave hover:text-texto",
                   )
                 }
               >
@@ -163,11 +169,6 @@ function Estrutura() {
                   <>
                     <span className="relative">
                       <Icone className={clsx("h-[22px] w-[22px]", central && isActive && "fill-current")} />
-                      {para === "/chats" && seloChat > 0 && (
-                        <span className="absolute -right-2 -top-1.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-magenta px-1 text-[10px] font-bold text-white">
-                          {seloChat > 9 ? "9+" : seloChat}
-                        </span>
-                      )}
                     </span>
                     {nome}
                   </>

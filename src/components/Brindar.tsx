@@ -97,7 +97,7 @@ export function BotaoBrindar({
   ativo: boolean;
   total?: number;
   aoBrindar: () => void;
-  tamanho?: "sm" | "md" | "lg";
+  tamanho?: "sm" | "md" | "lg" | "xl";
   sobreFoto?: boolean;
   rotulo?: string;
   className?: string;
@@ -106,7 +106,7 @@ export function BotaoBrindar({
 }) {
   const [animacao, setAnimacao] = useState(0);
   useEffect(prepararSom, []);
-  const medida = tamanho === "sm" ? "h-4 w-4" : tamanho === "lg" ? "h-6 w-6" : "h-[22px] w-[22px]";
+  const medida = tamanho === "sm" ? "h-4 w-4" : tamanho === "lg" ? "h-6 w-6" : tamanho === "xl" ? "h-8 w-8" : "h-[22px] w-[22px]";
 
   const botao = (
     <button

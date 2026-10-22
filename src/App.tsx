@@ -17,6 +17,7 @@ import { EventoPessoaPagina } from "./app/EventoPessoaPagina";
 import { LugarPagina } from "./app/LugarPagina";
 import { EventoPagina } from "./app/EventoPagina";
 import { PublicacaoPagina } from "./app/PublicacaoPagina";
+import { VibeCut } from "./app/VibeCut";
 import { CardapioPagina } from "./app/CardapioPagina";
 import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
 import { Carteira } from "./app/Carteira";
@@ -72,6 +73,7 @@ export default function App() {
         <Route path="evento-pessoa/:id" element={<EventoPessoaPagina />} />
         <Route path="evento/:id" element={<EventoPagina />} />
         <Route path="publicacao/:tipo/:id" element={<PublicacaoPagina />} />
+        <Route path="vibecut" element={<VibeCut />} />
         <Route path="carteira" element={<Carteira />} />
         <Route path="mesa/:codigo" element={<MesaPagina />} />
         <Route path="comanda/:id" element={<ComandaPagina />} />
