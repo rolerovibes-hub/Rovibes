@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { IconeConvite } from "@/components/IconesRoVibes";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Clock, Store, Ticket } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, MapPin, Star, Store, Ticket } from "lucide-react";
+import clsx from "clsx";
+import { Avatar } from "@/components/Avatar";
+import { alternarInteresse, InteresseEvento, interesseEvento, verEvento } from "@/lib/eventos";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { QrCode } from "@/components/Qr";
 import { codigoLegivel, fimDoEvento, qrDoIngresso, ResumoIngresso, resumoIngressos } from "./carteira";
@@ -27,6 +30,7 @@ export function EventoPagina() {
     setEvento(undefined);
     buscarEvento(id).then(setEvento);
     capturarRef("evento", id);
+    verEvento(id);
   }, [id]);
 
   useEffect(() => {
@@ -73,6 +77,7 @@ export function EventoPagina() {
       <div className="space-y-6 px-4 pt-4">
         <header>
           {cancelado && <p className="mb-1 text-sm font-semibold text-perigo">Evento cancelado</p>}
+          {evento.categoria && <span className="mb-1.5 inline-block rounded-full bg-destaque-suave px-2.5 py-0.5 text-[12px] font-bold text-destaque">{evento.categoria}</span>}
           <h1 className="text-[22px] font-semibold leading-tight">{evento.nome}</h1>
           {evento.estabelecimento && (
             <Link to={`/lugar/${evento.estabelecimento.id}`} className="mt-1 inline-flex items-center gap-1.5 text-sm text-destaque">
@@ -91,6 +96,27 @@ export function EventoPagina() {
               {fim ? ` até ${fim}` : ""}
             </span>
           </li>
+          {(evento.endereco || evento.local_nome) && (
+            <li>
+              <a
+                href={
+                  evento.latitude != null && evento.longitude != null
+                    ? `https://www.google.com/maps/search/?api=1&query=${evento.latitude},${evento.longitude}`
+                    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([evento.endereco, "Uberlândia"].filter(Boolean).join(", "))}`
+                }
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-3 px-4 py-3"
+              >
+                <MapPin className="h-4 w-4 shrink-0 text-destaque" />
+                <span className="min-w-0">
+                  <span className="block">{evento.local_nome || evento.endereco}</span>
+                  {evento.local_nome && evento.endereco && <span className="block text-[13px] text-suave">{evento.endereco}</span>}
+                  <span className="block text-[12px] text-suave">Fora do estabelecimento · abrir no mapa</span>
+                </span>
+              </a>
+            </li>
+          )}
           {evento.entrada && (
             <li className="flex items-center gap-3 px-4 py-3">
               <Ticket className="h-4 w-4 text-destaque" />
@@ -98,6 +124,8 @@ export function EventoPagina() {
             </li>
           )}
         </ul>
+
+        {!cancelado && fimDoEvento(evento) > Date.now() && <Interesse evento={evento.id} />}
 
         {!cancelado && (vendeIngressos ? (
           <ComprarIngressos evento={evento.id} encerrado={fimDoEvento(evento) <= Date.now() || Date.parse(evento.inicio) <= Date.now()} semIngressos={semIngressos} />
@@ -110,6 +138,74 @@ export function EventoPagina() {
         {evento.descricao && <p className="whitespace-pre-line text-[15px] leading-relaxed">{evento.descricao}</p>}
       </div>
     </article>
+  );
+}
+
+/** "Tenho interesse" + amigos (gente que eu sigo) que também têm. Quem tem interesse é avisado se o evento mudar. */
+function Interesse({ evento }: { evento: string }) {
+  const [dados, setDados] = useState<InteresseEvento | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  const [erro, setErro] = useState("");
+
+  useEffect(() => {
+    void interesseEvento(evento).then(setDados);
+  }, [evento]);
+
+  if (!dados) return null; // banco sem a atualização 045
+
+  const alternar = async () => {
+    setOcupado(true);
+    setErro("");
+    const antes = dados;
+    setDados({ ...dados, eu: !dados.eu, total: dados.total + (dados.eu ? -1 : 1) });
+    try {
+      navigator.vibrate?.(10);
+    } catch {
+      /* sem vibração */
+    }
+    try {
+      await alternarInteresse(evento);
+      setDados(await interesseEvento(evento));
+    } catch (e) {
+      setDados(antes);
+      setErro(mensagemDeErro(e));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const nomes = dados.amigos.map((a) => a.nome.split(" ")[0]);
+  const outros = dados.amigos_total - nomes.slice(0, 2).length;
+  return (
+    <section className="space-y-2">
+      <button
+        onClick={() => void alternar()}
+        disabled={ocupado}
+        aria-pressed={dados.eu}
+        className={clsx("flex h-11 w-full items-center justify-center gap-2 rounded-lg border text-[15px] font-semibold transition-colors", dados.eu ? "border-marca bg-destaque-suave text-destaque" : "border-borda hover:bg-elevado")}
+      >
+        <Star className={clsx("h-[18px] w-[18px]", dados.eu && "fill-current")} />
+        {dados.eu ? "Você tem interesse" : "Tenho interesse"}
+        {dados.total > 0 && <span className="text-[13px] font-medium text-suave">· {dados.total}</span>}
+      </button>
+      {dados.eu && <p className="text-center text-[12px] text-suave">Se a data, o horário ou o local mudarem, você recebe um aviso.</p>}
+      {dados.amigos_total > 0 && (
+        <div className="flex items-center gap-2.5 rounded-lg bg-destaque-suave/60 px-3 py-2">
+          <span className="flex">
+            {dados.amigos.slice(0, 3).map((a, i) => (
+              <span key={a.id} className={clsx("rounded-full ring-2 ring-fundo", i > 0 && "-ml-2")}>
+                <Avatar nome={a.nome} foto={a.foto_url} tamanho="sm" />
+              </span>
+            ))}
+          </span>
+          <p className="text-[13px]">
+            <strong>{nomes.slice(0, 2).join(" e ")}</strong>
+            {outros > 0 ? ` e mais ${outros}` : ""} {dados.amigos_total === 1 ? "tem" : "têm"} interesse
+          </p>
+        </div>
+      )}
+      {erro && <p className="text-center text-sm text-perigo">{erro}</p>}
+    </section>
   );
 }
 

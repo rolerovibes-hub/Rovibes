@@ -41,6 +41,12 @@ export interface EventoResumo {
   situacao: string;
   descricao: string | null;
   estabelecimento: { id: string; nome: string; bairro: string | null } | null;
+  /** Atualização 045: categoria e endereço próprio (quando não é no estabelecimento). */
+  categoria?: string | null;
+  local_nome?: string | null;
+  endereco?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 const CAMPOS_LUGAR =
@@ -120,6 +126,8 @@ async function buscarItensCardapio(id: string) {
 }
 
 export async function buscarEvento(id: string) {
+  const r = await supabase.from("eventos").select(`${CAMPOS_EVENTO}, categoria, local_nome, endereco, latitude, longitude`).eq("id", id).maybeSingle();
+  if (!r.error) return (r.data as unknown as EventoResumo | null) ?? null;
   const { data } = await supabase.from("eventos").select(CAMPOS_EVENTO).eq("id", id).maybeSingle();
   return (data as unknown as EventoResumo | null) ?? null;
 }

@@ -167,6 +167,7 @@ export const CATEGORIAS_PUSH: { id: string; nome: string; explica: string }[] = 
   { id: "comentarios", nome: "Comentários", explica: "Comentários e respostas" },
   { id: "seguidores", nome: "Seguidores", explica: "Novos seguidores e pedidos para seguir" },
   { id: "convites", nome: "Convites", explica: "Eventos de amigos, rolês e convites de promoter" },
+  { id: "eventos", nome: "Eventos", explica: "Novos eventos dos lugares que você segue e mudanças nos que você tem interesse" },
   { id: "chat", nome: "Mensagens", explica: "Mensagens no chat" },
   { id: "pedidos", nome: "Pedidos", explica: "Quando seu pedido fica pronto" },
 ];
