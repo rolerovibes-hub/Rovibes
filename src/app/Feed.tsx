@@ -255,15 +255,7 @@ export function Feed() {
                       <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} ampliar />
                       <span className="min-w-0">
                         <span className="block truncate text-sm font-semibold">{p.pessoa.nome}</span>
-                        <span className="block truncate text-[12px] text-suave">
-                          {p.local ? (
-                            <>
-                              <MapPin className="mr-0.5 inline h-3 w-3" />
-                              {p.local.nome} ·{" "}
-                            </>
-                          ) : null}
-                          {tempoAtras(p.criado_em)}
-                        </span>
+                        <span className="block truncate text-[12px] text-suave">{tempoAtras(p.criado_em)}</span>
                       </span>
                     </Link>
                   </div>
@@ -329,14 +321,23 @@ export function Feed() {
                         <span>{totais.get(chaveComentario(p)) ?? 0}</span>
                       </button>
                     </span>
-                    {(p.tipo !== "pessoa" || p.local) && (
+                    {p.tipo !== "pessoa" ? (
+                      // Publicação de lugar (ou de evento do lugar): marcar rolê direto.
                       <Link
-                        to={`/lugar/${p.tipo === "pessoa" ? p.local!.id : p.estabelecimento.id}/role`}
+                        to={`/lugar/${p.estabelecimento.id}/role`}
                         className="inline-flex items-center gap-1.5 rounded-full border border-borda px-3 py-1.5 text-[13px] font-medium hover:bg-elevado"
                       >
                         <PartyPopper className="h-4 w-4 text-magenta" />
                         Marcar rolê
                       </Link>
+                    ) : (
+                      // Publicação de pessoa: só o lugar marcado, discreto, levando ao perfil do lugar.
+                      p.local && (
+                        <Link to={`/lugar/${p.local.id}`} className="inline-flex min-w-0 max-w-[55%] items-center gap-1 rounded-full px-2 py-1 text-[12px] text-suave hover:bg-elevado hover:text-texto">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{p.local.nome}</span>
+                        </Link>
+                      )
                     )}
                   </div>
                 </div>
@@ -367,9 +368,9 @@ export function Feed() {
           aoCurtir={() => void curtir(aberta)}
           aoComentar={() => setComentando({ tipo: aberta.tipo === "pessoa" ? "pessoa" : "lugar", id: aberta.id })}
           extra={
-            (aberta.tipo !== "pessoa" || aberta.local) && (
+            aberta.tipo !== "pessoa" && (
               <Link
-                to={`/lugar/${aberta.tipo === "pessoa" ? aberta.local!.id : aberta.estabelecimento.id}/role`}
+                to={`/lugar/${aberta.estabelecimento.id}/role`}
                 className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3.5 py-1.5 text-[13px] font-medium backdrop-blur"
               >
                 <PartyPopper className="h-4 w-4" />
