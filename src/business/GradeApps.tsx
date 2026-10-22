@@ -66,6 +66,11 @@ export function GradeApps({ itens, corArea, onAbrir }: { itens: ItemArea[]; corA
 
   const soltar = (codigo: string, destino: { codigo: string; modo: Modo } | null) => {
     if (!destino || destino.codigo === codigo) return;
+    // App solto no meio de uma pasta: entra na pasta.
+    if (destino.modo === "trocar" && destino.codigo.startsWith("pasta:") && !codigo.startsWith("pasta:")) {
+      void acessos.moverParaPasta(codigo, destino.codigo.slice(6));
+      return;
+    }
     const novo = [...ordem];
     const i = novo.indexOf(codigo);
     const j = novo.indexOf(destino.codigo);
@@ -168,7 +173,13 @@ export function GradeApps({ itens, corArea, onAbrir }: { itens: ItemArea[]; corA
               <span className={clsx("pointer-events-none absolute -bottom-1 -top-1 z-10 w-1 rounded-full bg-marca", alvo.modo === "antes" ? "-left-2" : "-right-2")} />
             )}
             {a.pasta ? (
-              <BlocoPasta pasta={a.pasta} corArea={corArea} trocar={alvo?.codigo === a.codigo && alvo.modo === "trocar"} onAbrir={() => setPastaAberta(a.pasta.id)} />
+              <BlocoPasta
+                pasta={a.pasta}
+                corArea={corArea}
+                trocar={alvo?.codigo === a.codigo && alvo.modo === "trocar"}
+                receber={!!arrasto && !arrasto.codigo.startsWith("pasta:")}
+                onAbrir={() => setPastaAberta(a.pasta.id)}
+              />
             ) : (
               <Bloco
                 app={a.app}
@@ -186,7 +197,7 @@ export function GradeApps({ itens, corArea, onAbrir }: { itens: ItemArea[]; corA
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-[12px] text-suave">
         <GripVertical className="h-3.5 w-3.5" />
-        Arraste um app ou pasta para mudar de lugar (no celular, segure antes). Solte no meio de outro para trocar os dois. Nos três pontinhos você muda a cor, o ícone ou põe o app numa pasta.
+        Arraste um app ou pasta para mudar de lugar (no celular, segure antes). Solte um app no meio de uma pasta para pôr dentro dela; no meio de outro app, os dois trocam de lugar.
       </p>
       {arrasto && arrastado && (
         <div

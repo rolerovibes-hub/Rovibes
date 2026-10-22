@@ -14,11 +14,14 @@ export function BlocoPasta({
   pasta,
   corArea,
   trocar,
+  receber,
   onAbrir,
 }: {
   pasta: PastaArea & { apps: Aplicativo[] };
   corArea: Record<Area, string>;
   trocar?: boolean;
+  /** Está arrastando um app: soltar no meio põe o app na pasta. */
+  receber?: boolean;
   onAbrir: () => void;
 }) {
   const { estiloDe } = useBusiness();
@@ -45,7 +48,7 @@ export function BlocoPasta({
       <span>
         <span className="block truncate text-[15px] font-semibold leading-snug">{pasta.nome}</span>
         <span className="block text-[12px] opacity-80">
-          {trocar ? "Soltar para trocar" : `Pasta · ${pasta.apps.length} ${pasta.apps.length === 1 ? "app" : "apps"}`}
+          {trocar ? (receber ? "Soltar para pôr na pasta" : "Soltar para trocar") : `Pasta · ${pasta.apps.length} ${pasta.apps.length === 1 ? "app" : "apps"}`}
         </span>
       </span>
     </button>
@@ -104,9 +107,12 @@ export function FolhaPasta({
         </div>
         {erro && <p className="mb-2 text-sm text-perigo">{erro}</p>}
         {pasta.apps.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-borda px-4 py-8 text-center text-sm text-suave">
-            Pasta vazia. Toque no lápis para escolher os apps, ou use “Pôr numa pasta” nos três pontinhos de um app.
-          </p>
+          <div className="rounded-lg border border-dashed border-borda px-4 py-8 text-center text-sm text-suave">
+            <p>Pasta vazia. Arraste um app até o meio da pasta, use “Pôr numa pasta” nos três pontinhos do app, ou escolha aqui.</p>
+            <button className="botao-principal mt-4" onClick={editar}>
+              Escolher apps
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
             {pasta.apps.map((a) => {

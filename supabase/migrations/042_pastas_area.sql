@@ -70,4 +70,7 @@ grant execute on function public.criar_pasta(text, text, text[]), public.editar_
   public.mover_para_pasta(text, uuid), public.apagar_pasta(uuid) to authenticated;
 grant select on public.pastas_area to authenticated;
 
+-- Faz o Supabase enxergar na hora a coluna e a tabela novas.
+notify pgrst, 'reload schema';
+
 select 'Atualização 042 aplicada: pastas na Área de Trabalho.' as resultado;
