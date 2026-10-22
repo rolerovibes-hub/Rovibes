@@ -17,6 +17,7 @@ import { VideoPost } from "@/components/VideoPost";
 import { VisorPublicacao } from "@/components/VisorPublicacao";
 import { BotaoBrindar } from "@/components/Brindar";
 import { PedirNotificacoes } from "@/components/PedirNotificacoes";
+import { QuemBrindou } from "@/components/QuemBrindou";
 import { Ampliavel } from "@/components/FotoAmpliada";
 
 /** Posição já liberada (não pede permissão sozinho ao abrir o Feed). */
@@ -46,6 +47,7 @@ export function Feed() {
   const [totais, setTotais] = useState<Map<string, number>>(new Map());
   const [comentando, setComentando] = useState<{ tipo: "lugar" | "pessoa"; id: string } | null>(null);
   const [abertaId, setAbertaId] = useState<string | null>(null);
+  const [quemBrindou, setQuemBrindou] = useState<{ tipo: "pessoa" | "lugar"; id: string } | null>(null);
   // Link de notificação: /?comentarios=pessoa:ID abre os comentários direto.
   const [params, setParams] = useSearchParams();
   const pedidoComentarios = params.get("comentarios");
@@ -312,7 +314,12 @@ export function Feed() {
                   )}
                   <div className="flex items-center justify-between">
                     <span className="-ml-1 inline-flex items-center gap-2">
-                      <BotaoBrindar ativo={p.curti} total={p.curtidas} aoBrindar={() => void curtir(p)} />
+                      <BotaoBrindar
+                        ativo={p.curti}
+                        total={p.curtidas}
+                        aoBrindar={() => void curtir(p)}
+                        aoVerQuem={() => setQuemBrindou({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
+                      />
                       <button
                         onClick={() => setComentando({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
                         className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave"
@@ -356,6 +363,7 @@ export function Feed() {
             comentarios: totais.get(chaveComentario(aberta)) ?? 0,
           }}
           fechar={fecharAberta}
+          referencia={{ tipo: aberta.tipo === "pessoa" ? "pessoa" : "lugar", id: aberta.id }}
           aoCurtir={() => void curtir(aberta)}
           aoComentar={() => setComentando({ tipo: aberta.tipo === "pessoa" ? "pessoa" : "lugar", id: aberta.id })}
           extra={
@@ -381,6 +389,7 @@ export function Feed() {
         </VisorPublicacao>
       )}
 
+      {quemBrindou && <QuemBrindou tipo={quemBrindou.tipo} id={quemBrindou.id} fechar={() => setQuemBrindou(null)} />}
       {comentando && !aberta && (
         <FolhaComentarios
           tipo={comentando.tipo}

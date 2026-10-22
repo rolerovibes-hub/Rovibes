@@ -69,6 +69,7 @@ export function BotaoBrindar({
   sobreFoto = false,
   rotulo = "publicação",
   className,
+  aoVerQuem,
 }: {
   ativo: boolean;
   total?: number;
@@ -77,11 +78,13 @@ export function BotaoBrindar({
   sobreFoto?: boolean;
   rotulo?: string;
   className?: string;
+  /** Toque no número abre a lista de quem brindou. */
+  aoVerQuem?: () => void;
 }) {
   const [animacao, setAnimacao] = useState(0);
   const medida = tamanho === "sm" ? "h-4 w-4" : tamanho === "lg" ? "h-6 w-6" : "h-[22px] w-[22px]";
 
-  return (
+  const botao = (
     <button
       type="button"
       onClick={(e) => {
@@ -104,7 +107,26 @@ export function BotaoBrindar({
         <IconeTaca cheia={ativo} sobreFoto={sobreFoto} className={medida} />
         {animacao > 0 && ativo && <DuasTacas />}
       </span>
-      {total !== undefined && <span className={clsx(ativo ? "font-medium" : sobreFoto ? "" : "text-suave", sobreFoto && "font-medium")}>{total}</span>}
+      {total !== undefined && !(aoVerQuem && total > 0) && (
+        <span className={clsx(ativo ? "font-medium" : sobreFoto ? "" : "text-suave", sobreFoto && "font-medium")}>{total}</span>
+      )}
     </button>
+  );
+  if (!aoVerQuem || !total) return botao;
+  return (
+    <span className="inline-flex items-center">
+      {botao}
+      <button
+        type="button"
+        onClick={(e) => {
+          e.stopPropagation();
+          aoVerQuem();
+        }}
+        className={clsx("-ml-1 rounded-lg px-1 py-1 text-sm underline-offset-2 hover:underline", ativo || sobreFoto ? "font-medium" : "text-suave")}
+        aria-label={`Ver quem brindou (${total})`}
+      >
+        {total}
+      </button>
+    </span>
   );
 }

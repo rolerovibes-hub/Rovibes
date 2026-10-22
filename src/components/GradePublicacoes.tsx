@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Camera, Flag, Lock, Play, Trash2 } from "lucide-react";
+import { Camera, Flag, Lock, MessageCircle, Play, Trash2 } from "lucide-react";
+import { IconeTaca } from "./Brindar";
 import { VisorPublicacao } from "./VisorPublicacao";
 import { contarComentarios, FolhaComentarios } from "./Comentarios";
 import { JanelaDenuncia } from "./Denunciar";
@@ -24,6 +25,7 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
   const [posts, setPosts] = useState<Post[] | null>(null);
   const [aberto, setAberto] = useState<Post | null>(null);
   const [erro, setErro] = useState("");
+  const [comentarios, setComentarios] = useState<Map<string, number>>(new Map());
 
   const carregar = useCallback(() => {
     supabase.rpc("publicacoes_da_pessoa", { p_pessoa: pessoa, p_antes: null }).then(async ({ data, error }) => {
@@ -36,6 +38,7 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
         for (const p of lista) p.video_url = mapa.get(p.id) ?? null;
       }
       setPosts(lista);
+      if (lista.length) contarComentarios("pessoa", lista.map((p) => p.id)).then(setComentarios).catch(() => undefined);
     });
   }, [pessoa]);
   useEffect(() => {
@@ -73,6 +76,17 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
                   <Play className="h-3 w-3 fill-current" />
                 </span>
               )}
+              {/* Brindes e comentários na parte de baixo da miniatura */}
+              <span className="absolute inset-x-0 bottom-0 flex items-center gap-2.5 bg-gradient-to-t from-black/70 to-transparent px-1.5 pb-1 pt-5 text-[11px] font-semibold text-white">
+                <span className="inline-flex items-center gap-0.5">
+                  <IconeTaca cheia={p.curti} sobreFoto className="h-3.5 w-3.5" />
+                  {p.curtidas}
+                </span>
+                <span className="inline-flex items-center gap-0.5">
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  {comentarios.get(p.id) ?? 0}
+                </span>
+              </span>
             </button>
           </li>
         ))}
@@ -147,6 +161,7 @@ function VisorPost({
         comentarios: totalComentarios,
       }}
       fechar={fechar}
+      referencia={{ tipo: "pessoa", id: post.id }}
       aoCurtir={() => void curtir()}
       aoComentar={() => setComentando(true)}
       acoes={

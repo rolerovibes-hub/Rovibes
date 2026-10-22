@@ -5,6 +5,7 @@ import clsx from "clsx";
 import { MapPin, MessageCircle, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { BotaoBrindar } from "./Brindar";
+import { QuemBrindou } from "./QuemBrindou";
 
 export interface DadosVisor {
   autor: { nome: string; foto: string | null; link?: string };
@@ -28,6 +29,7 @@ export function VisorPublicacao({
   aoCurtir,
   aoComentar,
   acoes,
+  referencia,
   extra,
   children,
 }: {
@@ -39,11 +41,14 @@ export function VisorPublicacao({
   acoes?: ReactNode;
   /** Conteúdo extra no rodapé (Marcar rolê, evento...). */
   extra?: ReactNode;
+  /** Publicação (para listar quem brindou). */
+  referencia?: { tipo: "pessoa" | "lugar"; id: string };
   /** Folhas abertas por cima (comentários, denúncia). */
   children?: ReactNode;
 }) {
   const [limpo, setLimpo] = useState(false);
   const [mudo, setMudo] = useState(true);
+  const [verBrindes, setVerBrindes] = useState(false);
 
   useEffect(() => {
     const antes = document.body.style.overflow;
@@ -111,7 +116,15 @@ export function VisorPublicacao({
       >
         {dados.texto && <p className="mb-2 max-h-[28vh] overflow-y-auto whitespace-pre-line text-[15px] leading-relaxed">{dados.texto}</p>}
         <div className="flex items-center gap-3">
-          <BotaoBrindar ativo={dados.curti} total={dados.curtidas} aoBrindar={aoCurtir} tamanho="lg" sobreFoto className="-ml-1" />
+          <BotaoBrindar
+            ativo={dados.curti}
+            total={dados.curtidas}
+            aoBrindar={aoCurtir}
+            tamanho="lg"
+            sobreFoto
+            className="-ml-1"
+            aoVerQuem={referencia ? () => setVerBrindes(true) : undefined}
+          />
           <button onClick={aoComentar} className="inline-flex items-center gap-1.5 py-1 text-sm" aria-label="Comentários">
             <MessageCircle className="h-6 w-6" />
             <span className="font-medium">{dados.comentarios}</span>
@@ -126,7 +139,10 @@ export function VisorPublicacao({
         {extra && <div className="mt-2.5">{extra}</div>}
       </div>
 
-      <div onClick={parar}>{children}</div>
+      <div onClick={parar}>
+        {children}
+        {verBrindes && referencia && <QuemBrindou tipo={referencia.tipo} id={referencia.id} fechar={() => setVerBrindes(false)} />}
+      </div>
     </div>,
     document.body,
   );

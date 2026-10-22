@@ -83,6 +83,7 @@ export function PublicacaoPagina() {
         comentarios: pub.comentarios,
       }}
       fechar={sair}
+      referencia={{ tipo: pub.tipo, id: pub.id }}
       aoCurtir={() => void brindar()}
       aoComentar={() => setComentando(true)}
     >
