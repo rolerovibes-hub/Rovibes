@@ -403,6 +403,23 @@
   0%, 60% { background-color: rgb(var(--marca) / 0.14); box-shadow: 0 0 0 6px rgb(var(--marca) / 0.14); }
   100% { background-color: transparent; box-shadow: 0 0 0 6px transparent; }
 }
+/* Ícones Papo e Convite: respondem ao toque (a faísca brilha; a seta do convite sai do ingresso). */
+.icone-papo,
+.icone-convite-seta,
+.icone-papo-faisca {
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-box: fill-box;
+  transform-origin: center;
+}
+button:active .icone-papo {
+  transform: scale(1.14) rotate(-5deg);
+}
+button:active .icone-papo-faisca {
+  transform: scale(1.5) rotate(25deg);
+}
+button:active .icone-convite-seta {
+  transform: translate(2px, -2px);
+}
 /* Quem desativou animações no aparelho não vê movimento. */
 @media (prefers-reduced-motion: reduce) {
   *,

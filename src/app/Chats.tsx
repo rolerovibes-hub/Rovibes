@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, ChevronRight, MessageCircle, PartyPopper, PenSquare, Search, UserPlus, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, PartyPopper, PenSquare, Search, UserPlus, X } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { IconeConversa } from "@/components/Conversa";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -137,7 +138,7 @@ export function Chats() {
         <Carregando />
       ) : visiveis.length === 0 ? (
         <div className="px-6 py-14 text-center">
-          <MessageCircle className="mx-auto h-8 w-8 text-suave" />
+          <IconePapo className="mx-auto h-8 w-8 text-suave" />
           {busca || filtro !== "todas" ? (
             <p className="mt-3 text-sm text-suave">Nenhuma conversa encontrada.</p>
           ) : verPedidos ? (

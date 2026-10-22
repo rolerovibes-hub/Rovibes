@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { Camera, Flag, Lock, MessageCircle, Play, Trash2 } from "lucide-react";
+import { IconePapo } from "@/components/IconesRoVibes";
+import { Camera, Flag, Lock, Play, Trash2 } from "lucide-react";
 import { IconeTaca } from "./Brindar";
 import { VisorPublicacao } from "./VisorPublicacao";
 import { contarComentarios, FolhaComentarios } from "./Comentarios";
@@ -83,7 +84,7 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
                   {p.curtidas}
                 </span>
                 <span className="inline-flex items-center gap-0.5">
-                  <MessageCircle className="h-3.5 w-3.5" />
+                  <IconePapo className="h-3.5 w-3.5" />
                   {comentarios.get(p.id) ?? 0}
                 </span>
               </span>

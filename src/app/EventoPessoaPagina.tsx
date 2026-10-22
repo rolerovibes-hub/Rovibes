@@ -1,24 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconeConvite } from "@/components/IconesRoVibes";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import {
-  ArrowLeft,
-  CalendarDays,
-  Check,
-  Lock,
-  MapPin,
-  Minus,
-  Navigation,
-  Pencil,
-  Plus,
-  Rocket,
-  ScanLine,
-  Share2,
-  Ticket,
-  UserPlus,
-  Users,
-  X,
-} from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, Lock, MapPin, Minus, Navigation, Pencil, Plus, Rocket, ScanLine, Ticket, UserPlus, Users, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
 import { LeitorQr, QrCode } from "@/components/Qr";
@@ -212,7 +196,7 @@ export function EventoPessoaPagina() {
             className="rounded-full bg-black/45 p-2 text-white backdrop-blur"
             aria-label="Compartilhar"
           >
-            <Share2 className="h-5 w-5" />
+            <IconeConvite className="h-5 w-5" />
           </button>
         </div>
       </div>

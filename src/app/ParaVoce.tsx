@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { IconeConvite } from "@/components/IconesRoVibes";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Bookmark, CalendarDays, EyeOff, MoreHorizontal, PartyPopper, Share2, Sparkles, Store, X } from "lucide-react";
+import { Bookmark, CalendarDays, EyeOff, MoreHorizontal, PartyPopper, Sparkles, Store, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { usePresencaAmigos } from "@/lib/agora";
 import { registrarSinal } from "@/lib/sinais";
@@ -143,7 +144,7 @@ export function ParaVoceAgora({ lugares, pos, usuario }: { lugares: Lugar[]; pos
                       <Bookmark className={clsx("h-5 w-5", salvos.has(l.id) && "fill-current text-destaque")} />
                     </button>
                     <button onClick={() => setCompartilhar(l)} className="rounded-full p-2 text-suave hover:bg-elevado" aria-label="Compartilhar">
-                      <Share2 className="h-5 w-5" />
+                      <IconeConvite className="h-5 w-5" />
                     </button>
                     <button onClick={() => setMenu(menu === l.id ? null : l.id)} className="rounded-full p-2 text-suave hover:bg-elevado" aria-label="Mais opções" aria-expanded={menu === l.id}>
                       <MoreHorizontal className="h-5 w-5" />

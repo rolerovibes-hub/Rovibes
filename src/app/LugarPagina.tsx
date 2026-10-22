@@ -1,29 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+import { ComponentType, useEffect, useMemo, useState } from "react";
+import { IconeConvite, IconePapo } from "@/components/IconesRoVibes";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import {
-  ArrowLeft,
-  AtSign,
-  Bookmark,
-  CalendarDays,
-  ChevronDown,
-  ChevronRight,
-  Clock,
-  Copy,
-  LogOut,
-  MapPin,
-  MapPinned,
-  MessageCircle,
-  MoreHorizontal,
-  Navigation,
-  PartyPopper,
-  Phone,
-  Play,
-  Share2,
-  Store,
-  UtensilsCrossed,
-  X,
-} from "lucide-react";
+import { ArrowLeft, AtSign, Bookmark, CalendarDays, ChevronDown, ChevronRight, Clock, Copy, LogOut, MapPin, MapPinned, MoreHorizontal, Navigation, PartyPopper, Phone, Play, Store, UtensilsCrossed, X } from "lucide-react";
 import { abrirConversaEstab } from "@/lib/chat";
 import { Carregando } from "@/components/Carregando";
 import { MapaBase, PinMapa } from "@/components/MapaBase";
@@ -219,7 +198,7 @@ export function LugarPagina() {
           </button>
           <span className="flex-1" />
           <button onClick={() => exigirLogin() && setCompartilhando(true)} className="rounded-full bg-black/45 p-2 text-white backdrop-blur" aria-label="Compartilhar">
-            <Share2 className="h-5 w-5" />
+            <IconeConvite className="h-5 w-5" />
           </button>
           <button
             onClick={() => exigirLogin() && void relacao.alternarSalvo().then(() => {
@@ -346,7 +325,7 @@ export function LugarPagina() {
         </div>
         <div className="mt-2 grid grid-cols-2 gap-2">
           <button onClick={() => exigirLogin() && setCompartilhando(true)} className="botao h-10 rounded-full">
-            <Share2 className="h-4 w-4" />
+            <IconeConvite className="h-4 w-4" />
             Compartilhar
           </button>
           <button onClick={() => setMais(true)} className="botao h-10 rounded-full">
@@ -404,7 +383,7 @@ export function LugarPagina() {
       {/* Nível 3: sob demanda */}
       {mais && (
         <Folha titulo={lugar.nome} fechar={() => setMais(false)}>
-          <ItemFolha icone={MessageCircle} texto="Mandar mensagem" acao={() => {
+          <ItemFolha icone={IconePapo} texto="Mandar mensagem" acao={() => {
               setMais(false);
               abrirMensagem();
             }} />
@@ -587,7 +566,7 @@ function Folha({ titulo, fechar, children }: { titulo: string; fechar: () => voi
   );
 }
 
-function ItemFolha({ icone: Icone, texto, detalhe, acao }: { icone: typeof Store; texto: string; detalhe?: string; acao: () => unknown }) {
+function ItemFolha({ icone: Icone, texto, detalhe, acao }: { icone: ComponentType<{ className?: string }>; texto: string; detalhe?: string; acao: () => unknown }) {
   return (
     <button onClick={() => void acao()} className="flex w-full items-center gap-3 px-5 py-3.5 text-left hover:bg-elevado">
       <Icone className="h-5 w-5 shrink-0 text-destaque" />

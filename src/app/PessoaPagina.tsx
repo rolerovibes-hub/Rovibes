@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, Ban, Flag, Lock, Megaphone, MessageCircle, MoreHorizontal, UserMinus, UserRound } from "lucide-react";
+import { ArrowLeft, Ban, Flag, Lock, Megaphone, MoreHorizontal, UserMinus, UserRound } from "lucide-react";
 import { abrirConversa } from "@/lib/chat";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
@@ -200,7 +201,7 @@ export function PessoaPagina() {
                 })
               }
             >
-              <MessageCircle className="h-4 w-4" />
+              <IconePapo className="h-4 w-4" />
               Mensagem
             </button>
           </div>

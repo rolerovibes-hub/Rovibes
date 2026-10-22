@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import clsx from "clsx";
-import { Eye, EyeOff, ImagePlus, MessageCircle, Newspaper, Plus, Trash2, X } from "lucide-react";
+import { Eye, EyeOff, ImagePlus, Newspaper, Plus, Trash2, X } from "lucide-react";
 import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { IconeTaca } from "@/components/Brindar";
 import { TelaUniversal } from "./TelaUniversal";
@@ -127,7 +128,7 @@ export function Publicacoes() {
             Nova publicação
           </button>
           <button className="botao" disabled={!pub} onClick={() => pub && setVendoComentarios(pub.id)}>
-            <MessageCircle className="h-4 w-4" />
+            <IconePapo className="h-4 w-4" />
             Comentários
           </button>
           <button className="botao" disabled={!pub || ocupado} onClick={alternar}>
@@ -229,7 +230,7 @@ export function Publicacoes() {
                         {curtidas[p.id] ?? 0}
                       </span>
                       <span className="inline-flex items-center gap-1">
-                        <MessageCircle className="h-3.5 w-3.5" />
+                        <IconePapo className="h-3.5 w-3.5" />
                         {comentarios.get(p.id) ?? 0}
                       </span>
                     </span>

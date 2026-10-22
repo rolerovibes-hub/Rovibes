@@ -1,7 +1,8 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { Link, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, LocateFixed, MapPin, MessageCircle, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
+import { CalendarDays, ChevronRight, LocateFixed, MapPin, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
 import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
@@ -317,7 +318,7 @@ export function Feed() {
                         className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave"
                         aria-label="Comentários"
                       >
-                        <MessageCircle className="h-5 w-5" />
+                        <IconePapo className="h-5 w-5" />
                         <span>{totais.get(chaveComentario(p)) ?? 0}</span>
                       </button>
                     </span>

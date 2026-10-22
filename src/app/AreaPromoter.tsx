@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconeConvite } from "@/components/IconesRoVibes";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, Check, ClipboardList, Copy, Gift, LogOut, Megaphone, Plus, Radio, Share2, Store, Users, X } from "lucide-react";
+import { ArrowLeft, Check, ClipboardList, Copy, Gift, LogOut, Megaphone, Plus, Radio, Store, Users, X } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { mensagemDeErro } from "@/lib/supabase";
 import { CompartilharNoChat } from "@/components/CompartilharNoChat";
@@ -174,7 +175,7 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
               <Store className="h-4 w-4 text-suave" />
               <span className="min-w-0 flex-1 truncate">Perfil do lugar</span>
               <button className="botao h-8 px-2.5 text-[13px]" onClick={() => void divulgar("lugar", p.estab.id, p.estab.nome)}>
-                <Share2 className="h-3.5 w-3.5" />
+                <IconeConvite className="h-3.5 w-3.5" />
                 Divulgar
               </button>
             </li>
@@ -186,7 +187,7 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
                   <span className="block text-[12px] capitalize text-suave">{dataHora(e.inicio)}</span>
                 </span>
                 <button className="botao h-8 px-2.5 text-[13px]" onClick={() => void divulgar("evento", e.id, e.nome)}>
-                  <Share2 className="h-3.5 w-3.5" />
+                  <IconeConvite className="h-3.5 w-3.5" />
                   Divulgar
                 </button>
               </li>
@@ -223,7 +224,7 @@ function CartaoPromoter({ p, acao, avisar }: { p: MinhaArea; acao: (f: () => Pro
                     </button>
                     {l.ativa && (
                       <button className="botao h-8 px-2.5 text-[12px]" onClick={() => setEnviar({ tipo: "lista", id: l.id, titulo: l.nome })} aria-label={`Divulgar ${l.nome}`}>
-                        <Share2 className="h-3.5 w-3.5" />
+                        <IconeConvite className="h-3.5 w-3.5" />
                       </button>
                     )}
                     <button

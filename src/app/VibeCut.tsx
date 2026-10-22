@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { IconeConvite, IconePapo } from "@/components/IconesRoVibes";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, ChevronRight, Clapperboard, MapPin, MessageCircle, Music2, Navigation, Pause, Plus, Radio, Send, Volume2, VolumeX, X } from "lucide-react";
+import { ArrowLeft, ChevronRight, Clapperboard, MapPin, Music2, Navigation, Pause, Plus, Radio, Volume2, VolumeX, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
 import { posicaoSeLiberada } from "@/lib/agora";
@@ -354,12 +355,12 @@ function Video({
           </button>
         </span>
         <button className="flex flex-col items-center text-[12px] font-semibold" onClick={comentar} aria-label="Comentários">
-          <MessageCircle className="h-8 w-8" />
+          <IconePapo className="h-8 w-8" />
           {c.comentarios}
         </button>
-        <button className="flex flex-col items-center text-[12px] font-semibold" onClick={compartilhar} aria-label="Compartilhar">
-          <Send className="h-7 w-7" />
-          Enviar
+        <button className="flex flex-col items-center text-[12px] font-semibold" onClick={compartilhar} aria-label="Convidar (compartilhar)">
+          <IconeConvite className="h-7 w-7" />
+          Convidar
         </button>
         <button className="rounded-full bg-black/30 p-2" onClick={alternarSom} aria-label={mudo ? "Ligar o som" : "Tirar o som"}>
           {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}

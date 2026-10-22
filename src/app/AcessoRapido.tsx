@@ -1,7 +1,8 @@
 import { CSSProperties, PointerEvent as EventoPonteiro, useCallback, useEffect, useRef, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { useLocation, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { Bell, Briefcase, ChevronRight, CreditCard, Megaphone, MessageCircle, PartyPopper, QrCode, ScanLine, Store, Ticket, UtensilsCrossed, Wallet } from "lucide-react";
+import { Bell, Briefcase, ChevronRight, CreditCard, Megaphone, PartyPopper, QrCode, ScanLine, Store, Ticket, UtensilsCrossed, Wallet } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useAcessoRapido } from "./estadoAcesso";
 import { useChatNaoLidas } from "@/lib/chat";
@@ -168,7 +169,7 @@ export function MenuFlutuante() {
 
   const atalhos = [
     ...(foco ? [] : [{ nome: "Ler QR da mesa", sub: "Pedir pelo cardápio", icone: ScanLine, selo: 0, acao: lerQr }]),
-    { nome: "Chat", sub: "Conversas e rolês", icone: MessageCircle, selo: seloChat, acao: () => ir("/chats") },
+    { nome: "Chat", sub: "Conversas e rolês", icone: IconePapo, selo: seloChat, acao: () => ir("/chats") },
     { nome: "Notificações", sub: "Novidades", icone: Bell, selo: naoLidas, acao: () => ir("/notificacoes") },
     { nome: "Retiradas", sub: "QR dos pedidos", icone: QrCode, selo: mesa?.prontos ?? 0, acao: () => ir("/retirada") },
     { nome: "Carteira", sub: "Cupons e ingressos", icone: Wallet, selo: 0, acao: () => ir("/carteira") },

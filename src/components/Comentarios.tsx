@@ -1,7 +1,8 @@
 import { FormEvent, Fragment, useCallback, useEffect, useRef, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Flag, MessageCircle, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
+import { Flag, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { BotaoBrindar } from "./Brindar";
 import { JanelaDenuncia } from "./Denunciar";
@@ -253,7 +254,7 @@ export function FolhaComentarios({
             <p className="py-6 text-center text-sm text-suave">{erro}</p>
           ) : principais.length === 0 ? (
             <div className="py-12 text-center">
-              <MessageCircle className="mx-auto h-8 w-8 text-suave" />
+              <IconePapo className="mx-auto h-8 w-8 text-suave" />
               <p className="mt-2 font-medium">Nenhum comentário ainda</p>
               <p className="text-sm text-suave">Comece a conversa.</p>
             </div>

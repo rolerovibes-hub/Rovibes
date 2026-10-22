@@ -1,8 +1,9 @@
 import { ReactNode, useEffect, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { MapPin, MessageCircle, Volume2, VolumeX, X } from "lucide-react";
+import { MapPin, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { BotaoBrindar } from "./Brindar";
 import { QuemBrindou } from "./QuemBrindou";
@@ -126,7 +127,7 @@ export function VisorPublicacao({
             aoVerQuem={referencia ? () => setVerBrindes(true) : undefined}
           />
           <button onClick={aoComentar} className="inline-flex items-center gap-1.5 py-1 text-sm" aria-label="Comentários">
-            <MessageCircle className="h-6 w-6" />
+            <IconePapo className="h-6 w-6" />
             <span className="font-medium">{dados.comentarios}</span>
           </button>
           {dados.video && (

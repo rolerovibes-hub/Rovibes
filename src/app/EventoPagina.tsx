@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconeConvite } from "@/components/IconesRoVibes";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Clock, Share2, Store, Ticket } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, Store, Ticket } from "lucide-react";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { QrCode } from "@/components/Qr";
 import { codigoLegivel, fimDoEvento, qrDoIngresso, ResumoIngresso, resumoIngressos } from "./carteira";
@@ -63,7 +64,7 @@ export function EventoPagina() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <button onClick={() => setCompartilhar(true)} className="absolute right-3 top-3 rounded-full bg-superficie/90 p-2 shadow-sm" aria-label="Compartilhar evento">
-          <Share2 className="h-5 w-5" />
+          <IconeConvite className="h-5 w-5" />
         </button>
       </div>
       {aviso && <p className="mx-4 mt-3 rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3 text-sm text-ok">{aviso}</p>}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
+import { IconeConvite } from "@/components/IconesRoVibes";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, CalendarDays, Check, ClipboardList, Megaphone, Minus, Plus, Share2, Store } from "lucide-react";
+import { ArrowLeft, CalendarDays, Check, ClipboardList, Megaphone, Minus, Plus, Store } from "lucide-react";
 import { Carregando } from "@/components/Carregando";
 import { CompartilharNoChat } from "@/components/CompartilharNoChat";
 import { mensagemDeErro } from "@/lib/supabase";
@@ -92,7 +93,7 @@ export function ListaPagina() {
           <ArrowLeft className="h-5 w-5" />
         </button>
         <button onClick={() => setCompartilhar(true)} className="absolute right-3 top-3 rounded-full bg-superficie/90 p-2 shadow-sm" aria-label="Compartilhar lista">
-          <Share2 className="h-5 w-5" />
+          <IconeConvite className="h-5 w-5" />
         </button>
       </div>
 

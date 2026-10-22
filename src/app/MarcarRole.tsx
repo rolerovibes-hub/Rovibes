@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { IconePapo } from "@/components/IconesRoVibes";
 import { useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, Check, MessageCircle, Plus, Store, Users, X } from "lucide-react";
+import { ArrowLeft, Check, Plus, Store, Users, X } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
 import { useSessao } from "@/lib/sessao";
@@ -244,7 +245,7 @@ export function MarcarRole() {
               aria-pressed={comentar}
               className={clsx("flex items-start gap-2.5 rounded-xl border p-3 text-left", comentar ? "border-marca bg-destaque-suave" : "border-borda bg-superficie hover:bg-elevado")}
             >
-              <MessageCircle className={clsx("mt-0.5 h-5 w-5 shrink-0", comentar ? "text-destaque" : "text-suave")} />
+              <IconePapo className={clsx("mt-0.5 h-5 w-5 shrink-0", comentar ? "text-destaque" : "text-suave")} />
               <span>
                 <span className="block text-sm font-semibold">Comentar no chat</span>
                 <span className="block text-[12px] text-suave">Uma mensagem para a galera</span>
