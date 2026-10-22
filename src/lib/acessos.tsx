@@ -58,6 +58,16 @@ export const NIVEL_DO_APP: Record<string, string[]> = {
 
 export const temNivel = (niveis: string[], codigo: string) => niveis.includes("geral") || (NIVEL_DO_APP[codigo] ?? []).some((n) => niveis.includes(n));
 
+/** Pasta da Área de Trabalho (agrupa apps favoritos de mesma linha de ação). */
+export interface PastaArea {
+  id: string;
+  nome: string;
+  cor: string | null;
+}
+
+/** Item da grade da Área de Trabalho: um app ou uma pasta com seus apps. */
+export type ItemArea = { codigo: string; app: Aplicativo; pasta?: undefined } | { codigo: string; pasta: PastaArea & { apps: Aplicativo[] }; app?: undefined };
+
 interface BusinessContexto {
   carregando: boolean;
   vinculos: Vinculo[];
@@ -76,6 +86,14 @@ interface BusinessContexto {
   alternarFavorito: (codigo: string) => Promise<void>;
   moverFavorito: (codigo: string, direcao: -1 | 1) => Promise<void>;
   ordenarFavoritos: (visiveis: string[]) => Promise<void>;
+  /** Grade da Área de Trabalho: apps soltos e pastas, na ordem escolhida. */
+  itensArea: ItemArea[];
+  pastas: PastaArea[];
+  pastaDoApp: (codigo: string) => string | null;
+  criarPasta: (nome: string, cor: string | null, apps: string[]) => Promise<string | null>;
+  editarPasta: (id: string, nome: string, cor: string | null, apps: string[] | null) => Promise<string | null>;
+  moverParaPasta: (codigo: string, pasta: string | null) => Promise<string | null>;
+  apagarPasta: (id: string) => Promise<string | null>;
   estiloDe: (codigo: string) => EstiloApp;
   definirEstilo: (codigo: string, estilo: Partial<EstiloApp> | null) => Promise<void>;
   registrarUso: (codigo: string) => void;
@@ -95,6 +113,8 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
   const [atualId, setAtualId] = useState<string | null>(() => ler<string | null>("estabelecimento_id", null));
   const [meus, setMeus] = useState<MeusAcessos>(VAZIO);
   const [favoritos, setFavoritos] = useState<string[]>([]);
+  const [pastaDe, setPastaDe] = useState<Record<string, string>>({});
+  const [pastas, setPastas] = useState<PastaArea[]>([]);
   const [usos, setUsos] = useState<Uso[]>([]);
   const [estilos, setEstilos] = useState<Record<string, EstiloApp>>(() => ler<Record<string, EstiloApp>>("estilos_apps", {}));
   // false enquanto a atualização 030 não foi aplicada: aí o estilo fica só neste aparelho.
@@ -113,11 +133,14 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         .eq("ativo", true),
       supabase
         .from("favoritos")
-        .select("codigo, ordem, cor, icone")
+        .select("codigo, ordem, cor, icone, pasta_id")
         .eq("usuario_id", usuario)
         .order("ordem")
         .then(async (r) => {
           if (!r.error) return { ...r, novo: true };
+          // Sem a atualização 042 (pastas).
+          const sem = await supabase.from("favoritos").select("codigo, ordem, cor, icone").eq("usuario_id", usuario).order("ordem");
+          if (!sem.error) return { ...sem, novo: true };
           const velho = await supabase.from("favoritos").select("codigo, ordem").eq("usuario_id", usuario).order("ordem");
           return { ...velho, novo: false };
         }),
@@ -139,8 +162,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
         }));
     }
     setVinculos([...proprios, ...suporte]);
-    const linhas = (f.data ?? []) as { codigo: string; cor?: string | null; icone?: string | null }[];
+    const linhas = (f.data ?? []) as { codigo: string; cor?: string | null; icone?: string | null; pasta_id?: string | null }[];
     setFavoritos(linhas.map((x) => x.codigo));
+    setPastaDe(Object.fromEntries(linhas.filter((x) => x.pasta_id).map((x) => [x.codigo, x.pasta_id as string])));
+    if (linhas.some((x) => x.codigo.startsWith("pasta:"))) {
+      const { data: p } = await supabase.from("pastas_area").select("id, nome, cor").eq("usuario_id", usuario);
+      setPastas((p ?? []) as PastaArea[]);
+    } else setPastas([]);
     setEstiloNoBanco(f.novo);
     if (f.novo) setEstilos(Object.fromEntries(linhas.filter((x) => x.cor || x.icone).map((x) => [x.codigo, { cor: x.cor ?? null, icone: x.icone ?? null }])));
     setUsos((u.data ?? []) as Uso[]);
@@ -294,6 +322,35 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
     [usuario, atual],
   );
 
+  // Grade: apps soltos e pastas na ordem dos favoritos; apps dentro de pasta só aparecem na pasta.
+  const itensArea = useMemo<ItemArea[]>(() => {
+    const porId = new Map(pastas.map((p) => [p.id, p]));
+    const itens: ItemArea[] = [];
+    for (const c of favoritos) {
+      if (c.startsWith("pasta:")) {
+        const p = porId.get(c.slice(6));
+        if (!p) continue;
+        const dentro = favoritos.filter((x) => pastaDe[x] === p.id).map(porCodigo).filter((a): a is Aplicativo => !!a && temAcesso(a));
+        itens.push({ codigo: c, pasta: { ...p, apps: dentro } });
+        continue;
+      }
+      if (pastaDe[c] && porId.has(pastaDe[c])) continue;
+      const app = porCodigo(c);
+      if (app && temAcesso(app)) itens.push({ codigo: c, app });
+    }
+    return itens;
+  }, [favoritos, pastas, pastaDe, temAcesso]);
+
+  const rodar = useCallback(
+    async (fn: string, args: Record<string, unknown>) => {
+      const { data, error } = await supabase.rpc(fn, args);
+      if (error) return /function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 042 do banco para usar pastas." : error.message;
+      await recarregar();
+      return data === undefined ? null : null;
+    },
+    [recarregar],
+  );
+
   const escolherEstabelecimento = (id: string) => {
     setAtualId(id);
     gravar("estabelecimento_id", id);
@@ -329,6 +386,13 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       alternarFavorito,
       moverFavorito,
       ordenarFavoritos,
+      itensArea,
+      pastas,
+      pastaDoApp: (c) => pastaDe[c] ?? null,
+      criarPasta: (nome, cor, apps) => rodar("criar_pasta", { p_nome: nome, p_cor: cor, p_apps: apps }),
+      editarPasta: (id, nome, cor, apps) => rodar("editar_pasta", { p_pasta: id, p_nome: nome, p_cor: cor, p_apps: apps }),
+      moverParaPasta: (codigo, pasta) => rodar("mover_para_pasta", { p_codigo: codigo, p_pasta: pasta }),
+      apagarPasta: (id) => rodar("apagar_pasta", { p_pasta: id }),
       estiloDe: (c) => estilos[c] ?? { cor: null, icone: null },
       definirEstilo,
       registrarUso,
@@ -336,7 +400,7 @@ export function BusinessProvider({ children }: { children: ReactNode }) {
       recarregar,
     }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [carregando, vinculos, atual, temAcesso, pode, meus, favoritos, usos, solicitados, alternarFavorito, moverFavorito, ordenarFavoritos, estilos, definirEstilo, registrarUso, solicitarAcesso, recarregar],
+    [carregando, vinculos, atual, temAcesso, pode, meus, favoritos, itensArea, pastas, pastaDe, rodar, usos, solicitados, alternarFavorito, moverFavorito, ordenarFavoritos, estilos, definirEstilo, registrarUso, solicitarAcesso, recarregar],
   );
 
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

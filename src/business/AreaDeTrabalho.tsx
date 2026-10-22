@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, History, Lock, Search, Star, X, Zap } from "lucide-react";
+import { CalendarDays, FolderPlus, History, Lock, MoreVertical, Search, Star, X, Zap } from "lucide-react";
+import { EditorPasta } from "./PastasArea";
 import { Aplicativo, Area, buscar, CATALOGO } from "@/lib/catalogo";
 import { NOME_PAPEL, NOME_SITUACAO, useBusiness } from "@/lib/acessos";
 import { useSessao } from "@/lib/sessao";
@@ -30,6 +31,8 @@ export function AreaDeTrabalho() {
   const { perfil, ehAdmin } = useSessao();
   const navegar = useNavigate();
   const [termo, setTermo] = useState("");
+  const [menuArea, setMenuArea] = useState(false);
+  const [novaPasta, setNovaPasta] = useState(false);
   const [agora, setAgora] = useState(() => new Date());
   const campo = useRef<HTMLInputElement>(null);
   const resultados = useMemo(() => buscar(CATALOGO, termo), [termo]);
@@ -132,8 +135,39 @@ export function AreaDeTrabalho() {
                   <Star className="h-5 w-5 fill-current text-destaque" />
                   Meus Aplicativos
                 </h2>
-                <span className="text-[13px] text-suave">
-                  {acessos.favoritos.length} {acessos.favoritos.length === 1 ? "favorito" : "favoritos"}
+                <span className="relative flex items-center gap-1">
+                  <span className="text-[13px] text-suave">
+                    {acessos.favoritos.length} {acessos.favoritos.length === 1 ? "favorito" : "favoritos"}
+                    {acessos.pastas.length > 0 && ` · ${acessos.pastas.length} ${acessos.pastas.length === 1 ? "pasta" : "pastas"}`}
+                  </span>
+                  <button
+                    className="-mr-1.5 rounded-full p-1.5 text-suave hover:bg-elevado hover:text-texto"
+                    onClick={() => setMenuArea((m) => !m)}
+                    aria-label="Opções da Área de Trabalho"
+                    aria-expanded={menuArea}
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </button>
+                  {menuArea && (
+                    <>
+                      <span className="fixed inset-0 z-20" onClick={() => setMenuArea(false)} />
+                      <span className="absolute right-0 top-8 z-30 w-56 overflow-hidden rounded-lg border border-borda bg-superficie py-1 text-sm shadow-lg">
+                        <button
+                          className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-elevado"
+                          onClick={() => {
+                            setMenuArea(false);
+                            setNovaPasta(true);
+                          }}
+                        >
+                          <FolderPlus className="h-4 w-4" />
+                          <span>
+                            <span className="block">Nova pasta</span>
+                            <span className="block text-[12px] text-suave">Agrupe apps da mesma linha de ação</span>
+                          </span>
+                        </button>
+                      </span>
+                    </>
+                  )}
                 </span>
               </div>
               {acessos.favoritos.length === 0 ? (
@@ -146,10 +180,11 @@ export function AreaDeTrabalho() {
                   </div>
                 </div>
               ) : (
-                <GradeApps apps={acessos.favoritos} corArea={COR_AREA} onAbrir={abrir} />
+                <GradeApps itens={acessos.itensArea} corArea={COR_AREA} onAbrir={abrir} />
               )}
             </section>
           )}
+          {novaPasta && <EditorPasta pasta={null} fechar={() => setNovaPasta(false)} />}
         </div>
 
         {/* Lado direito: mais usados e últimos acessos */}

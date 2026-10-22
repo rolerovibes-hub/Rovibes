@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Check, ChevronLeft, ChevronRight, GripVertical, ImageIcon, MoreVertical, Palette, RotateCcw, StarOff } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Folder, FolderInput, FolderMinus, FolderPlus, GripVertical, ImageIcon, MoreVertical, Palette, RotateCcw, StarOff } from "lucide-react";
+import { BlocoPasta, EditorPasta, FolhaPasta } from "./PastasArea";
 import { Aplicativo, Area } from "@/lib/catalogo";
-import { EstiloApp, useBusiness } from "@/lib/acessos";
+import { EstiloApp, ItemArea, useBusiness } from "@/lib/acessos";
 import { CORES_APP, ICONES_APP } from "@/lib/estiloApps";
 
 type Modo = "antes" | "depois" | "trocar";
@@ -31,8 +32,10 @@ export function visualApp(app: Aplicativo, estilo: EstiloApp, corArea: Record<Ar
  * (solte na borda de outro app para pôr antes/depois, ou no meio para trocar os dois de lugar).
  * No celular, segure o dedo meio segundo para começar a arrastar.
  */
-export function GradeApps({ apps, corArea, onAbrir }: { apps: Aplicativo[]; corArea: Record<Area, string>; onAbrir: (a: Aplicativo) => void }) {
+export function GradeApps({ itens, corArea, onAbrir }: { itens: ItemArea[]; corArea: Record<Area, string>; onAbrir: (a: Aplicativo) => void }) {
   const acessos = useBusiness();
+  const [pastaAberta, setPastaAberta] = useState<string | null>(null);
+  const [editandoPasta, setEditandoPasta] = useState<string | null>(null);
   const grade = useRef<HTMLDivElement>(null);
   const [arrasto, setArrasto] = useState<Arrasto | null>(null);
   const [alvo, setAlvo] = useState<{ codigo: string; modo: Modo } | null>(null);
@@ -49,7 +52,17 @@ export function GradeApps({ apps, corArea, onAbrir }: { apps: Aplicativo[]; corA
     return () => el.removeEventListener("touchmove", travar);
   }, []);
 
-  const ordem = apps.map((a) => a.codigo);
+  const ordem = itens.map((a) => a.codigo);
+  const mover = (codigo: string, d: -1 | 1) => {
+    const i = ordem.indexOf(codigo);
+    const j = i + d;
+    if (i < 0 || j < 0 || j >= ordem.length) return;
+    const novo = [...ordem];
+    [novo[i], novo[j]] = [novo[j], novo[i]];
+    void acessos.ordenarFavoritos(novo);
+  };
+  const pastaAbertaItem = itens.find((i) => i.pasta?.id === pastaAberta)?.pasta ?? null;
+  const pastaEditando = itens.find((i) => i.pasta?.id === editandoPasta)?.pasta ?? null;
 
   const soltar = (codigo: string, destino: { codigo: string; modo: Modo } | null) => {
     if (!destino || destino.codigo === codigo) return;
@@ -128,12 +141,12 @@ export function GradeApps({ apps, corArea, onAbrir }: { apps: Aplicativo[]; corA
     window.addEventListener("pointercancel", terminar);
   };
 
-  const arrastado = arrasto ? apps.find((a) => a.codigo === arrasto.codigo) : null;
+  const arrastado = arrasto ? itens.find((a) => a.codigo === arrasto.codigo) : null;
 
   return (
     <>
       <div ref={grade} className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-6">
-        {apps.map((a, i) => (
+        {itens.map((a, i) => (
           <div
             key={a.codigo}
             data-app={a.codigo}
@@ -154,22 +167,26 @@ export function GradeApps({ apps, corArea, onAbrir }: { apps: Aplicativo[]; corA
             {alvo?.codigo === a.codigo && alvo.modo !== "trocar" && (
               <span className={clsx("pointer-events-none absolute -bottom-1 -top-1 z-10 w-1 rounded-full bg-marca", alvo.modo === "antes" ? "-left-2" : "-right-2")} />
             )}
-            <Bloco
-              app={a}
-              corArea={corArea}
-              trocar={alvo?.codigo === a.codigo && alvo.modo === "trocar"}
-              primeiro={i === 0}
-              ultimo={i === apps.length - 1}
-              onAbrir={() => onAbrir(a)}
-              onMover={(d) => acessos.moverFavorito(a.codigo, d)}
-              onRemover={() => acessos.alternarFavorito(a.codigo)}
-            />
+            {a.pasta ? (
+              <BlocoPasta pasta={a.pasta} corArea={corArea} trocar={alvo?.codigo === a.codigo && alvo.modo === "trocar"} onAbrir={() => setPastaAberta(a.pasta.id)} />
+            ) : (
+              <Bloco
+                app={a.app}
+                corArea={corArea}
+                trocar={alvo?.codigo === a.codigo && alvo.modo === "trocar"}
+                primeiro={i === 0}
+                ultimo={i === itens.length - 1}
+                onAbrir={() => onAbrir(a.app)}
+                onMover={(d) => mover(a.codigo, d)}
+                onRemover={() => acessos.alternarFavorito(a.codigo)}
+              />
+            )}
           </div>
         ))}
       </div>
       <p className="mt-3 flex items-center gap-1.5 text-[12px] text-suave">
         <GripVertical className="h-3.5 w-3.5" />
-        Arraste um app para mudar de lugar (no celular, segure antes). Solte no meio de outro para trocar os dois. Nos três pontinhos você muda a cor e o ícone.
+        Arraste um app ou pasta para mudar de lugar (no celular, segure antes). Solte no meio de outro para trocar os dois. Nos três pontinhos você muda a cor, o ícone ou põe o app numa pasta.
       </p>
       {arrasto && arrastado && (
         <div
@@ -177,9 +194,26 @@ export function GradeApps({ apps, corArea, onAbrir }: { apps: Aplicativo[]; corA
           style={{ left: arrasto.x - arrasto.dx, top: arrasto.y - arrasto.dy, width: arrasto.w, height: arrasto.h }}
           aria-hidden
         >
-          <Bloco app={arrastado} corArea={corArea} fantasma primeiro ultimo onAbrir={() => {}} onMover={() => {}} onRemover={() => {}} />
+          {arrastado.pasta ? (
+            <BlocoPasta pasta={arrastado.pasta} corArea={corArea} onAbrir={() => {}} />
+          ) : (
+            <Bloco app={arrastado.app} corArea={corArea} fantasma primeiro ultimo onAbrir={() => {}} onMover={() => {}} onRemover={() => {}} />
+          )}
         </div>
       )}
+      {pastaAbertaItem && (
+        <FolhaPasta
+          pasta={pastaAbertaItem}
+          corArea={corArea}
+          fechar={() => setPastaAberta(null)}
+          onAbrirApp={onAbrir}
+          editar={() => {
+            setEditandoPasta(pastaAbertaItem.id);
+            setPastaAberta(null);
+          }}
+        />
+      )}
+      {pastaEditando && <EditorPasta pasta={pastaEditando} fechar={() => setEditandoPasta(null)} />}
     </>
   );
 }
@@ -208,7 +242,10 @@ function Bloco({
   const { estiloDe, definirEstilo } = useBusiness();
   const estilo = estiloDe(app.codigo);
   const { Icone, classe, estilo: fundo } = visualApp(app, estilo, corArea);
-  const [menu, setMenu] = useState<null | "inicio" | "cor" | "icone">(null);
+  const [menu, setMenu] = useState<null | "inicio" | "cor" | "icone" | "pasta">(null);
+  const { pastas, pastaDoApp, moverParaPasta } = useBusiness();
+  const [novaPasta, setNovaPasta] = useState(false);
+  const minhaPasta = pastaDoApp(app.codigo);
   const [aEsquerda, setAEsquerda] = useState(false);
   const caixa = useRef<HTMLDivElement>(null);
   const personalizado = !!(estilo.cor || estilo.icone);
@@ -273,6 +310,11 @@ function Bloco({
                   Voltar cor e ícone padrão
                 </button>
               )}
+              <button className={item} onClick={() => setMenu("pasta")}>
+                <FolderInput className="h-4 w-4" />
+                <span className="flex-1">Pôr numa pasta</span>
+                <ChevronRight className="h-4 w-4 text-suave" />
+              </button>
               <div className="my-1 border-t border-borda" />
               <button className={item} disabled={primeiro} onClick={() => { onMover(-1); setMenu(null); }}>
                 <ChevronLeft className="h-4 w-4" />
@@ -287,6 +329,38 @@ function Bloco({
                 Tirar da tela inicial
               </button>
             </>
+          )}
+          {menu === "pasta" && (
+            <div className="py-1">
+              <button className="mb-1 flex items-center gap-1 px-2 text-[13px] font-semibold text-suave" onClick={() => setMenu("inicio")}>
+                <ChevronLeft className="h-4 w-4" />
+                Pôr numa pasta
+              </button>
+              {pastas.map((p) => (
+                <button
+                  key={p.id}
+                  className={item}
+                  onClick={() => {
+                    void moverParaPasta(app.codigo, p.id);
+                    setMenu(null);
+                  }}
+                >
+                  <Folder className="h-4 w-4" style={{ color: p.cor ?? undefined }} />
+                  <span className="min-w-0 flex-1 truncate">{p.nome}</span>
+                  {minhaPasta === p.id && <Check className="h-4 w-4 text-destaque" />}
+                </button>
+              ))}
+              {minhaPasta && (
+                <button className={item} onClick={() => { void moverParaPasta(app.codigo, null); setMenu(null); }}>
+                  <FolderMinus className="h-4 w-4" />
+                  Tirar da pasta
+                </button>
+              )}
+              <button className={item} onClick={() => { setNovaPasta(true); setMenu(null); }}>
+                <FolderPlus className="h-4 w-4" />
+                Nova pasta com este app
+              </button>
+            </div>
           )}
           {menu === "cor" && (
             <div className="p-2">
@@ -357,6 +431,12 @@ function Bloco({
           )}
         </div>
       )}
+      {novaPasta && <NovaPastaCom codigo={app.codigo} fechar={() => setNovaPasta(false)} />}
     </div>
   );
+}
+
+/** "Nova pasta com este app": abre o editor já com o app marcado. */
+function NovaPastaCom({ codigo, fechar }: { codigo: string; fechar: () => void }) {
+  return <EditorPasta pasta={null} appsIniciais={[codigo]} fechar={fechar} />;
 }
