@@ -38,11 +38,20 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
     setFalhou("");
     try {
       if (!navigator.mediaDevices?.getUserMedia) throw new Error("sem câmera");
+      // Pede o formato natural do sensor (deitado, 16:9). Pedir 1080×1920 (em pé) fazia o Android
+      // recortar o meio da imagem e ampliar — era o "zoom esquisito". O aparelho já gira a imagem sozinho.
       const s = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: frente ? "user" : "environment", width: { ideal: 1080 }, height: { ideal: 1920 } },
+        video: { facingMode: frente ? "user" : "environment", width: { ideal: 1920 }, height: { ideal: 1080 }, resizeMode: "none" } as MediaTrackConstraints,
         audio: modo === "video",
       });
       fluxo.current = s;
+      // Garante zoom 1x (alguns aparelhos abrem a câmera já com zoom).
+      const trilha = s.getVideoTracks()[0];
+      const caps = (trilha?.getCapabilities?.() ?? {}) as MediaTrackCapabilities & { zoom?: { min: number; max: number } };
+      if (caps.zoom) {
+        const alvo = Math.min(caps.zoom.max, Math.max(caps.zoom.min, 1));
+        await trilha.applyConstraints({ advanced: [{ zoom: alvo } as MediaTrackConstraintSet] }).catch(() => undefined);
+      }
       if (tela.current) {
         tela.current.srcObject = s;
         await tela.current.play().catch(() => undefined);
@@ -79,16 +88,24 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
   const tirarFoto = () => {
     const v = tela.current;
     if (!v || !v.videoWidth) return;
+    // A foto sai exatamente com o enquadramento que aparece na tela (o que você vê é o que fica).
+    const tw = v.clientWidth || v.videoWidth;
+    const th = v.clientHeight || v.videoHeight;
+    const escala = Math.max(tw / v.videoWidth, th / v.videoHeight);
+    const sw = Math.round(tw / escala);
+    const sh = Math.round(th / escala);
+    const sx = Math.round((v.videoWidth - sw) / 2);
+    const sy = Math.round((v.videoHeight - sh) / 2);
     const c = document.createElement("canvas");
-    c.width = v.videoWidth;
-    c.height = v.videoHeight;
+    c.width = sw;
+    c.height = sh;
     const g = c.getContext("2d")!;
     if (atmosfera) g.filter = ATMOSFERA;
     if (frente) {
       g.translate(c.width, 0);
       g.scale(-1, 1);
     }
-    g.drawImage(v, 0, 0);
+    g.drawImage(v, sx, sy, sw, sh, 0, 0, sw, sh);
     c.toBlob(
       (b) => {
         if (!b) return;
