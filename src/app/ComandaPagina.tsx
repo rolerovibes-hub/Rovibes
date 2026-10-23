@@ -626,7 +626,7 @@ function FolhaPedido({
 
       <div className="mx-auto w-full max-w-xl flex-1 overflow-y-auto px-4 py-4">
         {!itens ? (
-          <Carregando />
+          <Carregando compacto />
         ) : etapa === "itens" ? (
           <MontarPedido itens={lista} carrinho={carrinho} mudar={setCarrinho} />
         ) : (

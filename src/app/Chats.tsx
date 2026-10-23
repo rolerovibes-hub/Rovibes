@@ -135,7 +135,7 @@ export function Chats() {
 
       {erro && <p className="px-4 pt-3 text-sm text-perigo">{erro}</p>}
       {lista === null ? (
-        <Carregando />
+        <Carregando compacto />
       ) : visiveis.length === 0 ? (
         <div className="px-6 py-14 text-center">
           <IconePapo className="mx-auto h-8 w-8 text-suave" />

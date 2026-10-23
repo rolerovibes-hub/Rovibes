@@ -66,7 +66,7 @@ export function Carteira() {
       </div>
 
       {!dados ? (
-        <Carregando />
+        <Carregando compacto />
       ) : aba === "cupons" ? (
         <div className="space-y-6 px-4 pt-5">
           {cuponsAtivos.length === 0 ? (

@@ -108,7 +108,7 @@ function Explorar() {
       {avisoLocal && <p className="px-4 text-sm text-alerta">{avisoLocal}</p>}
 
       {carregando ? (
-        <Carregando />
+        <Carregando compacto />
       ) : erro ? (
         <p className="px-4 text-sm text-perigo">Não foi possível carregar agora. Verifique a conexão e tente de novo.</p>
       ) : (
@@ -412,7 +412,7 @@ export function Descobrir() {
           <Explorar />
         </>
       ) : buscando && !resultados ? (
-        <Carregando />
+        <Carregando compacto />
       ) : resultados && resultados.length === 0 ? (
         <div className="px-6 py-14 text-center">
           <Search className="mx-auto h-7 w-7 text-suave" />

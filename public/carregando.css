@@ -1,0 +1,83 @@
+/* Tela de carregamento do RoVibes: vidro fosco por cima do app + pin 3D com o degradê da marca correndo.
+   Usada pelo index.html (abertura do app) e pelo componente <Carregando />. */
+:root { --rv-pin: url(data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAxNTAgMjAwIj48cGF0aCBmaWxsPSIjZmZmIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik03OS41IDE5My41IFE3NSAxOTkuNSA3MC41IDE5My41IEwxMiAxMTMgQTc0IDc0IDAgMSAxIDEzOCAxMTMgWiBNNzUgMTQgQTYwIDYwIDAgMSAwIDc1LjAxIDE0IFoiLz48cGF0aCBmaWxsPSIjZmZmIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0zNyA1MC41IEgxMTMgUTExNiA1MC41IDExNCA1My41IEw3OC41IDg5IFYxMTcuNSBIOTAgUTkzIDExNy41IDkzIDEyMC43NSBROTMgMTI0IDkwIDEyNCBINjAgUTU3IDEyNCA1NyAxMjAuNzUgUTU3IDExNy41IDYwIDExNy41IEg3MS41IFY4OSBMMzYgNTMuNSBRMzQgNTAuNSAzNyA1MC41IFogTTQ2LjUgNTguNSBIMTAzLjUgTDc1IDg3IFoiLz48cGF0aCBkPSJNODguNSA0Ni41IEw5OS41IDM2IiBzdHJva2U9IiNmZmYiIHN0cm9rZS13aWR0aD0iNC41IiBzdHJva2UtbGluZWNhcD0icm91bmQiLz48L3N2Zz4K); --rv-vidro: rgba(244, 245, 248, 0.5); --rv-texto: rgb(93, 102, 122); }
+html.dark { --rv-vidro: rgba(26, 31, 43, 0.52); --rv-texto: rgb(158, 167, 185); }
+
+.rv-carregando {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  background: var(--rv-vidro);
+  -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
+  opacity: 0; animation: rv-surgir 0.35s ease-out 0.12s forwards;
+}
+.rv-carregando-compacto { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 28px 0; }
+
+.rv-palco { --w: min(64vw, 250px); position: relative; width: var(--w); aspect-ratio: 3 / 4; perspective: 900px; }
+.rv-carregando-compacto .rv-palco { --w: 56px; perspective: 300px; }
+
+/* Aura colorida atrás (sem invadir o miolo do pin) */
+.rv-halo {
+  position: absolute; inset: -25%;
+  -webkit-mask: radial-gradient(circle calc(var(--w) * 0.405) at 50% 41.3%, transparent 97%, #000 100%);
+  mask: radial-gradient(circle calc(var(--w) * 0.405) at 50% 41.3%, transparent 97%, #000 100%);
+  animation: rv-flutuar 2.4s ease-in-out infinite;
+}
+.rv-aura {
+  position: absolute; inset: 20% 18% 26%; border-radius: 50%; filter: blur(calc(var(--w) * 0.15)); opacity: 0.45;
+  background: conic-gradient(from 0deg, #f21393, #a21caf, #6d28d9, #2563eb, #a21caf, #f21393);
+  animation: rv-girar 6s linear infinite, rv-pulsar 2.4s ease-in-out infinite;
+}
+html.dark .rv-aura { opacity: 0.55; }
+
+/* Pin 3D: camadas empilhadas formam a espessura */
+.rv-objeto { position: absolute; inset: 0; transform-style: preserve-3d; animation: rv-balanco 4.8s ease-in-out infinite; }
+.rv-camada, .rv-pin { position: absolute; inset: 0; -webkit-mask: var(--rv-pin) center / contain no-repeat; mask: var(--rv-pin) center / contain no-repeat; }
+.rv-camada { background: linear-gradient(180deg, #8a0f5c, #4c1d95 50%, #1e3a8a); opacity: 0.95; }
+.rv-pin { overflow: hidden; opacity: 0.94; transform: translateZ(0); }
+.rv-fluxo {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, #f21393 0%, #c026d3 16%, #7c3aed 33%, #2563eb 50%, #7c3aed 67%, #c026d3 84%, #f21393 100%);
+  background-size: 100% 300%; animation: rv-fluir 3.6s linear infinite;
+}
+.rv-giro {
+  position: absolute; inset: -30%; mix-blend-mode: soft-light; animation: rv-girar 3.6s linear infinite;
+  background: conic-gradient(from 0deg at 50% 45%, rgba(255,255,255,0) 0deg, rgba(255,255,255,0.28) 40deg, rgba(255,255,255,0) 90deg, rgba(255,255,255,0) 360deg);
+}
+.rv-luz {
+  position: absolute; inset: 0; mix-blend-mode: soft-light;
+  background: radial-gradient(120% 80% at 28% 12%, rgba(255,255,255,0.55), rgba(255,255,255,0) 45%), linear-gradient(200deg, rgba(255,255,255,0) 55%, rgba(0,0,30,0.35));
+}
+.rv-brilho {
+  position: absolute; top: -20%; bottom: -20%; left: -60%; width: 38%; transform: skewX(-18deg);
+  background: linear-gradient(100deg, transparent, rgba(255,255,255,0.38), transparent); animation: rv-varrer 2.4s ease-in-out infinite;
+}
+.rv-sombra {
+  width: calc(var(--w, 250px) * 0.34); height: calc(var(--w, 250px) * 0.056); margin-top: calc(var(--w, 250px) * -0.024); border-radius: 50%;
+  background: radial-gradient(closest-side, rgba(60, 20, 120, 0.35), transparent); animation: rv-sombra 2.4s ease-in-out infinite;
+}
+html.dark .rv-sombra { background: radial-gradient(closest-side, rgba(0, 0, 0, 0.55), transparent); }
+.rv-carregando .rv-sombra { --w: min(64vw, 250px); }
+.rv-carregando-compacto .rv-sombra { --w: 56px; }
+.rv-texto { margin-top: 22px; font-size: 14px; letter-spacing: 0.02em; color: var(--rv-texto); font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.rv-texto i { display: inline-block; width: 5px; height: 5px; margin-left: 4px; border-radius: 50%; background: currentColor; animation: rv-ponto 1.2s infinite; }
+.rv-texto i:nth-child(2) { animation-delay: 0.2s; }
+.rv-texto i:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes rv-surgir { to { opacity: 1; } }
+@keyframes rv-fluir { from { background-position: 0 0; } to { background-position: 0 100%; } }
+@keyframes rv-girar { to { transform: rotate(360deg); } }
+@keyframes rv-pulsar { 0%, 100% { scale: 0.92; } 50% { scale: 1.05; } }
+@keyframes rv-flutuar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-2.8%); } }
+@keyframes rv-balanco { 0%, 100% { transform: translateY(0) rotateY(-12deg) rotateX(2deg); } 50% { transform: translateY(-4.2%) rotateY(12deg) rotateX(1deg); } }
+@keyframes rv-sombra { 0%, 100% { transform: scaleX(1); opacity: 1; } 50% { transform: scaleX(0.75); opacity: 0.55; } }
+@keyframes rv-varrer { 0%, 35% { left: -60%; } 75%, 100% { left: 120%; } }
+@keyframes rv-ponto { 0%, 80%, 100% { opacity: 0.25; } 40% { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .rv-carregando *, .rv-carregando-compacto * { animation: none !important; }
+  .rv-carregando { animation-duration: 0.01s; }
+}
+
+/* Fundo antes do app carregar (o Tailwind assume depois, com as mesmas cores). */
+body { margin: 0; background: #f4f5f8; }
+html.dark body { background: #1a1f2b; }

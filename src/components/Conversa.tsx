@@ -281,7 +281,7 @@ export function CorpoConversa({
         }}
       >
         {mensagens === null ? (
-          <Carregando />
+          <Carregando compacto />
         ) : (
           <>
             {temMais && (

@@ -5,6 +5,7 @@
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="stylesheet" href="/carregando.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#F4F5F8" />
     <script>
@@ -18,7 +19,8 @@
     <title>RoVibes</title>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Abertura: a mesma tela de carregamento do app até o React desenhar a primeira tela. -->
+    <div id="root"><div class="rv-carregando" style="animation-delay:0s" role="status" aria-label="Carregando"><div class="rv-palco" aria-hidden="true"><div class="rv-halo"><div class="rv-aura"></div></div><div class="rv-objeto"><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0052));filter:brightness(0.96)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0104));filter:brightness(0.93)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0156));filter:brightness(0.90)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0208));filter:brightness(0.86)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0260));filter:brightness(0.82)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0312));filter:brightness(0.79)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0364));filter:brightness(0.76)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0416));filter:brightness(0.72)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0468));filter:brightness(0.68)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0520));filter:brightness(0.65)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0572));filter:brightness(0.61)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0624));filter:brightness(0.58)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0676));filter:brightness(0.54)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0728));filter:brightness(0.51)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0780));filter:brightness(0.47)"></div><div class="rv-camada" style="transform:translateZ(calc(var(--w) * -0.0832));filter:brightness(0.44)"></div><div class="rv-pin"><div class="rv-fluxo"></div><div class="rv-giro"></div><div class="rv-luz"></div><div class="rv-brilho"></div></div></div></div><div class="rv-sombra"></div><p class="rv-texto">Carregando a vibe<i></i><i></i><i></i></p></div></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

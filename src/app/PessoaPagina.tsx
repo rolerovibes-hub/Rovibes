@@ -320,7 +320,7 @@ export function ListaConexoes() {
       <Topo titulo={`${modo === "seguidores" ? "Seguidores" : "Seguindo"}${dono ? ` · ${dono.usuario}` : ""}`} />
       {erro && <p className="px-4 pt-2 text-sm text-perigo">{erro}</p>}
       {lista === null ? (
-        <Carregando />
+        <Carregando compacto />
       ) : lista.length === 0 ? (
         <p className="px-6 py-14 text-center text-sm text-suave">{modo === "seguidores" ? "Nenhum seguidor ainda." : "Ainda não segue ninguém."}</p>
       ) : (

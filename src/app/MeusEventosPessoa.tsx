@@ -45,7 +45,7 @@ export function MeusEventosPessoa() {
       </header>
       {erro && <p className="px-4 text-sm text-perigo">{erro}</p>}
       {lista === null ? (
-        <Carregando />
+        <Carregando compacto />
       ) : lista.length === 0 ? (
         <div className="px-6 py-16 text-center">
           <p className="text-4xl">🍖🎂🥂</p>

@@ -45,7 +45,7 @@ export function MensagensEstab({ estab, nomeEstab, altura = "h-[calc(100vh-170px
         <h2 className="border-b border-borda px-4 py-3 font-semibold">Conversas com clientes</h2>
         {erro && <p className="px-4 py-3 text-sm text-perigo">{erro}</p>}
         {lista === null ? (
-          <Carregando />
+          <Carregando compacto />
         ) : lista.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <MessagesSquare className="mx-auto h-8 w-8 text-suave" />

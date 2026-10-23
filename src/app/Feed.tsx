@@ -231,7 +231,7 @@ export function Feed() {
       </section>
 
       {carregando ? (
-        <Carregando />
+        <Carregando compacto />
       ) : (
         <>
           {storiesEmAlta.length > 0 ? (
@@ -277,7 +277,7 @@ export function Feed() {
         <h2 className="px-4 text-[17px] font-semibold">Publicações</h2>
 
         {pubs === null ? (
-          <Carregando />
+          <Carregando compacto />
         ) : pubs.length === 0 ? (
           <div className="px-6 py-12 text-center">
             <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-destaque-suave text-destaque">

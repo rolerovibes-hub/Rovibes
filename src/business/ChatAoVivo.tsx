@@ -223,7 +223,7 @@ export function ChatAoVivo({ estab, nomeEstab }: { estab: string; nomeEstab: str
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3">
               {!vendo.msgs ? (
-                <Carregando />
+                <Carregando compacto />
               ) : vendo.msgs.length === 0 ? (
                 <p className="py-6 text-center text-sm text-suave">Sem mensagens.</p>
               ) : (

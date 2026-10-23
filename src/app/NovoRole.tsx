@@ -226,7 +226,7 @@ export function EscolherPessoas({
         </div>
       )}
       {conhecidos === null ? (
-        <Carregando />
+        <Carregando compacto />
       ) : lista.length === 0 ? (
         <p className="py-6 text-center text-sm text-suave">{busca ? "Ninguém encontrado." : "Siga pessoas para chamá-las para o rolê, ou busque pelo nome."}</p>
       ) : (
