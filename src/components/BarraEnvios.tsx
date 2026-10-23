@@ -27,11 +27,18 @@ export function BarraEnvios() {
                   : "Story publicado"
                 : e.estado === "erro"
                   ? e.erro ?? "Não foi possível publicar"
+                  : e.estado === "rascunho"
+                    ? e.erro
+                      ? `Rascunho salvo · ${e.erro}`
+                      : "Envio interrompido · salvo como rascunho"
                   : e.estado === "preparando" && e.pedido.midia.tipo === "video" && e.pedido.midia.regravar
                     ? "Preparando o vídeo..."
                     : "Publicando..."}
             </p>
-            {e.estado !== "erro" && (
+            {(e.estado === "erro" || e.estado === "rascunho") && (
+              <span className="block truncate text-[12px] text-suave">{e.estado === "erro" ? "Ficou salvo no aparelho como rascunho" : "Toque em ↻ para publicar ou × para descartar"}</span>
+            )}
+            {e.estado !== "erro" && e.estado !== "rascunho" && (
               <span className="mt-1 block h-1 overflow-hidden rounded-full bg-elevado">
                 <span className={clsx("block h-full rounded-full transition-[width] duration-300", e.estado === "publicado" ? "bg-ok" : "bg-marca")} style={{ width: `${Math.round(e.progresso * 100)}%` }} />
               </span>
@@ -39,12 +46,16 @@ export function BarraEnvios() {
           </div>
           {e.estado === "publicado" ? (
             <Check className="h-5 w-5 shrink-0 text-ok" />
-          ) : e.estado === "erro" ? (
+          ) : e.estado === "erro" || e.estado === "rascunho" ? (
             <>
-              <button onClick={() => tentarDeNovo(e.id)} className="rounded-full p-1.5 text-destaque hover:bg-elevado" aria-label="Tentar de novo">
+              <button onClick={() => tentarDeNovo(e.id)} className="rounded-full p-1.5 text-destaque hover:bg-elevado" aria-label="Publicar agora">
                 <RotateCcw className="h-4 w-4" />
               </button>
-              <button onClick={() => descartar(e.id)} className="rounded-full p-1.5 text-suave hover:bg-elevado" aria-label="Descartar">
+              <button
+                onClick={() => window.confirm("Descartar esta publicação? O rascunho será apagado do aparelho.") && descartar(e.id)}
+                className="rounded-full p-1.5 text-suave hover:bg-elevado"
+                aria-label="Descartar"
+              >
                 <X className="h-4 w-4" />
               </button>
             </>

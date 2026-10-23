@@ -1,7 +1,8 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
-import { capaDoVideo, extensao, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
+import { capaDoVideo, extensao, liberarMidia, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
+import { apagarEnvio, EnvioGuardado, guardarEnvio, listarEnvios } from "./rascunhosEnvio";
 
 export type Destino = "feed" | "story";
 
@@ -20,10 +21,16 @@ export interface Envio {
   id: string;
   pedido: PedidoPublicacao;
   previa: string | null;
-  estado: "preparando" | "enviando" | "publicado" | "erro";
+  /** rascunho = ficou guardado no aparelho (interrompido ou falhou) esperando continuar. */
+  estado: "preparando" | "enviando" | "publicado" | "erro" | "rascunho";
   /** 0 a 1, somando as etapas (regravar o vídeo, enviar). */
   progresso: number;
   erro?: string;
+  /** Caminho no armazenamento e id da publicação: fixos, para reenviar sem duplicar. */
+  base?: string;
+  postId?: string;
+  usuario?: string;
+  criado_em?: number;
 }
 
 interface Contexto {
@@ -54,7 +61,8 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
       const eu = s.session?.user.id;
       if (!eu) throw new Error("Entre na sua conta para publicar.");
       const { destino, midia, legenda, localId } = e.pedido;
-      const base = `${eu}/${destino === "feed" ? "post" : "story"}-${crypto.randomUUID()}`;
+      const base = e.base ?? `${eu}/${destino === "feed" ? "post" : "story"}-${crypto.randomUUID()}`;
+      const postId = e.postId ?? crypto.randomUUID();
       const caminhos: string[] = [];
       let foto_url: string;
       let video_url: string | null = null;
@@ -77,6 +85,11 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
             video = r.blob;
             tipo = r.tipo;
             duracao = r.duracao;
+            // Guarda o vídeo já pronto: se fechar o app agora, continua daqui sem refazer.
+            const pronto: PedidoPublicacao = { ...e.pedido, midia: { ...midia, arquivo: video, regravar: false, opcoes: { ...midia.opcoes, duracao: r.duracao } } };
+            e.pedido = pronto;
+            mudar(e.id, { pedido: pronto });
+            void guardarEnvio(paraGuardar({ ...e, pedido: pronto, base, postId, usuario: eu }, "pendente"));
           }
           const capa = await capaDoVideo(video, 0.2).catch(() => null);
           mudar(e.id, { estado: "enviando", progresso: midia.regravar ? 0.55 : 0.1 });
@@ -91,8 +104,10 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
         }
         const extras = midia.tipo === "video" ? { video_url, duracao: duracao ? Math.round(duracao * 100) / 100 : null, musica_id: midia.musicaId } : {};
         const linha: Record<string, unknown> =
-          destino === "feed" ? { foto_url, texto: legenda, estabelecimento_id: localId, ...extras } : { foto_url, legenda, estabelecimento_id: localId, ...extras };
+          destino === "feed" ? { id: postId, foto_url, texto: legenda, estabelecimento_id: localId, ...extras } : { id: postId, foto_url, legenda, estabelecimento_id: localId, ...extras };
         const { error } = await supabase.from(destino === "feed" ? "publicacoes_pessoas" : "stories_pessoas").insert(linha);
+        // Já tinha publicado antes de o app fechar: não duplica.
+        if (error && (error.code === "23505" || /duplicate key/i.test(error.message))) return;
         if (error) {
           throw /column|schema cache/i.test(error.message)
             ? new Error("Para publicar vídeos, falta aplicar a atualização 036 do banco.")
@@ -108,7 +123,7 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
     [mudar],
   );
 
-  const proximo = useCallback(async () => {
+  const proximo = useCallback(async (): Promise<void> => {
     if (rodando.current) return;
     const id = fila.current.shift();
     if (!id) return;
@@ -116,12 +131,27 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
     if (!e) return void proximo();
     rodando.current = true;
     try {
+      // Guarda no aparelho antes de começar (com caminho e id fixos).
+      const { data: s } = await supabase.auth.getSession();
+      const eu = s.session?.user.id;
+      if (eu) {
+        e.base ??= `${eu}/${e.pedido.destino === "feed" ? "post" : "story"}-${crypto.randomUUID()}`;
+        e.postId ??= crypto.randomUUID();
+        e.usuario = eu;
+        e.criado_em ??= Date.now();
+        mudar(id, { base: e.base, postId: e.postId, usuario: eu, criado_em: e.criado_em });
+        await guardarEnvio(paraGuardar(e, "pendente"));
+      }
       await executar(e);
+      await apagarEnvio(id);
       mudar(id, { estado: "publicado", progresso: 1 });
       window.dispatchEvent(new CustomEvent("rovibes:publicou", { detail: e.pedido.destino }));
       window.setTimeout(() => setEnvios((l) => l.filter((x) => x.id !== id || x.estado !== "publicado")), 4000);
     } catch (err) {
-      mudar(id, { estado: "erro", erro: err instanceof Error ? err.message : "Não foi possível publicar." });
+      const erro = err instanceof Error ? err.message : "Não foi possível publicar.";
+      mudar(id, { estado: "erro", erro });
+      // Continua guardado como rascunho para tentar de novo depois.
+      if (e.usuario && e.base && e.postId) void guardarEnvio({ ...paraGuardar(e, "rascunho"), erro });
     }
     rodando.current = false;
     void proximo();
@@ -141,6 +171,8 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
 
   const tentarDeNovo = useCallback(
     (id: string) => {
+      // O toque libera som e vídeo para refazer o trecho com música, se precisar.
+      if (lista.current.find((x) => x.id === id)?.pedido.midia.tipo === "video") liberarMidia();
       mudar(id, { estado: "preparando", progresso: 0, erro: undefined });
       fila.current.push(id);
       void proximo();
@@ -154,9 +186,43 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
       if (e?.previa) URL.revokeObjectURL(e.previa);
       return l.filter((x) => x.id !== id);
     });
+    void apagarEnvio(id);
   }, []);
 
-  // Fechar o app no meio do envio perde a publicação: avisa.
+  // Ao abrir o app: o que ficou no meio do envio continua sozinho; o que falhou aparece como rascunho.
+  const restaurou = useRef<string | null>(null);
+  useEffect(() => {
+    const restaurar = async (eu: string | undefined) => {
+      if (!eu || restaurou.current === eu) return;
+      restaurou.current = eu;
+      const guardados = await listarEnvios(eu);
+      const novos: Envio[] = guardados
+        .filter((g) => !lista.current.some((x) => x.id === g.id))
+        .map((g) => ({
+          id: g.id,
+          pedido: g.pedido,
+          previa: URL.createObjectURL(g.pedido.midia.arquivo),
+          base: g.base,
+          postId: g.postId,
+          usuario: g.usuario,
+          criado_em: g.criado_em,
+          progresso: 0,
+          // Vídeo que ainda precisa ser refeito (trecho/música) espera um toque: o navegador só libera o som assim.
+          estado: g.estado === "pendente" && !(g.pedido.midia.tipo === "video" && g.pedido.midia.regravar) ? "preparando" : "rascunho",
+          erro: g.estado === "rascunho" ? g.erro : undefined,
+        }));
+      if (!novos.length) return;
+      lista.current = [...lista.current, ...novos];
+      setEnvios(lista.current);
+      for (const n of novos) if (n.estado === "preparando") fila.current.push(n.id);
+      void proximo();
+    };
+    void supabase.auth.getSession().then(({ data }) => restaurar(data.session?.user.id));
+    const { data: sub } = supabase.auth.onAuthStateChange((_ev, sessao) => void restaurar(sessao?.user.id));
+    return () => sub.subscription.unsubscribe();
+  }, [proximo]);
+
+  // Fechar o app no meio do envio: a publicação fica guardada e continua depois, mas avisa mesmo assim.
   const ativos = envios.some((e) => e.estado === "preparando" || e.estado === "enviando");
   useEffect(() => {
     if (!ativos) return;
@@ -169,6 +235,10 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
   }, [ativos]);
 
   return <Ctx.Provider value={{ envios, publicar, tentarDeNovo, descartar }}>{children}</Ctx.Provider>;
+}
+
+function paraGuardar(e: Envio, estado: EnvioGuardado["estado"]): EnvioGuardado {
+  return { id: e.id, usuario: e.usuario!, pedido: e.pedido, base: e.base!, postId: e.postId!, estado, erro: e.erro, criado_em: e.criado_em ?? Date.now() };
 }
 
 export function useEnvios() {
