@@ -87,6 +87,26 @@ export interface SituacaoLinha {
   responsavel: string | null;
   criado_em: string;
   atualizado_em: string;
+  prazo_em?: string | null;
+}
+
+const duracao = (min: number) => (min < 60 ? `${min} min` : min < 1440 ? `${Math.round(min / 60)} h` : `${Math.round(min / 1440)} d`);
+
+/** Prazo e tempo parado de uma situação aberta. */
+export function prazoDa(s: { estado: string; prazo_em?: string | null; criado_em: string; atualizado_em: string }) {
+  if (s.estado === "resolvida" || s.estado === "encerrada" || !s.prazo_em) return null;
+  const agora = Date.now();
+  const restante = Math.round((Date.parse(s.prazo_em) - agora) / 60000);
+  const total = Math.max(1, Math.round((Date.parse(s.prazo_em) - Date.parse(s.criado_em)) / 60000));
+  const parado = Math.round((agora - Date.parse(s.atualizado_em)) / 60000);
+  const aguardando = s.estado === "aguardando";
+  return {
+    atrasada: !aguardando && restante < 0,
+    perto: !aguardando && restante >= 0 && restante < total / 4,
+    texto: aguardando ? null : restante < 0 ? `atrasada ${duracao(-restante)}` : `vence em ${duracao(restante)}`,
+    // Parada: sem movimento por mais de um quarto do prazo.
+    parada: !aguardando && parado > Math.max(15, total / 4) ? `parada há ${duracao(parado)}` : null,
+  };
 }
 
 /** Acesso da pessoa na Gestão (inclui o nível por área). */

@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { AcessoGestao as Acesso, GestaoContexto, meuAcessoGestao, useGestao } from "@/lib/gestao";
 import { AREAS_GESTAO } from "@/lib/areasNegocio";
 import { porCodigo } from "@/lib/catalogo";
+import { SinoAvisos } from "./Avisos";
 
 /** Gestão RoVibes (/gestao): sistema da equipe da plataforma, com identidade escura própria. */
 export function GestaoLayout() {
@@ -84,6 +85,7 @@ export function GestaoLayout() {
 
 function Estrutura({ acesso }: { acesso: Acesso }) {
   const negocio = useBusiness();
+  const { sessao } = useSessao();
   const local = useLocation();
   const [porArea, setPorArea] = useState<Record<string, number>>({});
   const permissoes = acesso.permissoes ?? {};
@@ -116,6 +118,7 @@ function Estrutura({ acesso }: { acesso: Acesso }) {
                   {acesso.ceo ? "CEO" : acesso.cargo ?? ""} · <span className="codigo">{acesso.login}</span>
                 </span>
               </span>
+              {sessao && <SinoAvisos usuario={sessao.user.id} />}
               <button onClick={() => void supabase.auth.signOut()} className="botao h-9 w-9 px-0" aria-label="Sair" title="Sair">
                 <LogOut className="h-4 w-4" />
               </button>

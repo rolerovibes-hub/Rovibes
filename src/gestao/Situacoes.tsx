@@ -5,12 +5,13 @@ import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { Plus, X } from "lucide-react";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { AREAS_OPERACAO, codCon, nomeArea, PRIORIDADES, SituacaoLinha, tempoCurto, TIPOS, useGestao } from "@/lib/gestao";
+import { AREAS_OPERACAO, codCon, nomeArea, prazoDa, PRIORIDADES, SituacaoLinha, tempoCurto, TIPOS, useGestao } from "@/lib/gestao";
 
 /** Uma linha de situação (Central, áreas e ficha do estabelecimento). */
 export function LinhaSituacao({ s, mostrarArea = true }: { s: SituacaoLinha; mostrarArea?: boolean }) {
   const { sessao } = useSessao();
   const fechada = s.estado === "resolvida" || s.estado === "encerrada";
+  const prazo = prazoDa(s);
   return (
     <Link to={`/gestao/situacao/${s.numero}`} className={clsx("grid grid-cols-[4px_1fr_auto] items-center gap-3 px-4 py-2.5 hover:bg-elevado", fechada && "opacity-60")}>
       <span className={clsx("h-9 w-1 rounded-full", PRIORIDADES[s.prioridade]?.cor)} aria-label={PRIORIDADES[s.prioridade]?.nome} />
@@ -21,6 +22,10 @@ export function LinhaSituacao({ s, mostrarArea = true }: { s: SituacaoLinha; mos
           {s.origem === "estabelecimento" && <Selo cor="bg-azul/15 text-azul">Pedido</Selo>}
           {s.conhecimento_numero ? <Selo cor="bg-ok/15 text-ok">{codCon(s.conhecimento_numero)}</Selo> : !fechada && <Selo cor="bg-marca/20 text-destaque">Nova</Selo>}
           {fechada && <Selo cor="bg-elevado text-suave">{s.estado === "resolvida" ? "Resolvida" : "Encerrada"}</Selo>}
+          {s.estado === "aguardando" && <Selo cor="bg-elevado text-suave">Aguardando</Selo>}
+          {prazo?.atrasada && <Selo cor="bg-perigo/15 text-perigo">{prazo.texto}</Selo>}
+          {prazo?.perto && <Selo cor="bg-alerta/15 text-alerta">{prazo.texto}</Selo>}
+          {prazo?.parada && !prazo.atrasada && <Selo cor="bg-elevado text-alerta">{prazo.parada}</Selo>}
           <span>{[mostrarArea ? nomeArea(s.area) : null, s.estabelecimento, tempoCurto(s.criado_em)].filter(Boolean).join(" · ")}</span>
         </span>
       </span>

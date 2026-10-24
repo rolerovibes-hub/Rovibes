@@ -11,7 +11,7 @@ interface Resumo {
   criticas?: number;
   sem_responsavel?: number;
   novas?: number;
-  comigo?: number;
+  atrasadas?: number;
   resolvidas_semana?: number;
   saude?: { pedidos_hora: number; pedidos_hora_normal?: number | null; pagamentos_aprovados: number | null; notificacoes_atrasadas: number; cadastros_em_analise?: number } | null;
 }
@@ -65,6 +65,7 @@ export function Central() {
 
   const kpis: { valor?: number; nome: string; cor?: string; f: string }[] = [
     { valor: resumo.criticas, nome: "críticas abertas", cor: "text-perigo", f: "atencao" },
+    { valor: resumo.atrasadas, nome: "atrasadas", cor: "text-perigo", f: "atrasadas" },
     { valor: resumo.sem_responsavel, nome: "sem responsável", cor: "text-alerta", f: "atencao" },
     { valor: resumo.novas, nome: "situações novas", cor: "text-destaque", f: "novas" },
     { valor: resumo.resolvidas_semana, nome: "resolvidas na semana", f: "resolvidas" },
@@ -74,7 +75,7 @@ export function Central() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
         {kpis.map((k) => (
           <button key={k.nome} onClick={() => setFiltro(k.f)} className="cartao px-3.5 py-3 text-left hover:bg-elevado">
             <span className={clsx("block text-2xl font-semibold leading-tight", k.cor)}>{k.valor ?? "—"}</span>
@@ -90,8 +91,9 @@ export function Central() {
             {[
               ["atencao", "Minhas e da minha área"],
               ["abertas", "Todas"],
-              ["novas", "Novas"],
               ["comigo", "Comigo"],
+              ["atrasadas", "Atrasadas"],
+              ["novas", "Novas"],
             ].map(([f, nome]) => (
               <button
                 key={f}

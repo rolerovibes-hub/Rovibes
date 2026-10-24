@@ -4,7 +4,7 @@ import clsx from "clsx";
 import { ArrowLeft, Check, Link2, Lightbulb, Send } from "lucide-react";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
-import { codCon, codSit, ESTADOS, nomeArea, PRIORIDADES, tempoCurto, TIPOS, useGestao } from "@/lib/gestao";
+import { codCon, codSit, ESTADOS, nomeArea, prazoDa, PRIORIDADES, tempoCurto, TIPOS, useGestao } from "@/lib/gestao";
 
 interface Situacao {
   id: string;
@@ -19,6 +19,8 @@ interface Situacao {
   responsavel_id: string | null;
   resultado: string | null;
   criado_em: string;
+  atualizado_em: string;
+  prazo_em: string | null;
   conhecimento_id: string | null;
   conhecimento: { id: string; numero: number; titulo: string; causa: string | null; tratamento: string | null } | null;
   chave: string | null;
@@ -29,7 +31,7 @@ interface Evento {
   id: number;
   tipo: string;
   texto: string | null;
-  dados: { texto?: string | null } | null;
+  dados: { texto?: string | null; lado?: "equipe" | "estabelecimento" } | null;
   autor_id: string | null;
   criado_em: string;
 }
@@ -61,6 +63,7 @@ export function SituacaoPagina() {
   const [relacionadas, setRelacionadas] = useState<{ numero: number; titulo: string; estado: string }[]>([]);
   const [sugestoes, setSugestoes] = useState<Sugestao[]>([]);
   const [comentario, setComentario] = useState("");
+  const [paraEstab, setParaEstab] = useState(true);
   const [painel, setPainel] = useState<null | "resolver" | "passar" | "relacionar" | "conhecer">(null);
   const [valor, setValor] = useState("");
   const [texto, setTexto] = useState("");
@@ -71,12 +74,13 @@ export function SituacaoPagina() {
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from("situacoes")
-      .select("id, numero, titulo, descricao, area, tipo, prioridade, estado, origem, responsavel_id, resultado, criado_em, conhecimento_id, chave, usuario_alvo, conhecimento:conhecimentos(id, numero, titulo, causa, tratamento), estabelecimento:estabelecimentos(id, nome, codigo, situacao)")
+      .select("id, numero, titulo, descricao, area, tipo, prioridade, estado, origem, responsavel_id, resultado, criado_em, atualizado_em, prazo_em, conhecimento_id, chave, usuario_alvo, conhecimento:conhecimentos(id, numero, titulo, causa, tratamento), estabelecimento:estabelecimentos(id, nome, codigo, situacao)")
       .eq("numero", Number(numero))
       .maybeSingle();
     const sit = (data as unknown as Situacao | null) ?? null;
     setS(sit);
     if (!sit) return;
+    void supabase.rpc("ler_avisos_da_situacao", { p_situacao: sit.id });
     const [ev, rel, sug] = await Promise.all([
       supabase.from("situacao_eventos").select("id, tipo, texto, dados, autor_id, criado_em").eq("situacao_id", sit.id).order("criado_em"),
       supabase.from("situacao_relacoes").select("a, b").or(`a.eq.${sit.id},b.eq.${sit.id}`),
@@ -103,6 +107,8 @@ export function SituacaoPagina() {
   const atua = n >= 2 || s.responsavel_id === eu;
   const decide = n >= 3;
   const fechada = s.estado === "resolvida" || s.estado === "encerrada";
+  const conversa = s.origem === "estabelecimento";
+  const prazo = prazoDa(s);
   const nomeDe = (id: string | null) => (id ? pessoas.find((p) => p.usuario_id === id)?.nome ?? (s.origem === "estabelecimento" ? s.estabelecimento?.nome ?? "Estabelecimento" : "Alguém") : "Sistema");
 
   const agir = async (acao: string, v?: string | null, t?: string | null) => {
@@ -120,7 +126,7 @@ export function SituacaoPagina() {
   const comentar = (e: FormEvent) => {
     e.preventDefault();
     if (!comentario.trim()) return;
-    void agir("comentar", null, comentario.trim()).then(() => setComentario(""));
+    void agir(conversa && paraEstab ? "responder" : "comentar", null, comentario.trim()).then(() => setComentario(""));
   };
 
   const registrar = async (e: FormEvent) => {
@@ -177,7 +183,18 @@ export function SituacaoPagina() {
           </div>
 
           <ol className="px-5 py-3">
-            {eventos.map((ev) => (
+            {eventos.map((ev) =>
+              ev.tipo === "mensagem" ? (
+                <li key={ev.id} className={clsx("flex py-2", ev.dados?.lado === "estabelecimento" ? "justify-start" : "justify-end")}>
+                  <span className={clsx("max-w-[85%] rounded-2xl px-3.5 py-2 text-sm", ev.dados?.lado === "estabelecimento" ? "rounded-bl-md bg-azul/15" : "rounded-br-md bg-marca/25")}>
+                    <span className="block text-[11.5px] text-suave">
+                      {ev.dados?.lado === "estabelecimento" ? s.estabelecimento?.nome ?? "Estabelecimento" : `${nomeDe(ev.autor_id)} → estabelecimento`} ·{" "}
+                      {new Date(ev.criado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                    </span>
+                    <span className="block whitespace-pre-line">{ev.texto}</span>
+                  </span>
+                </li>
+              ) : (
               <li key={ev.id} className="grid grid-cols-[18px_1fr] gap-2.5 py-2">
                 <span className={clsx("mt-1.5 h-2.5 w-2.5 rounded-full", ev.tipo === "responsavel" ? "bg-marca" : ev.tipo === "estado" && ev.texto === "Resolvida" ? "bg-ok" : "bg-borda")} />
                 <span className="min-w-0 text-sm">
@@ -187,15 +204,40 @@ export function SituacaoPagina() {
                   {ev.dados?.texto && <span className="mt-1 block whitespace-pre-line rounded-lg bg-elevado/70 px-3 py-2">{ev.dados.texto}</span>}
                 </span>
               </li>
-            ))}
+              ),
+            )}
           </ol>
 
           {atua && (
-            <form onSubmit={comentar} className="flex gap-2 border-t border-borda px-5 py-3">
-              <input className="entrada flex-1" placeholder="Escrever no histórico..." value={comentario} onChange={(e) => setComentario(e.target.value)} />
+            <form onSubmit={comentar} className="space-y-2 border-t border-borda px-5 py-3">
+              {conversa && (
+                <div className="flex gap-1.5 text-[12px]">
+                  {[
+                    [true, "Ao estabelecimento"],
+                    [false, "Interno"],
+                  ].map(([v, nome]) => (
+                    <button
+                      key={String(v)}
+                      type="button"
+                      onClick={() => setParaEstab(v as boolean)}
+                      className={clsx("rounded-full border px-2.5 py-0.5", paraEstab === v ? "border-marca bg-marca text-marca-texto" : "border-borda text-suave")}
+                    >
+                      {nome as string}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-2">
+              <input
+                className={clsx("entrada flex-1", conversa && paraEstab && "border-marca/60")}
+                placeholder={conversa && paraEstab ? "Responder ao estabelecimento..." : "Escrever no histórico..."}
+                value={comentario}
+                onChange={(e) => setComentario(e.target.value)}
+              />
               <button type="submit" className="botao-principal h-10 w-10 shrink-0 px-0" disabled={ocupado || !comentario.trim()} aria-label="Enviar">
                 <Send className="h-4 w-4" />
               </button>
+              </div>
             </form>
           )}
         </section>
@@ -358,6 +400,15 @@ export function SituacaoPagina() {
           <div className="space-y-1 p-4 text-sm">
             <p className="text-[11px] font-bold uppercase tracking-wider text-suave">Contexto</p>
             <Linha nome="Responsável" valor={s.responsavel_id ? nomeDe(s.responsavel_id) : "—"} />
+            {prazo && (
+              <p className="flex justify-between gap-3">
+                <span className="text-suave">Prazo</span>
+                <span className={clsx("truncate text-right", prazo.atrasada ? "font-semibold text-perigo" : prazo.perto ? "text-alerta" : "")}>
+                  {prazo.texto ?? "pausado (aguardando)"}
+                </span>
+              </p>
+            )}
+            {prazo?.parada && <Linha nome="Movimento" valor={prazo.parada} />}
             <Linha nome="Origem" valor={{ equipe: "Equipe", estabelecimento: "Estabelecimento", automatica: "Automática", inteligencia: "Inteligência" }[s.origem] ?? s.origem} />
             {s.estabelecimento && <Linha nome="Estabelecimento" valor={s.estabelecimento.nome} />}
             {relacionadas.map((r) => (
