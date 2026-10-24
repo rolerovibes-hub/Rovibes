@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
 import { Moon, RefreshCw, X } from "lucide-react";
 import { gravar as guardar, ler } from "@/lib/armazenamento";
-import { formatoGravacao, MAX_VIDEO } from "@/lib/midia";
+import { formatoGravacao, MAX_VIDEO, tempoVideo } from "@/lib/midia";
 
 type Modo = "foto" | "video";
 
@@ -10,7 +10,7 @@ type Modo = "foto" | "video";
 const ATMOSFERA = "brightness(1.08) contrast(1.22) saturate(1.5)";
 
 /**
- * Câmera do RoVibes: foto ou vídeo de até 15 s com o som do ambiente.
+ * Câmera do RoVibes: foto ou vídeo de até 3 min com o som do ambiente.
  * Se o aparelho não deixar abrir a câmera aqui, usa a câmera do próprio celular.
  */
 export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { capturado: (arquivo: File) => void; fechar: () => void; modoInicial?: Modo }) {
@@ -72,7 +72,7 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
     return desligar;
   }, [ligar]);
 
-  // Contador e parada automática nos 15 s.
+  // Contador e parada automática no limite.
   useEffect(() => {
     if (!gravando) return;
     const inicio = Date.now();
@@ -138,7 +138,7 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
       const imagem = (c as HTMLCanvasElement & { captureStream(fps?: number): MediaStream }).captureStream(30);
       origem = new MediaStream([...imagem.getVideoTracks(), ...fluxo.current.getAudioTracks()]);
     }
-    const g = new MediaRecorder(origem, { mimeType: tipo, videoBitsPerSecond: 3_000_000 });
+    const g = new MediaRecorder(origem, { mimeType: tipo, videoBitsPerSecond: 1_600_000, audioBitsPerSecond: 128_000 });
     g.ondataavailable = (e) => e.data.size && partes.push(e.data);
     g.onstop = () => {
       if (quadro.current) cancelAnimationFrame(quadro.current);
@@ -184,7 +184,7 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
         </button>
         {gravando && (
           <span className="rounded-full bg-perigo px-3 py-1 text-sm font-semibold">
-            {Math.floor(segundos)}s / {MAX_VIDEO}s
+            {tempoVideo(Math.floor(segundos))} / {tempoVideo(MAX_VIDEO)}
           </span>
         )}
         <button
@@ -252,7 +252,7 @@ export function CameraRoVibes({ capturado, fechar, modoInicial = "foto" }: { cap
             />
           </button>
         </div>
-        <p className="mt-3 text-center text-[12px] text-white/70">{modo === "foto" ? "Toque para tirar a foto" : gravando ? "Toque para parar" : `Toque para gravar (até ${MAX_VIDEO} s, com som)`}</p>
+        <p className="mt-3 text-center text-[12px] text-white/70">{modo === "foto" ? "Toque para tirar a foto" : gravando ? "Toque para parar" : `Toque para gravar (até ${tempoVideo(MAX_VIDEO)}, com som)`}</p>
       </div>
     </div>
   );

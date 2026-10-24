@@ -16,7 +16,7 @@ export interface StoryApp {
   estabelecimento: Autor;
   /** Story de pessoa: lugar marcado. */
   local?: { id: string; nome: string } | null;
-  /** Story em vídeo (até 15 s); foto_url é a capa. */
+  /** Story em vídeo (até 3 min); foto_url é a capa. */
   video_url?: string | null;
   duracao?: number | null;
 }
@@ -46,7 +46,7 @@ export interface PublicacaoApp {
   tipo?: "lugar" | "pessoa";
   pessoa?: { id: string; nome: string; usuario: string; foto_url: string | null } | null;
   local?: { id: string; nome: string } | null;
-  /** Publicação em vídeo (até 15 s); foto_url é a capa. */
+  /** Publicação em vídeo (até 3 min); foto_url é a capa. */
   video_url?: string | null;
 }
 

@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
-import { capaDoVideo, extensao, liberarMidia, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
+import { capaDoVideo, extensao, liberarMidia, MAX_VIDEO_BYTES, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
 import { apagarEnvio, EnvioGuardado, guardarEnvio, listarEnvios } from "./rascunhosEnvio";
 
 export type Destino = "feed" | "story";
@@ -79,7 +79,7 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
           let video: Blob = midia.arquivo;
           let tipo = midia.arquivo.type || "video/mp4";
           duracao = midia.opcoes.duracao;
-          // Etapa 1: regravar (trecho de até 15 s e o som escolhido), só quando precisa.
+          // Etapa 1: regravar (trecho de até 3 min e o som escolhido), só quando precisa.
           if (midia.regravar) {
             const r = await regravarVideo(midia.arquivo, midia.opcoes, (p) => mudar(e.id, { progresso: 0.02 + p * 0.5 }));
             video = r.blob;
@@ -98,6 +98,7 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
             caminhos.push(`${base}.jpg`);
             foto_url = await subirComProgresso("avatares", `${base}.jpg`, capa, "image/jpeg");
           } else foto_url = "";
+          if (video.size > MAX_VIDEO_BYTES) throw new Error("Vídeo pesado demais. Escolha um trecho menor.");
           caminhos.push(`${base}.${extensao(tipo)}`);
           video_url = await subirComProgresso("avatares", `${base}.${extensao(tipo)}`, video, tipo, (p) => mudar(e.id, { progresso: ini + p * (0.97 - ini) }));
           if (!foto_url) foto_url = video_url;

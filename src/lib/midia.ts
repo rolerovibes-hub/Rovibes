@@ -1,14 +1,19 @@
 import { supabase } from "./supabase";
 
-/** Vídeos do RoVibes: até 15 segundos. */
-export const MAX_VIDEO = 15;
+/** Vídeos do RoVibes: até 3 minutos. */
+export const MAX_VIDEO = 180;
+/** Tamanho máximo do arquivo de vídeo enviado (limite do armazenamento). */
+export const MAX_VIDEO_BYTES = 50 * 1024 * 1024;
+
+/** 75 → "1:15"; 12 → "12 s". */
+export const tempoVideo = (s: number) => (s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
 
 export type AudioVideo = "original" | "mudo" | "musica" | "mistura";
 
 export interface OpcoesVideo {
   /** Segundo do vídeo original onde começa o trecho. */
   inicio: number;
-  /** Duração do trecho (até 15 s). */
+  /** Duração do trecho (até 3 min). */
   duracao: number;
   audio: AudioVideo;
   musicaUrl?: string | null;
@@ -128,8 +133,8 @@ export function liberarMidia() {
 }
 
 /**
- * Regrava o trecho escolhido (até 15 s) com o som escolhido: original, sem som, música, ou música + original.
- * Acontece em tempo real (15 s de vídeo levam ~15 s), sem sair da tela atual.
+ * Regrava o trecho escolhido (até 3 min) com o som escolhido: original, sem som, música, ou música + original.
+ * Acontece em tempo real (1 min de vídeo leva ~1 min), sem sair da tela atual.
  */
 export async function regravarVideo(arquivo: Blob, op: OpcoesVideo, aoProgresso?: (p: number) => void): Promise<{ blob: Blob; tipo: string; duracao: number }> {
   const duracao = Math.min(MAX_VIDEO, Math.max(0.5, op.duracao));
@@ -183,7 +188,7 @@ export async function regravarVideo(arquivo: Blob, op: OpcoesVideo, aoProgresso?
     const imagem = (canvas as HTMLCanvasElement & { captureStream(fps?: number): MediaStream }).captureStream(30);
     const faixas = [...imagem.getVideoTracks(), ...(op.audio === "mudo" ? [] : destino.stream.getAudioTracks())];
     const tipo = formatoGravacao();
-    const gravador = new MediaRecorder(new MediaStream(faixas), { mimeType: tipo, videoBitsPerSecond: 2_500_000, audioBitsPerSecond: 128_000 });
+    const gravador = new MediaRecorder(new MediaStream(faixas), { mimeType: tipo, videoBitsPerSecond: 1_600_000, audioBitsPerSecond: 128_000 });
     const partes: Blob[] = [];
     gravador.ondataavailable = (e) => e.data.size && partes.push(e.data);
     const terminou = new Promise<void>((ok) => (gravador.onstop = () => ok()));

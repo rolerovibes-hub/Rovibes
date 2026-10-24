@@ -200,7 +200,7 @@ export function VibeCut() {
         <div className="flex h-full flex-col items-center justify-center px-8 text-center">
           <Radio className="h-10 w-10 text-white/60" />
           <p className="mt-4 text-lg font-semibold">{erro || (modo === "ao_vivo" ? "Nada ao vivo nas últimas 2 horas" : "Ainda não tem VibeCut por aqui")}</p>
-          {!erro && <p className="mt-1 text-sm text-white/70">Grave o rolê de agora (até 15 s), marque o lugar e mostre para a galera como está.</p>}
+          {!erro && <p className="mt-1 text-sm text-white/70">Grave o rolê de agora (até 3 min), marque o lugar e mostre para a galera como está.</p>}
           {!erro && (
             <button className="mt-6 rounded-full bg-white px-5 py-2.5 font-semibold text-black" onClick={() => setGravar(true)}>
               Gravar um VibeCut

@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { Camera, Check, Image as IconeGaleria, MapPin, Music, Pause, Play, Volume2, VolumeX, X } from "lucide-react";
 import { useSessao } from "@/lib/sessao";
 import { useEnvios } from "@/lib/envios";
-import { AudioVideo, ehVideo, lerVideo, liberarMidia, listarMusicas, MAX_VIDEO, Musica, podeIrDireto } from "@/lib/midia";
+import { AudioVideo, ehVideo, lerVideo, liberarMidia, listarMusicas, MAX_VIDEO, Musica, podeIrDireto, tempoVideo } from "@/lib/midia";
 import { CameraRoVibes } from "@/components/CameraRoVibes";
 import { Lugar, useVitrine } from "./dados";
 
@@ -17,7 +17,7 @@ const mmss = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).
 
 /**
  * Nova publicação de pessoa: no feed (fica na grade do perfil) ou story (24 h).
- * Foto ou vídeo de até 15 s, da câmera ou da galeria; no vídeo, som original, sem som ou música.
+ * Foto ou vídeo de até 3 min, da câmera ou da galeria; no vídeo, som original, sem som ou música.
  * Ao tocar em "Publicar" a janela fecha e o envio segue em segundo plano.
  */
 export function NovoStory({
@@ -176,7 +176,7 @@ export function NovoStory({
                 <button onClick={() => setCamera(true)} className="flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-borda text-suave hover:bg-elevado">
                   <Camera className="h-8 w-8" />
                   <span className="text-sm font-medium">Câmera</span>
-                  <span className="px-2 text-center text-[11px]">Foto ou vídeo de até {MAX_VIDEO} s</span>
+                  <span className="px-2 text-center text-[11px]">Foto ou vídeo de até {tempoVideo(MAX_VIDEO)}</span>
                 </button>
                 <button onClick={() => galeria.current?.click()} className="flex aspect-[4/5] flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-borda text-suave hover:bg-elevado">
                   <IconeGaleria className="h-8 w-8" />
@@ -194,12 +194,12 @@ export function NovoStory({
                   <button onClick={() => galeria.current?.click()} className="absolute right-2 top-2 rounded-full bg-black/55 px-3 py-1 text-[12px] font-semibold text-white">
                     Trocar
                   </button>
-                  <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] text-white">{Math.round(duracao)} s</span>
+                  <span className="absolute bottom-2 right-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] text-white">{tempoVideo(duracao)}</span>
                 </div>
                 {duracaoTotal > MAX_VIDEO + 0.3 && (
                   <label className="block">
                     <span className="rotulo mb-1 flex justify-between">
-                      <span>Trecho de {MAX_VIDEO} s</span>
+                      <span>Trecho de {tempoVideo(MAX_VIDEO)}</span>
                       <span className="codigo">
                         {mmss(inicio)} – {mmss(inicio + duracao)}
                       </span>
