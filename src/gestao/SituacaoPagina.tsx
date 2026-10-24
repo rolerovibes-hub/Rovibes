@@ -485,6 +485,7 @@ interface Denuncia {
   alvo_texto: string | null;
   alvo_imagem: string | null;
 }
+const MOTIVO: Record<string, string> = { spam: "Spam", assedio: "Assédio", improprio: "Conteúdo impróprio", perfil_falso: "Perfil falso", menor: "Menor de idade", violencia: "Violência", outro: "Outro" };
 const TIPO_ALVO: Record<string, string> = { story: "Story", publicacao: "Publicação", post: "Post", mensagem: "Mensagem", comentario: "Comentário", perfil: "Perfil" };
 const ACAO_FEITA: Record<string, string> = { ocultado: "Ocultado", advertido: "Advertido", suspenso: "Conta suspensa", arquivado: "Arquivada" };
 
@@ -519,7 +520,7 @@ function AcoesDenuncia({ situacao, nivel, feito }: { situacao: string; nivel: nu
         return (
           <div key={d.id} className={clsx("space-y-1.5 rounded-lg border border-borda p-2.5 text-[13px]", !aberta && "opacity-60")}>
             <p className="flex items-center justify-between gap-2">
-              <span className="font-semibold">{d.motivo}</span>
+              <span className="font-semibold">{MOTIVO[d.motivo] ?? d.motivo}</span>
               <span className="text-[11px] text-suave">{TIPO_ALVO[d.tipo_alvo] ?? d.tipo_alvo}</span>
             </p>
             {(d.alvo_usuario_nome || d.alvo_nome) && <p className="text-suave">{d.alvo_usuario_nome || d.alvo_nome}</p>}

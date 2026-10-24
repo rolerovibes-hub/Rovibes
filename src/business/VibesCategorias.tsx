@@ -38,7 +38,7 @@ export function VibesCategorias() {
   };
 
   return (
-    <TelaUniversal acoes={<p className="col-span-full px-1 text-[13px] text-suave">Itens inativos somem das opções, mas continuam nos estabelecimentos que já os usam.</p>}>
+    <TelaUniversal>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       <div className="grid gap-4 lg:grid-cols-2">
         <Lista

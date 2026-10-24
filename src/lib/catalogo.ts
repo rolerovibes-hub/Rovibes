@@ -97,6 +97,10 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "S2204", nome: "Contas dos estabelecimentos", area: "Administração", icone: Users, fase: 9 },
   { codigo: "S2205", nome: "Base de conhecimento", area: "Administração", icone: Library, fase: 9 },
   { codigo: "S2206", nome: "Inteligência", area: "Administração", icone: TrendingUp, fase: 9 },
+  { codigo: "S2207", nome: "Pessoas do app", area: "Administração", icone: Users, fase: 9 },
+  { codigo: "S2208", nome: "Pagamentos e reembolsos", area: "Administração", icone: CreditCard, fase: 9 },
+  { codigo: "S2209", nome: "Registro de segurança", area: "Administração", icone: ShieldCheck, fase: 9 },
+  { codigo: "S2210", nome: "Buscas sem resultado", area: "Administração", icone: TrendingUp, fase: 9 },
 ];
 
 export const AREAS: Area[] = ["Estabelecimento", "Vitrine", "Conteúdo", "Operação", "Equipe", "Administração"];

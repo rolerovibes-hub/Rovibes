@@ -7,6 +7,7 @@ import { AreaGestao, GestaoLayout } from "./gestao/GestaoLayout";
 import { Central } from "./gestao/Central";
 import { SituacaoPagina } from "./gestao/SituacaoPagina";
 import { FichaEstabelecimento } from "./gestao/Partes";
+import { FichaPessoaGestao } from "./gestao/Dados";
 import { AppLayout } from "./app/AppLayout";
 import { Descobrir } from "./app/Descobrir";
 import { Mapa } from "./app/Mapa";
@@ -61,6 +62,7 @@ export default function App() {
         <Route index element={<Central />} />
         <Route path="situacao/:numero" element={<SituacaoPagina />} />
         <Route path="estabelecimento/:id" element={<FichaEstabelecimento />} />
+        <Route path="pessoa/:id" element={<FichaPessoaGestao />} />
         <Route path="area/:area" element={<AreaGestao />} />
         <Route path="area/:area/:codigo" element={<AreaGestao />} />
       </Route>

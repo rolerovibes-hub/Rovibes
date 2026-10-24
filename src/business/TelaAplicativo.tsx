@@ -12,6 +12,7 @@ import { Eventos } from "./Eventos";
 import { VibesCategorias } from "./VibesCategorias";
 import { Organizacao } from "@/gestao/Organizacao";
 import { ListaSituacoes } from "@/gestao/Situacoes";
+import { BuscasVazias, FinanceiroGestao, PessoasApp, RegistroSeguranca } from "@/gestao/Dados";
 import { SaudePlataforma } from "@/gestao/Central";
 import { BaseConhecimento, ContasEstabelecimentos, FichasEstabelecimentos, InteligenciaConfig, ModoSuporteAtivo } from "@/gestao/Partes";
 import { AjudaRoVibes } from "./AjudaRoVibes";
@@ -127,6 +128,10 @@ export function ConteudoApp({ app, liberado: forcado }: { app: Aplicativo; liber
   if (app.codigo === "S2204") return <ContasEstabelecimentos />;
   if (app.codigo === "S2205") return <BaseConhecimento />;
   if (app.codigo === "S2206") return <InteligenciaConfig />;
+  if (app.codigo === "S2207") return <PessoasApp />;
+  if (app.codigo === "S2208") return <FinanceiroGestao />;
+  if (app.codigo === "S2209") return <RegistroSeguranca />;
+  if (app.codigo === "S2210") return <BuscasVazias />;
   if (app.codigo === "G1004") return <AjudaRoVibes />;
   if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "G4003") return <Produtos />;

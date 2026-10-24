@@ -172,10 +172,10 @@ export function EventosPessoasAdmin() {
             Criação de eventos por pessoas ligada
           </label>
           <div className="grid gap-3 sm:grid-cols-2">
-            {num("taxa_pct", "Taxa do RoVibes por ingresso (%)", "Sai do valor que o anfitrião recebe.", "0.1")}
+            {num("taxa_pct", "Taxa do RoVibes por ingresso (%)", undefined, "0.1")}
             {num("preco_min", "Preço mínimo do ingresso pago (R$)", undefined, "0.01")}
             {num("preco_max", "Preço máximo do ingresso (R$)", undefined, "0.01")}
-            {num("max_ingressos", "Máximo de ingressos por evento", "Eventos pequenos, entre amigos.")}
+            {num("max_ingressos", "Máximo de ingressos por evento")}
             {num("max_por_compra", "Máximo por compra")}
             {num("corte_venda_horas", "Vendas fecham quantas horas antes")}
             {num("antecedencia_max_dias", "Criar com até quantos dias de antecedência")}
@@ -190,14 +190,12 @@ export function EventosPessoasAdmin() {
 
       {aba === "termos" && (
         <Secao titulo={`Termos de venda de ingressos · versão ${regras.termos_versao}`}>
-          <p className="mb-2 text-[13px] text-suave">Ao salvar uma mudança, a versão sobe e quem criar ou editar eventos com venda precisa aceitar de novo. Recomendado: revisar com um advogado.</p>
           <textarea rows={22} className="entrada py-2 font-mono text-[13px]" value={regras.termos} onChange={(e) => setRegras({ ...regras, termos: e.target.value })} />
         </Secao>
       )}
 
       {aba === "pacotes" && (
         <Secao titulo="Pacotes de impulsionamento">
-          <p className="mb-3 text-[13px] text-suave">O anfitrião paga ao RoVibes e o evento aparece para mais gente no raio escolhido, pelo número de dias do pacote.</p>
           <div className="space-y-2">
             {[...regras.pacotes, { nome: "", dias: 1, preco: 9.9, raio_km: 5, descricao: "", ativo: true, ordem: regras.pacotes.length + 1 } as PacoteAdmin].map((p, i) => (
               <EditorPacote key={p.id ?? `novo-${i}`} inicial={p} salvar={salvarPacote} />

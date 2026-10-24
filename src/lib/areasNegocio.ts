@@ -127,7 +127,7 @@ export const AREAS_GESTAO: AreaNegocio[] = [
     icone: Users,
     cor: "#0891B2",
     plataforma: true,
-    grupos: [{ nome: "Usuários", itens: [{ codigo: "S2204", nome: "Contas dos estabelecimentos" }, sit("S2105")] }],
+    grupos: [{ nome: "Usuários", itens: [{ codigo: "S2207", nome: "Pessoas" }, { codigo: "S2204", nome: "Contas dos estabelecimentos" }, sit("S2105")] }],
   },
   {
     id: "produto",
@@ -135,10 +135,10 @@ export const AREAS_GESTAO: AreaNegocio[] = [
     icone: Library,
     cor: "#0F766E",
     plataforma: true,
-    grupos: [{ nome: "Produto", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }, { codigo: "A1006", nome: "Músicas" }, sit("S2106")] }],
+    grupos: [{ nome: "Produto", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }, { codigo: "A1006", nome: "Músicas" }, { codigo: "S2210", nome: "Buscas sem resultado" }, sit("S2106")] }],
   },
-  { id: "financeiro", nome: "Financeiro", icone: Wallet, cor: "#B45309", plataforma: true, grupos: [{ nome: "Financeiro", itens: [sit("S2107"), { codigo: "A1007", nome: "Eventos de pessoas" }] }] },
-  { id: "seguranca", nome: "Segurança", icone: ShieldCheck, cor: "#B4234A", plataforma: true, grupos: [{ nome: "Segurança", itens: [sit("S2108")] }] },
+  { id: "financeiro", nome: "Financeiro", icone: Wallet, cor: "#B45309", plataforma: true, grupos: [{ nome: "Financeiro", itens: [{ codigo: "S2208", nome: "Pagamentos" }, sit("S2107"), { codigo: "A1007", nome: "Eventos de pessoas" }] }] },
+  { id: "seguranca", nome: "Segurança", icone: ShieldCheck, cor: "#B4234A", plataforma: true, grupos: [{ nome: "Segurança", itens: [sit("S2108"), { codigo: "S2209", nome: "Registro" }] }] },
   { id: "conhecimento", nome: "Conhecimento", icone: BookOpen, cor: "#9333EA", plataforma: true, grupos: [{ nome: "Conhecimento", itens: [{ codigo: "S2205", nome: "Base de conhecimento" }] }] },
   {
     id: "configuracoes",

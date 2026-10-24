@@ -326,6 +326,12 @@ export function Descobrir() {
       setErro(error ? (/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 023 do banco (busca)." : "Não foi possível buscar agora.") : "");
       setResultados(((data ?? []) as Resultado[]).map((r) => ({ ...r, pontos: Number(r.pontos), extra: r.extra ?? {} })));
       setBuscando(false);
+      // Busca que não achou nada (e a pessoa parou de digitar): ajuda a equipe a ver o que falta no RoVibes.
+      if (!error && !(data ?? []).length && t.length >= 3) {
+        window.setTimeout(() => {
+          if (ultima.current === t) void supabase.rpc("registrar_busca_vazia", { p_termo: t });
+        }, 1500);
+      }
     }, 250);
     return () => window.clearTimeout(id);
   }, [termo, pos]);

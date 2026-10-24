@@ -766,7 +766,6 @@ export function BibliotecaAdmin() {
       {juntar && sel && (
         <section className="cartao p-4">
           <h2 className="mb-1 font-semibold">Juntar “{sel.nome}” com…</h2>
-          <p className="mb-3 text-sm text-suave">Escolha o produto certo. Este sai da biblioteca e os estoques passam para o escolhido (saldos somados).</p>
           <input autoFocus value={alvoBusca} onChange={(e) => setAlvoBusca(e.target.value)} placeholder="Buscar o produto certo" className="entrada" />
           <ul className="mt-2 divide-y divide-borda rounded-lg border border-borda">
             {alvos.map((a) => (
@@ -830,7 +829,6 @@ export function BibliotecaAdmin() {
                   <span className="rotulo mb-1 block">Grupo</span>
                   <input value={form.grupo} onChange={(e) => setForm({ ...form, grupo: e.target.value.slice(0, 60) })} placeholder="Ex.: Bebidas" className="entrada" list="grupos-biblioteca" />
                 </label>
-                <p className="text-[12px] text-suave">A descrição é o nome amigável que o cliente vê no cardápio (até 80 letras). O nome conforme a NF ajuda o estabelecimento a achar o produto na nota.</p>
               </div>
             )}
 
@@ -864,7 +862,7 @@ export function BibliotecaAdmin() {
                   <section className="rounded-lg border border-borda p-3">
                     <h3 className="rotulo mb-2">Qualidade da foto atual</h3>
                     {!form.foto_url ? (
-                      <p className="text-suave">Sem foto. Produtos com foto vendem mais e são encontrados mais rápido.</p>
+                      <p className="text-suave">Sem foto</p>
                     ) : (
                       <ul className="space-y-1.5 text-[13px]">
                         {(qualidade ?? []).map((a) => (
@@ -911,7 +909,7 @@ export function BibliotecaAdmin() {
                 {!usos ? (
                   <p className="text-sm text-suave">Carregando...</p>
                 ) : usos.length === 0 ? (
-                  <p className="text-sm text-suave">Nenhum estabelecimento tem este produto no estoque. Ele pode ser excluído de vez.</p>
+                  <p className="text-sm text-suave">Em nenhum estoque.</p>
                 ) : (
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
@@ -946,7 +944,7 @@ export function BibliotecaAdmin() {
                 {!historico ? (
                   <p className="text-sm text-suave">Carregando...</p>
                 ) : historico.length === 0 ? (
-                  <p className="text-sm text-suave">Sem registros ainda (o histórico começa a contar a partir da atualização 022).</p>
+                  <p className="text-sm text-suave">Sem registros.</p>
                 ) : (
                   <ol className="space-y-3">
                     {historico.map((h, i) => (

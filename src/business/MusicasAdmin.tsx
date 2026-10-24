@@ -155,9 +155,6 @@ export function MusicasAdmin() {
     >
       <audio ref={player} onEnded={() => setTocando(null)} />
       {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
-      <p className="cartao px-4 py-3 text-sm text-suave">
-        Só cadastre músicas que o RoVibes pode usar: faixas próprias, compradas com licença ou de bibliotecas livres de direitos (guarde o comprovante). Músicas de artistas sem licença geram bloqueio e multa.
-      </p>
 
       {nova && (
         <Secao titulo="Nova música">
