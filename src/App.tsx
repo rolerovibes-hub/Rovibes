@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { BusinessLayout } from "./business/BusinessLayout";
 import { AreaDeTrabalho } from "./business/AreaDeTrabalho";
 import { TelaAplicativo } from "./business/TelaAplicativo";
+import { TelaArea } from "./business/TelaArea";
 import { AppLayout } from "./app/AppLayout";
 import { Descobrir } from "./app/Descobrir";
 import { Mapa } from "./app/Mapa";
@@ -46,6 +47,8 @@ export default function App() {
       <Route path="/business" element={<BusinessLayout />}>
         <Route index element={<AreaDeTrabalho />} />
         <Route path="app/:codigo" element={<TelaAplicativo />} />
+        <Route path="area/:area" element={<TelaArea />} />
+        <Route path="area/:area/:codigo" element={<TelaArea />} />
         <Route path="novo" element={<CadastroEstabelecimento />} />
       </Route>
       <Route path="/entrar" element={<Entrar />} />

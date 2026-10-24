@@ -5,6 +5,7 @@ import { Simbolo } from "@/components/Marca";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
 import { porCodigo } from "@/lib/catalogo";
+import { areaPorId, ondeFica } from "@/lib/areasNegocio";
 import { useSessao } from "@/lib/sessao";
 import { BusinessProvider, useBusiness } from "@/lib/acessos";
 import { CadastroEstabelecimento } from "./CadastroEstabelecimento";
@@ -24,14 +25,16 @@ export function BusinessLayout() {
 function Estrutura() {
   const { perfil, ehAdmin, sair } = useSessao();
   const negocio = useBusiness();
-  const rota = useMatch("/business/app/:codigo");
-  const app = rota ? porCodigo(rota.params.codigo ?? "") : undefined;
+  const rotaArea = useMatch("/business/area/:area/*");
+  const area = rotaArea ? areaPorId(rotaArea.params.area ?? "") : undefined;
+  const codigoParte = rotaArea?.params["*"]?.split("/")[0];
+  const parte = codigoParte ? ondeFica(codigoParte)?.nome ?? porCodigo(codigoParte)?.nome : undefined;
   const navegar = useNavigate();
   const nome = perfil?.nome ?? "";
 
   useEffect(() => {
-    document.title = app ? `${app.nome} · RoVibes Business` : "RoVibes Business";
-  }, [app]);
+    document.title = area ? `${parte ? `${parte} · ` : ""}${area.nome} · RoVibes Business` : "RoVibes Business";
+  }, [area, parte]);
 
   if (negocio.carregando) return <Carregando />;
   const semEstabelecimento = negocio.vinculos.length === 0 && !ehAdmin;
@@ -40,19 +43,17 @@ function Estrutura() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-borda bg-superficie/95 backdrop-blur">
         <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-8">
-          {app ? (
+          {area ? (
             <div className="flex min-w-0 items-center gap-3">
               <button onClick={() => navegar("/business")} className="botao h-9 w-9 shrink-0 px-0" aria-label="Voltar à Área de Trabalho">
                 <ArrowLeft className="h-4 w-4" />
               </button>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-destaque-suave text-destaque">
-                <app.icone className="h-[18px] w-[18px]" />
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: area.cor }}>
+                <area.icone className="h-[18px] w-[18px]" />
               </span>
               <div className="min-w-0 leading-tight">
-                <h1 className="truncate text-[15px] font-semibold">{app.nome}</h1>
-                <p className="truncate text-[13px] text-suave">
-                  <span className="codigo">{app.codigo}</span> · {app.area}
-                </p>
+                <h1 className="truncate text-[15px] font-semibold">{area.nome}</h1>
+                <p className="truncate text-[13px] text-suave">{[parte, negocio.atual?.estabelecimento.nome].filter(Boolean).join(" · ")}</p>
               </div>
             </div>
           ) : (
@@ -85,7 +86,7 @@ function Estrutura() {
                 <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-suave" />
               </label>
             )}
-            <button onClick={() => navegar("/business/app/G1002")} className="rounded-full ring-2 ring-transparent hover:ring-marca" aria-label="Meu perfil e meus aplicativos" title="Meu perfil e meus aplicativos">
+            <button onClick={() => navegar("/business/area/pessoas-equipe/G1002")} className="rounded-full ring-2 ring-transparent hover:ring-marca" aria-label="Meu perfil" title="Meu perfil">
               <Avatar nome={nome || "?"} tamanho="md" foto={perfil?.foto_url} />
             </button>
             <button

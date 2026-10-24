@@ -176,7 +176,7 @@ export function NovoItemCardapio({
                 {resultados.length === 0 && (
                   <li className="px-3 py-5 text-center text-sm text-suave">
                     Nenhum produto encontrado.{" "}
-                    <Link to="/business/app/G4003" className="font-semibold text-destaque">
+                    <Link to="/business/area/produtos-estoque/G4003" className="font-semibold text-destaque">
                       Adicionar da biblioteca
                     </Link>
                   </li>

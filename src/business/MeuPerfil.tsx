@@ -10,19 +10,9 @@ import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { reduzirImagem } from "@/lib/imagens";
 import { useSessao } from "@/lib/sessao";
 import { NOME_PAPEL, useBusiness } from "@/lib/acessos";
-import { CATALOGO } from "@/lib/catalogo";
-import { COR_AREA } from "./AreaDeTrabalho";
+import { AREAS_NEGOCIO, partesLiberadas } from "@/lib/areasNegocio";
 
-const COR_TEXTO: Record<string, string> = {
-  "bg-[#1F4E8C]": "text-[#3B82F6]",
-  "bg-[#E06A1B]": "text-[#E06A1B]",
-  "bg-[#7C3AED]": "text-[#8B5CF6]",
-  "bg-[#14998A]": "text-[#14B8A6]",
-  "bg-[#1F8A4C]": "text-[#22A55B]",
-  "bg-[#B4234A]": "text-[#E11D48]",
-};
-
-/** Meu perfil: dados pessoais, preferências e todos os aplicativos liberados, com a estrela da tela inicial. */
+/** Meu perfil: dados pessoais, preferências e os acessos por área. */
 export function MeuPerfil() {
   const { perfil, email, ehAdmin, sessao, recarregar } = useSessao();
   const negocio = useBusiness();
@@ -33,13 +23,16 @@ export function MeuPerfil() {
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const seletorFoto = useRef<HTMLInputElement>(null);
+  const minhasAreas = AREAS_NEGOCIO.map((area) => ({
+    area,
+    partes: partesLiberadas(area, temAcesso).flatMap((g) => g.itens.map((i) => ({ codigo: i.codigo, nome: i.nome ?? i.codigo }))),
+  })).filter((x) => x.partes.length > 0);
 
   useEffect(() => {
     setNome(perfil?.nome ?? "");
     setTelefone(perfil?.telefone ?? "");
   }, [perfil?.nome, perfil?.telefone]);
 
-  const meusApps = CATALOGO.filter((a) => temAcesso(a));
   const nascimento = perfil?.data_nascimento ? perfil.data_nascimento.split("-").reverse().join("/") : "";
   const funcao = atual ? atual.cargo || NOME_PAPEL[atual.papel] : ehAdmin ? "Administração RoVibes" : "";
   const ultimoAcesso = sessao?.user.last_sign_in_at
@@ -209,45 +202,31 @@ export function MeuPerfil() {
         </Secao>
       </div>
 
-      <Secao
-        titulo="Meus aplicativos"
-        acao={
-          <span className="text-[13px] text-suave">
-            {meusApps.length} liberados · {negocio.favoritos.length} na tela inicial
-          </span>
-        }
-      >
-        <p className="mb-3 flex items-center gap-1.5 text-[13px] text-suave">
-          <LayoutGrid className="h-3.5 w-3.5" />
-          Marque a estrela para colocar o aplicativo na sua Área de Trabalho.
-        </p>
-        <ul className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-          {meusApps.map((a) => {
-            const fav = negocio.ehFavorito(a.codigo);
-            return (
-              <li key={a.codigo} className="flex items-center gap-2 rounded-lg border border-borda bg-fundo pl-3">
-                <Link to={`/business/app/${a.codigo}`} className="flex min-w-0 flex-1 items-center gap-3 py-2.5">
-                  <span className={clsx("codigo w-12 shrink-0 font-semibold", COR_TEXTO[COR_AREA[a.area]])}>{a.codigo}</span>
-                  <span className="truncate text-sm">{a.nome}</span>
-                </Link>
-                <button
-                  onClick={() => void negocio.alternarFavorito(a.codigo)}
-                  className="rounded-r-lg px-3 py-2.5 hover:bg-elevado"
-                  aria-label={fav ? `Tirar ${a.nome} da tela inicial` : `Pôr ${a.nome} na tela inicial`}
-                  aria-pressed={fav}
-                  title={fav ? "Tirar da tela inicial" : "Pôr na tela inicial"}
-                >
-                  <Star className={clsx("h-4 w-4", fav ? "fill-current text-alerta" : "text-suave")} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-        {meusApps.length === 0 && (
+      <Secao titulo="Meus acessos">
+        {minhasAreas.length === 0 ? (
           <p className="flex items-center gap-2 text-sm text-suave">
-            <UserRound className="h-4 w-4" />
-            Nenhum aplicativo liberado ainda.
+            <UserRound className="h-4 w-4" />—
           </p>
+        ) : (
+          <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {minhasAreas.map(({ area, partes }) => (
+              <li key={area.id} className="rounded-lg border border-borda bg-fundo p-3">
+                <Link to={`/business/area/${area.id}`} className="flex items-center gap-2.5 font-semibold">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-lg text-white" style={{ backgroundColor: area.cor }}>
+                    <area.icone className="h-4 w-4" />
+                  </span>
+                  {area.nome}
+                </Link>
+                <span className="mt-2 flex flex-wrap gap-1.5">
+                  {partes.map((p) => (
+                    <Link key={p.codigo} to={`/business/area/${area.id}/${p.codigo}`} className="rounded-full border border-borda px-2.5 py-1 text-[12px] hover:bg-elevado">
+                      {p.nome}
+                    </Link>
+                  ))}
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
       </Secao>
     </TelaUniversal>

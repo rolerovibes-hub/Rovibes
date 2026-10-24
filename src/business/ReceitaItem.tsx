@@ -95,7 +95,7 @@ export function ReceitaItem({ estab, item, nomeItem }: { estab: string; item: st
       {produtos.length === 0 ? (
         <p className="mt-3 text-[13px]">
           Nenhum produto no estoque.{" "}
-          <Link to="/business/app/G4003" className="font-semibold text-destaque">
+          <Link to="/business/area/produtos-estoque/G4003" className="font-semibold text-destaque">
             Adicionar produtos
           </Link>
         </p>

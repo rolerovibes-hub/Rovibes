@@ -2,7 +2,8 @@ import { useEffect } from "react";
 import { TelaUniversal } from "./TelaUniversal";
 import { Navigate, useParams } from "react-router-dom";
 import { Download, FilePlus2, FolderOpen, Lock, Pencil, Printer, Search, Trash2 } from "lucide-react";
-import { porCodigo, Aplicativo } from "@/lib/catalogo";
+import { Aplicativo } from "@/lib/catalogo";
+import { linkDoApp } from "@/lib/areasNegocio";
 import { useBusiness } from "@/lib/acessos";
 import { AprovacaoEstabelecimentos } from "./AprovacaoEstabelecimentos";
 import { PerfilEstabelecimento } from "./PerfilEstabelecimento";
@@ -60,19 +61,22 @@ const COLUNAS: Record<string, string[]> = {
   A1004: ["Nome", "Tipo", "Em uso"],
 };
 
+/** Link antigo /business/app/:codigo: leva para a parte certa da área de negócio. */
 export function TelaAplicativo() {
   const { codigo = "" } = useParams();
-  const app = porCodigo(codigo);
+  return <Navigate to={linkDoApp(codigo)} replace />;
+}
+
+/** Conteúdo de uma parte (antigo app) dentro da área de negócio. */
+export function ConteudoApp({ app }: { app: Aplicativo }) {
   const acessos = useBusiness();
-  const liberado = app ? acessos.temAcesso(app) : false;
+  const liberado = acessos.temAcesso(app);
 
   useEffect(() => {
-    if (app && liberado) acessos.registrarUso(app.codigo);
+    if (liberado) acessos.registrarUso(app.codigo);
     // registra uma vez por abertura
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codigo]);
-
-  if (!app) return <Navigate to="/business" replace />;
+  }, [app.codigo]);
 
   if (!liberado) {
     const solicitado = acessos.foiSolicitado(app.codigo);
@@ -81,8 +85,7 @@ export function TelaAplicativo() {
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-elevado text-suave">
           <Lock className="h-5 w-5" />
         </span>
-        <h2 className="mt-4 text-lg font-semibold">Você não tem acesso a este aplicativo</h2>
-        <p className="mt-1 text-sm text-suave">O pedido vai para o seu gestor pelo chat.</p>
+        <h2 className="mt-4 text-lg font-semibold">Sem acesso</h2>
         {solicitado ? (
           <p className="mt-6 text-sm font-medium text-alerta">Acesso solicitado. Aguarde a resposta.</p>
         ) : (
@@ -156,12 +159,11 @@ export function TelaAplicativo() {
     if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
     return (
       <div className="mx-auto max-w-6xl space-y-4">
-        <p className="cartao flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm text-suave">
-          No dia a dia, o caixa usa esta tela pelo RoVibes Job, no celular ou num tablet.
-          <Link to="/job/caixa" className="font-semibold text-destaque">
+        <div className="flex justify-end">
+          <Link to="/job/caixa" className="botao">
             Abrir no Job
           </Link>
-        </p>
+        </div>
         <Garcom key={`caixa-${estab}`} estab={estab} modo="caixa" />
       </div>
     );
@@ -171,12 +173,11 @@ export function TelaAplicativo() {
     if (!estab) return <p className="cartao p-6 text-sm text-suave">Cadastre ou escolha um estabelecimento.</p>;
     return (
       <div className="mx-auto max-w-6xl space-y-4">
-        <p className="cartao flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm text-suave">
-          No dia a dia, a equipe usa esta tela pelo RoVibes Job, no celular ou num tablet.
-          <Link to={app.codigo === "T7002" ? "/job/preparo" : "/job/entregas"} className="font-semibold text-destaque">
+        <div className="flex justify-end">
+          <Link to={app.codigo === "T7002" ? "/job/preparo" : "/job/entregas"} className="botao">
             Abrir no Job
           </Link>
-        </p>
+        </div>
         {app.codigo === "T7002" ? <FilaPreparo estab={estab} /> : <FilaEntregas estab={estab} />}
       </div>
     );

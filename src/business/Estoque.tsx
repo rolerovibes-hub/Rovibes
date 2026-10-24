@@ -142,7 +142,7 @@ export function Estoque() {
             Ajuste (contagem)
           </button>
           <hr className="col-span-full my-1 border-borda" />
-          <Link to="/business/app/G4003" className="botao">
+          <Link to="/business/area/produtos-estoque/G4003" className="botao">
             <PackagePlus className="h-4 w-4" />
             Meus produtos
           </Link>
@@ -283,7 +283,7 @@ export function Estoque() {
               {produtos.length === 0 ? (
                 <>
                   Nenhum produto ainda.{" "}
-                  <Link to="/business/app/G4003" className="font-semibold text-destaque">
+                  <Link to="/business/area/produtos-estoque/G4003" className="font-semibold text-destaque">
                     Adicione da biblioteca
                   </Link>
                   .
