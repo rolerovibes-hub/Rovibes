@@ -2,26 +2,26 @@ import { Navigate, NavLink, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { porCodigo } from "@/lib/catalogo";
 import { useBusiness } from "@/lib/acessos";
-import { areaPorId, partesLiberadas } from "@/lib/areasNegocio";
+import { AREAS_NEGOCIO, AreaNegocio, areaPorId, partesLiberadas } from "@/lib/areasNegocio";
 import { ConteudoApp } from "./TelaAplicativo";
 
 /** Uma área de negócio: menu das partes à esquerda (no celular, em cima) e a parte aberta ao lado. */
-export function TelaArea() {
+export function TelaArea({ areas = AREAS_NEGOCIO, base = "/business" }: { areas?: AreaNegocio[]; base?: string }) {
   const { area: id = "", codigo } = useParams();
-  const area = areaPorId(id);
+  const area = areaPorId(id, areas);
   const { temAcesso } = useBusiness();
-  if (!area) return <Navigate to="/business" replace />;
+  if (!area) return <Navigate to={base} replace />;
 
   const grupos = partesLiberadas(area, temAcesso);
   const todas = grupos.flatMap((g) => g.itens);
-  if (!todas.length) return <Navigate to="/business" replace />;
+  if (!todas.length) return <Navigate to={base} replace />;
   const atual = codigo && todas.some((i) => i.codigo === codigo) ? codigo : null;
   if (!atual) {
     // Parte sem acesso (link antigo) cai no aviso de acesso; sem parte, abre a primeira.
     if (codigo && porCodigo(codigo) && area.grupos.some((g) => g.itens.some((i) => i.codigo === codigo))) {
       return <ConteudoApp app={porCodigo(codigo)!} />;
     }
-    return <Navigate to={`/business/area/${area.id}/${todas[0].codigo}`} replace />;
+    return <Navigate to={`${base}/area/${area.id}/${todas[0].codigo}`} replace />;
   }
   const app = porCodigo(atual)!;
   const unica = todas.length === 1;
@@ -36,7 +36,7 @@ export function TelaArea() {
               {g.itens.map((i) => (
                 <NavLink
                   key={i.codigo}
-                  to={`/business/area/${area.id}/${i.codigo}`}
+                  to={`${base}/area/${area.id}/${i.codigo}`}
                   className={({ isActive }) =>
                     clsx("block whitespace-nowrap rounded-lg px-3 py-2 text-sm", isActive ? "bg-destaque-suave font-semibold text-destaque" : "text-texto hover:bg-elevado")
                   }

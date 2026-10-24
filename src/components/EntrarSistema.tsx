@@ -2,6 +2,7 @@ import { FormEvent, ReactNode, useEffect, useState } from "react";
 import clsx from "clsx";
 import { ArrowLeft, Check, Eye, EyeOff, Store } from "lucide-react";
 import { Simbolo } from "./Marca";
+import { AcessoGestao } from "./AcessoGestao";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { confirmarContaPessoal, contasSistema, EstabResponsavel, entrarNoSistema, normalizarCodigo, ultimoCodigo } from "@/lib/sistema";
 
@@ -152,37 +153,14 @@ function Entrar({ mudar }: { mudar: (m: Modo) => void }) {
   );
 }
 
-/** Equipe da plataforma (até a Gestão RoVibes ganhar o sistema próprio). */
+/** Equipe RoVibes (modo suporte): entra com o acesso da Gestão (usuário, senha e código). */
 function EntrarEquipeRoVibes({ voltar }: { voltar: () => void }) {
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState("");
-  const [ocupado, setOcupado] = useState(false);
-  const enviar = async (e: FormEvent) => {
-    e.preventDefault();
-    setErro("");
-    setOcupado(true);
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password: senha });
-    if (error) {
-      setErro(/Invalid login/i.test(error.message) ? "E-mail ou senha incorretos." : mensagemDeErro(error));
-      setOcupado(false);
-    }
-  };
   return (
     <>
-      <Cabecalho titulo="Equipe RoVibes" voltar={voltar} />
-      <form onSubmit={enviar} className="space-y-3.5">
-        <Rotulo nome="E-mail">
-          <input required type="email" autoComplete="email" autoFocus className={campo} value={email} onChange={(e) => setEmail(e.target.value)} />
-        </Rotulo>
-        <Rotulo nome="Senha">
-          <Senha valor={senha} mudar={setSenha} />
-        </Rotulo>
-        <Erro texto={erro} />
-        <button type="submit" disabled={ocupado} className="botao-principal h-11 w-full">
-          Entrar
-        </button>
-      </form>
+      <button type="button" onClick={voltar} className="-ml-2 mb-2 rounded-full p-1.5 hover:bg-elevado" aria-label="Voltar">
+        <ArrowLeft className="h-5 w-5" />
+      </button>
+      <AcessoGestao />
     </>
   );
 }

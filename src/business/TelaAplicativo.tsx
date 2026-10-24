@@ -10,7 +10,7 @@ import { PerfilEstabelecimento } from "./PerfilEstabelecimento";
 import { Cardapio } from "./Cardapio";
 import { Eventos } from "./Eventos";
 import { VibesCategorias } from "./VibesCategorias";
-import { EquipeRoVibes } from "./EquipeRoVibes";
+import { Organizacao } from "@/gestao/Organizacao";
 import { StatusAoVivo } from "./StatusAoVivo";
 import { Publicacoes } from "./Publicacoes";
 import { Stories } from "./Stories";
@@ -105,7 +105,7 @@ export function ConteudoApp({ app }: { app: Aplicativo }) {
   if (app.codigo === "A1005") return <BibliotecaAdmin />;
   if (app.codigo === "A1006") return <MusicasAdmin />;
   if (app.codigo === "A1007") return <EventosPessoasAdmin />;
-  if (app.codigo === "A1008") return <EquipeRoVibes />;
+  if (app.codigo === "A1008") return <Organizacao />;
   if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "G4003") return <Produtos />;
   if (app.codigo === "T4004") {

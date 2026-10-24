@@ -31,8 +31,11 @@ export const ultimoCodigo = () => {
 };
 
 /** Chama a função do servidor que cria e gerencia os usuários do sistema. */
-export async function contasSistema<T = Record<string, unknown>>(acao: string, corpo: Record<string, unknown> = {}): Promise<T> {
-  const { data, error } = await supabase.functions.invoke("contas-sistema", { body: { acao, ...corpo } });
+export const contasSistema = <T = Record<string, unknown>,>(acao: string, corpo: Record<string, unknown> = {}) => chamarFuncao<T>("contas-sistema", acao, corpo);
+
+/** Chama uma função do servidor e traduz o erro que vem no corpo da resposta. */
+export async function chamarFuncao<T = Record<string, unknown>>(nome: string, acao: string, corpo: Record<string, unknown> = {}): Promise<T> {
+  const { data, error } = await supabase.functions.invoke(nome, { body: { acao, ...corpo } });
   const d = data as { erro?: string } | null;
   if (d?.erro) throw new Error(d.erro);
   if (error) {

@@ -7,7 +7,11 @@ export const bancoConfigurado = Boolean(__SUPABASE_URL__ && __SUPABASE_CHAVE__);
  * O cliente é escolhido ao abrir a página; trocar entre app e sistema recarrega a página (veja `sessaoDoSistema`).
  */
 export const ehAreaSistema = (caminho: string) => /^\/(business|job)(\/|$)/.test(caminho);
-export const sessaoDoSistema = typeof window !== "undefined" && ehAreaSistema(window.location.pathname);
+export const ehAreaGestao = (caminho: string) => /^\/gestao(\/|$)/.test(caminho);
+/** Cada mundo tem a sua sessão: app (pessoal), sistema (Business/Job) e gestão (equipe RoVibes). */
+export const contextoDe = (caminho: string): "app" | "sistema" | "gestao" => (ehAreaGestao(caminho) ? "gestao" : ehAreaSistema(caminho) ? "sistema" : "app");
+export const contextoAtual = typeof window !== "undefined" ? contextoDe(window.location.pathname) : "app";
+export const sessaoDoSistema = contextoAtual === "sistema";
 
 // Sem as variáveis (ex.: antes de ligar o Supabase), cria um cliente que só falha ao ser usado.
 export const supabase = createClient(
@@ -17,8 +21,8 @@ export const supabase = createClient(
     auth: {
       persistSession: true,
       autoRefreshToken: true,
-      detectSessionInUrl: !sessaoDoSistema,
-      ...(sessaoDoSistema ? { storageKey: "rovibes-sistema-sessao" } : {}),
+      detectSessionInUrl: contextoAtual === "app",
+      ...(contextoAtual === "sistema" ? { storageKey: "rovibes-sistema-sessao" } : contextoAtual === "gestao" ? { storageKey: "rovibes-gestao-sessao" } : {}),
     },
   },
 );

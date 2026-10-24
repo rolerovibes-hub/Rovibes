@@ -1,4 +1,4 @@
-import { Boxes, Building2, CalendarDays, LucideIcon, Megaphone, ReceiptText, ShieldCheck, Users, UtensilsCrossed, Wallet } from "lucide-react";
+import { Boxes, Building2, CalendarDays, Library, LucideIcon, Megaphone, Music, Network, ReceiptText, ShieldCheck, Store, Users, UtensilsCrossed, Wallet } from "lucide-react";
 import { Aplicativo, porCodigo } from "./catalogo";
 
 /**
@@ -95,27 +95,57 @@ export const AREAS_NEGOCIO: AreaNegocio[] = [
     cor: "#334155",
     grupos: [{ nome: "Meu negócio", itens: [{ codigo: "G1001", nome: "Perfil do estabelecimento" }, { codigo: "C8001", nome: "Indicadores" }] }],
   },
+];
+
+/** Gestão RoVibes (sistema da equipe da plataforma, em /gestao). */
+export const AREAS_GESTAO: AreaNegocio[] = [
   {
-    id: "administracao",
-    nome: "Administração RoVibes",
+    id: "estabelecimentos",
+    nome: "Estabelecimentos",
+    icone: Store,
+    cor: "#1D4ED8",
+    plataforma: true,
+    grupos: [{ nome: "Estabelecimentos", itens: [{ codigo: "A1001", nome: "Aprovação" }, { codigo: "A1002", nome: "Todos" }] }],
+  },
+  {
+    id: "moderacao",
+    nome: "Moderação",
     icone: ShieldCheck,
     cor: "#B4234A",
     plataforma: true,
-    grupos: [
-      { nome: "Estabelecimentos", itens: [{ codigo: "A1001", nome: "Aprovação" }, { codigo: "A1002", nome: "Estabelecimentos" }] },
-      { nome: "Moderação", itens: [{ codigo: "A1003", nome: "Denúncias" }] },
-      { nome: "Catálogo", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }] },
-      { nome: "Conteúdo", itens: [{ codigo: "A1006", nome: "Músicas dos vídeos" }, { codigo: "A1007", nome: "Eventos de pessoas" }] },
-      { nome: "Organização", itens: [{ codigo: "A1008", nome: "Equipe RoVibes" }] },
-    ],
+    grupos: [{ nome: "Moderação", itens: [{ codigo: "A1003", nome: "Denúncias" }, { codigo: "A1007", nome: "Eventos de pessoas" }] }],
+  },
+  {
+    id: "catalogo",
+    nome: "Catálogo global",
+    icone: Library,
+    cor: "#0F766E",
+    plataforma: true,
+    grupos: [{ nome: "Catálogo", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }] }],
+  },
+  {
+    id: "conteudo",
+    nome: "Conteúdo da plataforma",
+    icone: Music,
+    cor: "#7C3AED",
+    plataforma: true,
+    grupos: [{ nome: "Conteúdo", itens: [{ codigo: "A1006", nome: "Músicas dos vídeos" }] }],
+  },
+  {
+    id: "organizacao",
+    nome: "Organização",
+    icone: Network,
+    cor: "#334155",
+    plataforma: true,
+    grupos: [{ nome: "Organização", itens: [{ codigo: "A1008", nome: "Cargos e usuários" }] }],
   },
 ];
 
-export const areaPorId = (id: string) => AREAS_NEGOCIO.find((a) => a.id === id);
+export const areaPorId = (id: string, lista: AreaNegocio[] = AREAS_NEGOCIO) => lista.find((a) => a.id === id);
 
 /** Área e nome da parte para um código de app. */
-export function ondeFica(codigo: string): { area: AreaNegocio; nome: string } | null {
-  for (const area of AREAS_NEGOCIO)
+export function ondeFica(codigo: string, lista: AreaNegocio[] = AREAS_NEGOCIO): { area: AreaNegocio; nome: string } | null {
+  for (const area of lista)
     for (const g of area.grupos)
       for (const i of g.itens) if (i.codigo === codigo) return { area, nome: i.nome ?? porCodigo(codigo)?.nome ?? codigo };
   return null;

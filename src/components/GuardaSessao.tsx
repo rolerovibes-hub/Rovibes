@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "react-router-dom";
-import { ehAreaSistema, sessaoDoSistema } from "@/lib/supabase";
+import { contextoAtual, contextoDe } from "@/lib/supabase";
 
 /**
  * App pessoal e sistema do estabelecimento (Business/Job) usam sessões diferentes.
@@ -9,7 +9,7 @@ import { ehAreaSistema, sessaoDoSistema } from "@/lib/supabase";
 export function GuardaSessao() {
   const { pathname } = useLocation();
   useEffect(() => {
-    if (ehAreaSistema(pathname) !== sessaoDoSistema) window.location.reload();
+    if (contextoDe(pathname) !== contextoAtual) window.location.reload();
   }, [pathname]);
   return null;
 }

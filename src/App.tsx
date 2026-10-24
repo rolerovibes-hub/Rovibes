@@ -3,6 +3,8 @@ import { BusinessLayout } from "./business/BusinessLayout";
 import { AreaDeTrabalho } from "./business/AreaDeTrabalho";
 import { TelaAplicativo } from "./business/TelaAplicativo";
 import { TelaArea } from "./business/TelaArea";
+import { GestaoLayout, InicioGestao } from "./gestao/GestaoLayout";
+import { AREAS_GESTAO } from "./lib/areasNegocio";
 import { AppLayout } from "./app/AppLayout";
 import { Descobrir } from "./app/Descobrir";
 import { Mapa } from "./app/Mapa";
@@ -53,6 +55,11 @@ export default function App() {
         <Route path="novo" element={<Navigate to="/business" replace />} />
       </Route>
       <Route path="/entrar" element={<Entrar />} />
+      <Route path="/gestao" element={<GestaoLayout />}>
+        <Route index element={<InicioGestao />} />
+        <Route path="area/:area" element={<TelaArea areas={AREAS_GESTAO} base="/gestao" />} />
+        <Route path="area/:area/:codigo" element={<TelaArea areas={AREAS_GESTAO} base="/gestao" />} />
+      </Route>
       <Route path="/job" element={<JobLayout />} />
       <Route path="/job/:modulo" element={<JobLayout />} />
       <Route path="/" element={<AppLayout />}>

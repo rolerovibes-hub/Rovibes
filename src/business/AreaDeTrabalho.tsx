@@ -89,7 +89,7 @@ export function AreaDeTrabalho() {
   const [termo, setTermo] = useState("");
   const [agora, setAgora] = useState(() => new Date());
   const campo = useRef<HTMLInputElement>(null);
-  const resultados = useMemo(() => buscar(CATALOGO, termo), [termo]);
+  const resultados = useMemo(() => buscar(CATALOGO, termo).filter((a) => !!ondeFica(a.codigo)), [termo]);
   const [resumo, setResumo] = useState<Resumo>({});
   const areas = AREAS_NEGOCIO.filter((a) => partesLiberadas(a, temAcesso).length > 0);
   const estab = atual?.estabelecimento_id ?? null;
