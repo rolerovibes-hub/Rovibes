@@ -23,6 +23,13 @@ export function MeuPerfil() {
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   const seletorFoto = useRef<HTMLInputElement>(null);
+  const [sistema, setSistema] = useState<{ login: string; codigo: string } | null>(null);
+  useEffect(() => {
+    supabase.rpc("meu_acesso_sistema").then(({ data }) => {
+      const d = data as { conta_sistema?: boolean; login?: string; codigo?: string } | null;
+      if (d?.conta_sistema && d.login && d.codigo) setSistema({ login: d.login, codigo: d.codigo });
+    });
+  }, []);
   const minhasAreas = AREAS_NEGOCIO.map((area) => ({
     area,
     partes: partesLiberadas(area, temAcesso).flatMap((g) => g.itens.map((i) => ({ codigo: i.codigo, nome: i.nome ?? i.codigo }))),
@@ -116,14 +123,6 @@ export function MeuPerfil() {
             <Briefcase className="h-4 w-4" />
             RoVibes Job
           </Link>
-          <Link to="/" className="botao">
-            <Smartphone className="h-4 w-4" />
-            RoVibes App
-          </Link>
-          <Link to="/business/novo" className="botao">
-            <Store className="h-4 w-4" />
-            Novo estabelecimento
-          </Link>
         </>
       }
     >
@@ -176,8 +175,17 @@ export function MeuPerfil() {
           <Campo rotulo="Nome de exibição" className="md:col-span-2">
             <input className="entrada" value={nome} onChange={(e) => setNome(e.target.value)} />
           </Campo>
-          <Bloqueado rotulo="Data de nascimento" valor={nascimento} />
-          <Bloqueado rotulo="E-mail" valor={email ?? ""} />
+          {sistema ? (
+            <>
+              <Bloqueado rotulo="Usuário" valor={sistema.login} />
+              <Bloqueado rotulo="Código do estabelecimento" valor={sistema.codigo} />
+            </>
+          ) : (
+            <>
+              <Bloqueado rotulo="Data de nascimento" valor={nascimento} />
+              <Bloqueado rotulo="E-mail" valor={email ?? ""} />
+            </>
+          )}
           <Bloqueado rotulo="Papel" valor={atual ? NOME_PAPEL[atual.papel] : ehAdmin ? "Administração" : "—"} />
           <Bloqueado rotulo="Cargo" valor={atual?.cargo ?? "—"} />
           <Bloqueado rotulo="Estabelecimento" valor={atual?.estabelecimento.nome ?? "—"} className="md:col-span-3" />

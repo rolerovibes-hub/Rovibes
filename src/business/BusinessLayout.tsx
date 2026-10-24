@@ -8,17 +8,15 @@ import { porCodigo } from "@/lib/catalogo";
 import { areaPorId, ondeFica } from "@/lib/areasNegocio";
 import { useSessao } from "@/lib/sessao";
 import { BusinessProvider, useBusiness } from "@/lib/acessos";
-import { CadastroEstabelecimento } from "./CadastroEstabelecimento";
+import { PortaSistema } from "@/components/PortaSistema";
 
 export function BusinessLayout() {
-  const { carregando, sessao } = useSessao();
-  const local = useLocation();
-  if (carregando) return <Carregando />;
-  if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(local.pathname)}`} replace />;
   return (
-    <BusinessProvider>
-      <Estrutura />
-    </BusinessProvider>
+    <PortaSistema produto="Business">
+      <BusinessProvider>
+        <Estrutura />
+      </BusinessProvider>
+    </PortaSistema>
   );
 }
 
@@ -92,7 +90,7 @@ function Estrutura() {
             <button
               onClick={async () => {
                 await sair();
-                navegar("/entrar?voltar=/business");
+                navegar("/business");
               }}
               className="botao h-10 w-10 px-0"
               aria-label="Sair"
@@ -105,7 +103,7 @@ function Estrutura() {
       </header>
 
       <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {semEstabelecimento ? <CadastroEstabelecimento /> : <Outlet />}
+        {semEstabelecimento ? <p className="cartao mx-auto max-w-md p-6 text-center text-sm text-suave">Este usuário não está ativo em nenhum estabelecimento.</p> : <Outlet />}
       </main>
 
     </div>

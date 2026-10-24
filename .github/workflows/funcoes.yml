@@ -39,6 +39,8 @@ jobs:
         run: supabase functions deploy mp-reembolso --project-ref "$PROJETO" --use-api
       - name: Publicar mp-anfitriao
         run: supabase functions deploy mp-anfitriao --project-ref "$PROJETO" --use-api
+      - name: Publicar contas-sistema (usuários do Business e do Job)
+        run: supabase functions deploy contas-sistema --project-ref "$PROJETO" --use-api
       - name: Chaves das notificações (cria uma vez, sem mostrar no log)
         run: |
           if supabase secrets list --project-ref "$PROJETO" | grep -q VAPID_PRIVADA; then

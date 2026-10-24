@@ -1,6 +1,7 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import clsx from "clsx";
-import { Check, ChevronRight, Headset, Plus, RotateCcw, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
+import { Check, ChevronRight, Headset, KeyRound, Plus, RotateCcw, Trash2, UserMinus, UserPlus, Users, X } from "lucide-react";
+import { contasSistema } from "@/lib/sistema";
 import { PromotersEstab } from "./Promoters";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
@@ -61,7 +62,8 @@ export function Equipe() {
   const [funcoes, setFuncoes] = useState<Funcao[] | null>(null);
   const [semAtualizacao, setSemAtualizacao] = useState(false);
   const [pendentes, setPendentes] = useState<Solicitacao[]>([]);
-  const [novo, setNovo] = useState<{ email: string; funcoes: string[] } | null>(null);
+  const [novo, setNovo] = useState<{ nome: string; login: string; senha: string; funcoes: string[] } | null>(null);
+  const [logins, setLogins] = useState<Map<string, string>>(new Map());
   const [edicao, setEdicao] = useState<EdicaoMembro | null>(null);
   const [funcaoAberta, setFuncaoAberta] = useState<EdicaoFuncao | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
@@ -69,6 +71,11 @@ export function Equipe() {
 
   const carregar = useCallback(async () => {
     if (!id) return;
+    void supabase
+      .from("contas_sistema")
+      .select("usuario_id, login")
+      .eq("estabelecimento_id", id)
+      .then(({ data }) => setLogins(new Map(((data ?? []) as { usuario_id: string; login: string }[]).map((x) => [x.usuario_id, x.login]))));
     const [m, s, f] = await Promise.all([
       supabase.rpc("equipe", { p_estab: id }),
       supabase.rpc("solicitacoes_pendentes", { p_estab: id }),
@@ -152,15 +159,14 @@ export function Equipe() {
     e.preventDefault();
     if (!novo) return;
     void executar(async () => {
-      const { data, error } = await supabase.rpc("adicionar_membro", { p_estab: id, p_email: novo.email, p_papel: "equipe", p_cargo: null });
-      if (error) throw error;
+      const criado = await contasSistema<{ usuario_id: string; login: string; codigo: string }>("criar_usuario", { nome: novo.nome, login: novo.login, senha: novo.senha });
       if (novo.funcoes.length) {
-        const r = await supabase.rpc("definir_membro", { p_estab: id, p_usuario: data, p_funcoes: novo.funcoes, p_extras: [], p_retirados: [], p_ativo: true });
+        const r = await supabase.rpc("definir_membro", { p_estab: id, p_usuario: criado.usuario_id, p_funcoes: novo.funcoes, p_extras: [], p_retirados: [], p_ativo: true });
         if (r.error) throw r.error;
       }
       setNovo(null);
       await carregar();
-    }, "Pessoa adicionada. Ela já vê o estabelecimento ao entrar no Business ou no Job.");
+    }, "Usuário criado.");
   };
 
   const decidir = (s: Solicitacao, aprovar: boolean) =>
@@ -211,7 +217,7 @@ export function Equipe() {
     <TelaUniversal
       acoes={
         <>
-          <button className="botao-principal col-span-2 sm:col-span-1" onClick={() => (setAba("pessoas"), setEdicao(null), setNovo({ email: "", funcoes: [] }))}>
+          <button className="botao-principal col-span-2 sm:col-span-1" onClick={() => (setAba("pessoas"), setEdicao(null), setNovo({ nome: "", login: "", senha: "", funcoes: [] }))}>
             <UserPlus className="h-4 w-4" />
             Adicionar pessoa
           </button>
@@ -275,7 +281,7 @@ export function Equipe() {
 
           {novo && (
             <Secao
-              titulo="Adicionar pessoa"
+              titulo="Novo usuário"
               acao={
                 <button className="botao h-8 w-8 px-0" onClick={() => setNovo(null)} aria-label="Fechar">
                   <X className="h-4 w-4" />
@@ -283,14 +289,30 @@ export function Equipe() {
               }
             >
               <form onSubmit={adicionar} className="space-y-4">
-                <Campo rotulo="E-mail da conta RoVibes">
-                  <input required type="email" autoFocus className="entrada" value={novo.email} onChange={(e) => setNovo({ ...novo, email: e.target.value })} />
-                </Campo>
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Campo rotulo="Nome">
+                    <input required minLength={2} autoFocus className="entrada" value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} />
+                  </Campo>
+                  <Campo rotulo="Usuário">
+                    <input
+                      required
+                      minLength={3}
+                      autoCapitalize="none"
+                      autoComplete="off"
+                      className="entrada codigo"
+                      placeholder="ex.: joao.bar"
+                      value={novo.login}
+                      onChange={(e) => setNovo({ ...novo, login: e.target.value.toLowerCase().replace(/[^a-z0-9._]/g, "").slice(0, 30) })}
+                    />
+                  </Campo>
+                  <Campo rotulo="Senha inicial">
+                    <input required minLength={8} autoComplete="new-password" className="entrada" value={novo.senha} onChange={(e) => setNovo({ ...novo, senha: e.target.value })} />
+                  </Campo>
+                </div>
                 <EscolherFuncoes funcoes={funcoes ?? []} marcadas={novo.funcoes} souDono={souDono} mudar={(f) => setNovo({ ...novo, funcoes: f })} />
                 <button type="submit" className="botao-principal h-10 w-full sm:w-auto sm:px-6" disabled={ocupado}>
-                  Adicionar
+                  Criar usuário
                 </button>
-                <p className="text-[13px] text-suave">A pessoa precisa ter criado a conta no RoVibes com este e-mail.</p>
               </form>
             </Secao>
           )}
@@ -306,6 +328,11 @@ export function Equipe() {
               salvar={salvarMembro}
               membro={membros.find((m) => m.usuario_id === edicao.usuario_id) ?? null}
               alternarAtivo={alternarAtivo}
+              trocarSenha={(senha) =>
+                executar(async () => {
+                  await contasSistema("senha_usuario", { usuario_id: edicao.usuario_id, senha });
+                }, "Senha alterada.")
+              }
             />
           )}
 
@@ -332,6 +359,7 @@ export function Equipe() {
                             {m.nome || "Sem nome"}
                             {m.usuario_id === eu && <span className="ml-1.5 text-[12px] font-normal text-suave">(você)</span>}
                             {!m.ativo && <span className="ml-1.5 text-[12px] font-normal text-suave">· desativado</span>}
+                            {logins.get(m.usuario_id) && <span className="codigo ml-2 text-[12px] font-normal text-suave">{logins.get(m.usuario_id)}</span>}
                           </span>
                           <span className="mt-1 flex flex-wrap gap-1">
                             {m.papel === "proprietario" ? (
@@ -482,6 +510,7 @@ function EditorMembro({
   salvar,
   membro,
   alternarAtivo,
+  trocarSenha,
 }: {
   edicao: EdicaoMembro;
   setEdicao: (e: EdicaoMembro | null) => void;
@@ -492,8 +521,10 @@ function EditorMembro({
   salvar: (e: FormEvent) => void;
   membro: Membro | null;
   alternarAtivo: (m: Membro) => void;
+  trocarSenha: (senha: string) => void;
 }) {
   const { temAcesso } = useBusiness();
+  const [novaSenha, setNovaSenha] = useState<string | null>(null);
   const dasFuncoes = new Set(edicao.funcoes.flatMap((f) => porId.get(f)?.codigos ?? []));
   const acoes = new Set(edicao.funcoes.flatMap((f) => porId.get(f)?.acoes ?? []));
   const alternar = (lista: "extras" | "retirados", c: string) =>
@@ -564,6 +595,36 @@ function EditorMembro({
           <button type="button" className="botao" onClick={() => setEdicao(null)}>
             Cancelar
           </button>
+          {novaSenha === null ? (
+            <button type="button" className="botao" onClick={() => setNovaSenha("")}>
+              <KeyRound className="h-4 w-4" />
+              Nova senha
+            </button>
+          ) : (
+            <span className="flex items-center gap-2">
+              <input
+                autoFocus
+                minLength={8}
+                autoComplete="new-password"
+                className="entrada h-10 w-44"
+                placeholder="mín. 8 caracteres"
+                value={novaSenha}
+                onChange={(e) => setNovaSenha(e.target.value)}
+                aria-label="Nova senha"
+              />
+              <button
+                type="button"
+                className="botao"
+                disabled={ocupado || novaSenha.length < 8}
+                onClick={() => {
+                  trocarSenha(novaSenha);
+                  setNovaSenha(null);
+                }}
+              >
+                Salvar
+              </button>
+            </span>
+          )}
           {membro && (
             <button type="button" className="botao ml-auto text-perigo" disabled={ocupado} onClick={() => alternarAtivo(membro)}>
               <UserMinus className="h-4 w-4" />

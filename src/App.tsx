@@ -20,7 +20,6 @@ import { EventoPagina } from "./app/EventoPagina";
 import { PublicacaoPagina } from "./app/PublicacaoPagina";
 import { VibeCut } from "./app/VibeCut";
 import { CardapioPagina } from "./app/CardapioPagina";
-import { CadastroEstabelecimento } from "./business/CadastroEstabelecimento";
 import { Carteira } from "./app/Carteira";
 import { MesaPagina } from "./app/MesaPagina";
 import { JobLayout } from "./job/JobLayout";
@@ -35,11 +34,13 @@ import { Privacidade } from "./app/Privacidade";
 import { ConversaPagina } from "./app/ConversaPagina";
 import { LinksDoApp } from "./components/LinksDoApp";
 import { BotaoVoltarAparelho } from "./components/BotaoVoltarAparelho";
+import { GuardaSessao } from "./components/GuardaSessao";
 import { PuxarParaAtualizar } from "./components/PuxarParaAtualizar";
 
 export default function App() {
   return (
     <>
+    <GuardaSessao />
     <BotaoVoltarAparelho />
     <PuxarParaAtualizar />
     <LinksDoApp />
@@ -49,7 +50,7 @@ export default function App() {
         <Route path="app/:codigo" element={<TelaAplicativo />} />
         <Route path="area/:area" element={<TelaArea />} />
         <Route path="area/:area/:codigo" element={<TelaArea />} />
-        <Route path="novo" element={<CadastroEstabelecimento />} />
+        <Route path="novo" element={<Navigate to="/business" replace />} />
       </Route>
       <Route path="/entrar" element={<Entrar />} />
       <Route path="/job" element={<JobLayout />} />

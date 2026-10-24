@@ -10,6 +10,7 @@ import { Marca } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { SeletorTema } from "@/components/SeletorTema";
 import { useSessao } from "@/lib/sessao";
+import { PortaSistema } from "@/components/PortaSistema";
 import { ChatAoVivo } from "@/business/ChatAoVivo";
 import { Portaria } from "./Portaria";
 import { BusinessProvider, NOME_PAPEL, useBusiness } from "@/lib/acessos";
@@ -41,14 +42,12 @@ const MODULOS: Modulo[] = [
 
 /** RoVibes Job: aplicativo de trabalho da equipe, com telas por função. */
 export function JobLayout() {
-  const { carregando, sessao } = useSessao();
-  const local = useLocation();
-  if (carregando) return <Carregando />;
-  if (!sessao) return <Navigate to={`/entrar?voltar=${encodeURIComponent(local.pathname)}`} replace />;
   return (
-    <BusinessProvider>
-      <Job />
-    </BusinessProvider>
+    <PortaSistema produto="Job">
+      <BusinessProvider>
+        <Job />
+      </BusinessProvider>
+    </PortaSistema>
   );
 }
 
@@ -241,10 +240,6 @@ function MenuJob({ fechar }: { fechar: () => void }) {
         </div>
         <div className="flex-1 space-y-3 px-5 py-5">
           <SeletorTema />
-          <Link to="/" className="botao w-full" onClick={fechar}>
-            <Smartphone className="h-4 w-4" />
-            Abrir o RoVibes App
-          </Link>
           <Link to="/business" className="botao w-full" onClick={fechar}>
             <Briefcase className="h-4 w-4" />
             Abrir o RoVibes Business
@@ -255,7 +250,7 @@ function MenuJob({ fechar }: { fechar: () => void }) {
             className="botao w-full text-perigo"
             onClick={async () => {
               await sair();
-              navegar("/entrar?voltar=/job");
+              navegar("/job");
             }}
           >
             <LogOut className="h-4 w-4" />
@@ -275,9 +270,6 @@ function Vazio({ titulo, texto }: { titulo: string; texto: string }) {
       </span>
       <p className="mt-4 font-semibold">{titulo}</p>
       <p className="mx-auto mt-1 max-w-sm text-sm text-suave">{texto}</p>
-      <Link to="/" className="botao mt-6">
-        Voltar ao RoVibes
-      </Link>
     </div>
   );
 }

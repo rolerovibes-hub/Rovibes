@@ -174,8 +174,6 @@ export function MenuFlutuante() {
     { nome: "Retiradas", sub: "QR dos pedidos", icone: QrCode, selo: mesa?.prontos ?? 0, acao: () => ir("/retirada") },
     { nome: "Carteira", sub: "Cupons e ingressos", icone: Wallet, selo: 0, acao: () => ir("/carteira") },
     ...(promoter > 0 ? [{ nome: "Promoter", sub: "Links, listas e benefícios", icone: Megaphone, selo: convitesPromoter, acao: () => ir("/promoter") }] : []),
-    ...(equipe ? [{ nome: "Modo trabalho", sub: "RoVibes Job", icone: Briefcase, selo: 0, acao: () => ir("/job") }] : []),
-    { nome: "Business", sub: "Meu estabelecimento", icone: Store, selo: 0, acao: () => ir("/business") },
   ];
   const total = (mesa?.prontos ?? 0) + naoLidas + convitesPromoter + seloChat;
 
