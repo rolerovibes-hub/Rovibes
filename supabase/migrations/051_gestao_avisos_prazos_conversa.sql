@@ -299,16 +299,36 @@ language sql stable security definer set search_path = public as $$
 $$;
 
 -- KPI "atrasadas" na Central (no lugar de "comigo", que já é um filtro da lista)
-do $$
-declare v text;
+create or replace function public.resumo_central()
+returns jsonb language plpgsql stable security definer set search_path = public as $$
+declare r jsonb;
 begin
-  select pg_get_functiondef('public.resumo_central()'::regprocedure) into v;
-  if position($q$'atrasadas',$q$ in v) = 0 then
-    v := replace(v, $a$'comigo', (select count(*) from vis where responsavel_id = auth.uid() and estado in ('nova', 'em_analise', 'aguardando')),$a$,
-                    $a$'atrasadas', (select count(*) from vis where estado in ('nova', 'em_analise') and prazo_em < now()),$a$);
-    if position($q$'atrasadas',$q$ in v) = 0 then raise exception 'Não consegui incluir as atrasadas no resumo.'; end if;
-    execute v;
-  end if;
+  if not public.gestao_confirmada() then return '{}'::jsonb; end if;
+  with vis as (select * from public.situacoes s where public.nivel_gestao(s.area) >= 1 or s.responsavel_id = auth.uid())
+  select jsonb_build_object(
+    'criticas', (select count(*) from vis where prioridade = 'critica' and estado in ('nova', 'em_analise', 'aguardando')),
+    'sem_responsavel', (select count(*) from vis where responsavel_id is null and estado in ('nova', 'em_analise', 'aguardando')),
+    'novas', (select count(*) from vis where conhecimento_id is null and estado in ('nova', 'em_analise', 'aguardando')),
+    'atrasadas', (select count(*) from vis where estado in ('nova', 'em_analise') and prazo_em < now()),
+    'resolvidas_semana', (select count(*) from vis where estado in ('resolvida', 'encerrada') and resolvida_em > now() - interval '7 days'),
+    'por_area', (select coalesce(jsonb_object_agg(area, n), '{}'::jsonb) from (select area, count(*) n from vis where estado in ('nova', 'em_analise', 'aguardando') group by area) x),
+    'saude', case when public.nivel_gestao('operacao') >= 1 then jsonb_build_object(
+      'pedidos_hora', (select count(*) from public.pedidos where criado_em > now() - interval '1 hour'),
+      'pagamentos_aprovados', (select round(100.0 * count(*) filter (where situacao = 'aprovado') / nullif(count(*) filter (where situacao in ('aprovado', 'recusado', 'cancelado')), 0))
+                                 from public.pagamentos where criado_em > now() - interval '24 hours'),
+      'notificacoes_atrasadas', (select count(*) from public.notificacoes where enviada_em is null and criado_em between now() - interval '1 day' and now() - interval '10 minutes'),
+      -- Normal do horário: média da mesma hora nos últimos 4 mesmos dias da semana.
+      'pedidos_hora_normal', (select round(count(*) / 4.0) from public.pedidos
+                               where criado_em > now() - interval '29 days'
+                                 and extract(dow from criado_em at time zone 'America/Sao_Paulo') = extract(dow from now() at time zone 'America/Sao_Paulo')
+                                 and extract(hour from criado_em at time zone 'America/Sao_Paulo') = extract(hour from now() at time zone 'America/Sao_Paulo')
+                                 and criado_em < now() - interval '1 day'),
+      'cadastros_em_analise', (select count(*) from public.estabelecimentos where situacao = 'pendente')
+    ) end
+  ) into r;
+  return r;
+exception when undefined_column or undefined_table then
+  return r;
 end $$;
 
 -- ============================================================
@@ -328,15 +348,51 @@ begin
   end loop;
 end $$;
 
-do $$
-declare v text;
+create or replace function public.detectar_situacoes(p_forcar boolean default false)
+returns int language plpgsql security definer set search_path = public as $$
+declare r record; n int := 0; v_ultima timestamptz;
 begin
-  select pg_get_functiondef('public.detectar_situacoes(boolean)'::regprocedure) into v;
-  if position('avisar_prazos_vencidos' in v) = 0 then
-    v := replace(v, E'  return n;\nend', E'  perform public.avisar_prazos_vencidos();\n  return n;\nend');
-    if position('avisar_prazos_vencidos' in v) = 0 then raise exception 'Não consegui ligar o aviso de prazos à detecção.'; end if;
-    execute v;
+  if not public.gestao_confirmada() then return 0; end if;
+  select (valor ->> 'ultima')::timestamptz into v_ultima from public.config_gestao where chave = 'deteccao';
+  if not p_forcar and v_ultima is not null and v_ultima > now() - interval '2 minutes' then return 0; end if;
+  update public.config_gestao set valor = jsonb_build_object('ultima', now()), atualizado_em = now() where chave = 'deteccao';
+
+  -- Aprovação esperando há mais de 48 h sobe para alta
+  update public.situacoes s set prioridade = 'alta'
+    from public.estabelecimentos e
+   where s.chave = 'aprovacao:' || e.id and e.situacao = 'pendente' and e.criado_em < now() - interval '48 hours'
+     and s.prioridade in ('media', 'baixa') and s.estado in ('nova', 'em_analise', 'aguardando');
+
+  -- Pagamentos falhando (3 ou mais recusados/cancelados na última hora no mesmo lugar)
+  begin
+    for r in select p.estabelecimento_id, e.nome, count(*) c from public.pagamentos p join public.estabelecimentos e on e.id = p.estabelecimento_id
+              where p.criado_em > now() - interval '1 hour' and p.situacao in ('recusado', 'cancelado')
+              group by 1, 2 having count(*) >= 3 loop
+      perform public.criar_situacao_automatica('pagamentos:' || r.estabelecimento_id || ':' || current_date, 'Pagamentos falhando', r.nome || ' · ' || r.c || ' falhas na última hora',
+        'financeiro', 'integracao', 'critica', r.estabelecimento_id, jsonb_build_object('falhas', r.c));
+      n := n + 1;
+    end loop;
+  exception when undefined_table or undefined_column then null;
+  end;
+
+  -- Pedidos parados no preparo (5 ou mais itens há mais de 40 min)
+  for r in select i.estabelecimento_id, e.nome, count(*) c from public.pedido_itens i join public.pedidos p on p.id = i.pedido_id
+            join public.estabelecimentos e on e.id = i.estabelecimento_id
+            where i.situacao in ('recebido', 'preparo') and p.criado_em between now() - interval '6 hours' and now() - interval '40 minutes'
+            group by 1, 2 having count(*) >= 5 loop
+    perform public.criar_situacao_automatica('atraso:' || r.estabelecimento_id || ':' || current_date, 'Pedidos parados no preparo', r.nome || ' · ' || r.c || ' itens há mais de 40 min',
+      'operacao', 'anomalia', 'critica', r.estabelecimento_id, jsonb_build_object('itens', r.c));
+    n := n + 1;
+  end loop;
+
+  -- Notificações sem sair há mais de 10 min
+  if (select count(*) from public.notificacoes where enviada_em is null and criado_em between now() - interval '1 day' and now() - interval '10 minutes') >= 20 then
+    perform public.criar_situacao_automatica('push:' || current_date, 'Notificações atrasadas', 'Mais de 20 notificações sem envio há mais de 10 min',
+      'operacao', 'integracao', 'alta', null, '{}');
+    n := n + 1;
   end if;
+  perform public.avisar_prazos_vencidos();
+  return n;
 end $$;
 
 revoke execute on function public.prazo_da_prioridade(text, timestamptz), public.nivel_gestao_de(uuid, text),
