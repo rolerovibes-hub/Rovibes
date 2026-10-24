@@ -1,4 +1,4 @@
-import { Boxes, Building2, CalendarDays, Library, LucideIcon, Megaphone, Music, Network, ReceiptText, ShieldCheck, Store, Users, UtensilsCrossed, Wallet } from "lucide-react";
+import { Activity, BookOpen, Boxes, Building2, CalendarDays, Headset, Library, LifeBuoy, LucideIcon, Megaphone, ReceiptText, Settings, ShieldCheck, Store, Users, UtensilsCrossed, Wallet } from "lucide-react";
 import { Aplicativo, porCodigo } from "./catalogo";
 
 /**
@@ -93,53 +93,74 @@ export const AREAS_NEGOCIO: AreaNegocio[] = [
     nome: "Gestão do Estabelecimento",
     icone: Building2,
     cor: "#334155",
-    grupos: [{ nome: "Meu negócio", itens: [{ codigo: "G1001", nome: "Perfil do estabelecimento" }, { codigo: "C8001", nome: "Indicadores" }] }],
+    grupos: [
+      { nome: "Meu negócio", itens: [{ codigo: "G1001", nome: "Perfil do estabelecimento" }, { codigo: "C8001", nome: "Indicadores" }] },
+      { nome: "RoVibes", itens: [{ codigo: "G1004", nome: "Ajuda RoVibes" }] },
+    ],
   },
 ];
 
-/** Gestão RoVibes (sistema da equipe da plataforma, em /gestao). */
+/** Gestão RoVibes (/gestao): áreas da operação da plataforma. O id é a área de permissão do cargo. */
+const sit = (codigo: string) => ({ codigo, nome: "Situações" });
 export const AREAS_GESTAO: AreaNegocio[] = [
+  { id: "atendimento", nome: "Atendimento", icone: Headset, cor: "#0EA5E9", plataforma: true, grupos: [{ nome: "Atendimento", itens: [sit("S2101")] }] },
+  {
+    id: "suporte",
+    nome: "Suporte",
+    icone: LifeBuoy,
+    cor: "#7C3AED",
+    plataforma: true,
+    grupos: [{ nome: "Suporte", itens: [sit("S2102"), { codigo: "S2202", nome: "Modo suporte ativo" }] }],
+  },
+  { id: "operacao", nome: "Operação", icone: Activity, cor: "#15803D", plataforma: true, grupos: [{ nome: "Operação", itens: [{ codigo: "S2201", nome: "Saúde" }, sit("S2103")] }] },
   {
     id: "estabelecimentos",
     nome: "Estabelecimentos",
     icone: Store,
     cor: "#1D4ED8",
     plataforma: true,
-    grupos: [{ nome: "Estabelecimentos", itens: [{ codigo: "A1001", nome: "Aprovação" }, { codigo: "A1002", nome: "Todos" }] }],
+    grupos: [{ nome: "Estabelecimentos", itens: [{ codigo: "S2203", nome: "Fichas" }, { codigo: "A1001", nome: "Aprovação" }, { codigo: "A1002", nome: "Todos" }, sit("S2104")] }],
   },
   {
-    id: "moderacao",
-    nome: "Moderação",
-    icone: ShieldCheck,
-    cor: "#B4234A",
+    id: "usuarios",
+    nome: "Usuários e acessos",
+    icone: Users,
+    cor: "#0891B2",
     plataforma: true,
-    grupos: [{ nome: "Moderação", itens: [{ codigo: "A1003", nome: "Denúncias" }, { codigo: "A1007", nome: "Eventos de pessoas" }] }],
+    grupos: [{ nome: "Usuários", itens: [{ codigo: "S2204", nome: "Contas dos estabelecimentos" }, sit("S2105")] }],
   },
   {
-    id: "catalogo",
-    nome: "Catálogo global",
+    id: "produto",
+    nome: "Produto",
     icone: Library,
     cor: "#0F766E",
     plataforma: true,
-    grupos: [{ nome: "Catálogo", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }] }],
+    grupos: [{ nome: "Produto", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }, { codigo: "A1006", nome: "Músicas" }, sit("S2106")] }],
   },
+  { id: "financeiro", nome: "Financeiro", icone: Wallet, cor: "#B45309", plataforma: true, grupos: [{ nome: "Financeiro", itens: [sit("S2107"), { codigo: "A1007", nome: "Eventos de pessoas" }] }] },
+  { id: "seguranca", nome: "Segurança", icone: ShieldCheck, cor: "#B4234A", plataforma: true, grupos: [{ nome: "Segurança", itens: [{ codigo: "A1003", nome: "Denúncias" }, sit("S2108")] }] },
+  { id: "conhecimento", nome: "Conhecimento", icone: BookOpen, cor: "#9333EA", plataforma: true, grupos: [{ nome: "Conhecimento", itens: [{ codigo: "S2205", nome: "Base de conhecimento" }] }] },
   {
-    id: "conteudo",
-    nome: "Conteúdo da plataforma",
-    icone: Music,
-    cor: "#7C3AED",
-    plataforma: true,
-    grupos: [{ nome: "Conteúdo", itens: [{ codigo: "A1006", nome: "Músicas dos vídeos" }] }],
-  },
-  {
-    id: "organizacao",
-    nome: "Organização",
-    icone: Network,
+    id: "configuracoes",
+    nome: "Configurações",
+    icone: Settings,
     cor: "#334155",
     plataforma: true,
-    grupos: [{ nome: "Organização", itens: [{ codigo: "A1008", nome: "Cargos e usuários" }] }],
+    grupos: [{ nome: "Configurações", itens: [{ codigo: "A1008", nome: "Organização" }, { codigo: "S2206", nome: "Inteligência" }] }],
   },
 ];
+
+/** Área de situações de cada código "Situações" (S21xx). */
+export const AREA_DAS_SITUACOES: Record<string, string> = {
+  S2101: "atendimento",
+  S2102: "suporte",
+  S2103: "operacao",
+  S2104: "estabelecimentos",
+  S2105: "usuarios",
+  S2106: "produto",
+  S2107: "financeiro",
+  S2108: "seguranca",
+};
 
 export const areaPorId = (id: string, lista: AreaNegocio[] = AREAS_NEGOCIO) => lista.find((a) => a.id === id);
 

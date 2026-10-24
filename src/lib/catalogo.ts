@@ -31,6 +31,7 @@ import {
   UtensilsCrossed,
   Wallet,
   UserCog,
+  LifeBuoy,
 } from "lucide-react";
 
 // Catálogo único de aplicativos do Business e da Administração.
@@ -50,6 +51,7 @@ export interface Aplicativo {
 export const CATALOGO: Aplicativo[] = [
   { codigo: "G1001", nome: "Perfil do estabelecimento", area: "Estabelecimento", icone: Store, fase: 2 },
   { codigo: "G1003", nome: "Pagamentos", area: "Estabelecimento", icone: CreditCard, fase: 7 },
+  { codigo: "G1004", nome: "Ajuda RoVibes", area: "Estabelecimento", icone: LifeBuoy, fase: 9, padrao: true },
   { codigo: "G1002", nome: "Meu perfil", area: "Equipe", icone: UserRound, fase: 1, padrao: true },
   { codigo: "T2001", nome: "Mensagens", area: "Equipe", icone: MessagesSquare, fase: 6 },
   { codigo: "T2002", nome: "Chat ao vivo", area: "Equipe", icone: Radio, fase: 6 },
@@ -79,7 +81,22 @@ export const CATALOGO: Aplicativo[] = [
   { codigo: "A1005", nome: "Biblioteca de produtos", area: "Administração", icone: Library, fase: 5 },
   { codigo: "A1006", nome: "Músicas dos vídeos", area: "Administração", icone: Music, fase: 6 },
   { codigo: "A1007", nome: "Eventos de pessoas", area: "Administração", icone: PartyPopper, fase: 7 },
-  { codigo: "A1008", nome: "Equipe RoVibes", area: "Administração", icone: UserCog, fase: 8 },
+  { codigo: "A1008", nome: "Organização", area: "Administração", icone: UserCog, fase: 8 },
+  // Gestão RoVibes · Central de operação (as permissões vêm do nível do cargo em cada área)
+  { codigo: "S2101", nome: "Situações · Atendimento", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2102", nome: "Situações · Suporte", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2103", nome: "Situações · Operação", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2104", nome: "Situações · Estabelecimentos", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2105", nome: "Situações · Usuários", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2106", nome: "Situações · Produto", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2107", nome: "Situações · Financeiro", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2108", nome: "Situações · Segurança", area: "Administração", icone: ClipboardList, fase: 9 },
+  { codigo: "S2201", nome: "Saúde da plataforma", area: "Administração", icone: TrendingUp, fase: 9 },
+  { codigo: "S2202", nome: "Modo suporte ativo", area: "Administração", icone: ShieldCheck, fase: 9 },
+  { codigo: "S2203", nome: "Fichas dos estabelecimentos", area: "Administração", icone: Building2, fase: 9 },
+  { codigo: "S2204", nome: "Contas dos estabelecimentos", area: "Administração", icone: Users, fase: 9 },
+  { codigo: "S2205", nome: "Base de conhecimento", area: "Administração", icone: Library, fase: 9 },
+  { codigo: "S2206", nome: "Inteligência", area: "Administração", icone: TrendingUp, fase: 9 },
 ];
 
 export const AREAS: Area[] = ["Estabelecimento", "Vitrine", "Conteúdo", "Operação", "Equipe", "Administração"];

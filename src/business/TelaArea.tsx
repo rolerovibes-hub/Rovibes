@@ -1,15 +1,25 @@
 import { Navigate, NavLink, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { porCodigo } from "@/lib/catalogo";
+import { Aplicativo, porCodigo } from "@/lib/catalogo";
 import { useBusiness } from "@/lib/acessos";
 import { AREAS_NEGOCIO, AreaNegocio, areaPorId, partesLiberadas } from "@/lib/areasNegocio";
 import { ConteudoApp } from "./TelaAplicativo";
 
 /** Uma área de negócio: menu das partes à esquerda (no celular, em cima) e a parte aberta ao lado. */
-export function TelaArea({ areas = AREAS_NEGOCIO, base = "/business" }: { areas?: AreaNegocio[]; base?: string }) {
+export function TelaArea({
+  areas = AREAS_NEGOCIO,
+  base = "/business",
+  podeVer,
+}: {
+  areas?: AreaNegocio[];
+  base?: string;
+  /** Regra própria de acesso (Gestão: nível do cargo na área). */
+  podeVer?: (codigo: string, area: AreaNegocio) => boolean;
+}) {
   const { area: id = "", codigo } = useParams();
   const area = areaPorId(id, areas);
-  const { temAcesso } = useBusiness();
+  const { temAcesso: temAcessoApp } = useBusiness();
+  const temAcesso = (app: Aplicativo) => (podeVer && area ? podeVer(app.codigo, area) : temAcessoApp(app));
   if (!area) return <Navigate to={base} replace />;
 
   const grupos = partesLiberadas(area, temAcesso);
@@ -19,7 +29,7 @@ export function TelaArea({ areas = AREAS_NEGOCIO, base = "/business" }: { areas?
   if (!atual) {
     // Parte sem acesso (link antigo) cai no aviso de acesso; sem parte, abre a primeira.
     if (codigo && porCodigo(codigo) && area.grupos.some((g) => g.itens.some((i) => i.codigo === codigo))) {
-      return <ConteudoApp app={porCodigo(codigo)!} />;
+      return <ConteudoApp app={porCodigo(codigo)!} liberado={false} />;
     }
     return <Navigate to={`${base}/area/${area.id}/${todas[0].codigo}`} replace />;
   }
@@ -49,7 +59,7 @@ export function TelaArea({ areas = AREAS_NEGOCIO, base = "/business" }: { areas?
         </nav>
       )}
       <div className="min-w-0">
-        <ConteudoApp key={app.codigo} app={app} />
+        <ConteudoApp key={app.codigo} app={app} liberado={podeVer ? true : undefined} />
       </div>
     </div>
   );

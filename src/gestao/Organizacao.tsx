@@ -4,7 +4,7 @@ import { Crown, KeyRound, Plus, ShieldOff, Trash2, UserMinus, UserPlus, X } from
 import { TelaUniversal } from "@/business/TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { contasGestao } from "@/lib/gestao";
+import { AREAS_OPERACAO, contasGestao, NIVEIS_ACAO, nomeArea } from "@/lib/gestao";
 import { NIVEIS_ROVIBES } from "@/lib/funcoes";
 import { useSessao } from "@/lib/sessao";
 
@@ -23,9 +23,14 @@ interface Cargo {
   id: string;
   nome: string;
   niveis: string[];
+  permissoes?: Record<string, number>;
 }
 
 const nomeNivel = (n: string) => NIVEIS_ROVIBES.find((x) => x.id === n)?.nome ?? n;
+const resumoPermissoes = (p?: Record<string, number>) => {
+  const itens = Object.entries(p ?? {}).filter(([, n]) => n > 0);
+  return itens.length ? itens.map(([a, n]) => `${nomeArea(a)}: ${NIVEIS_ACAO[n].toLowerCase()}`).join(" · ") : "Sem acesso";
+};
 
 /** Organização da Gestão RoVibes: o CEO cria os cargos (com níveis) e os usuários. */
 export function Organizacao() {
@@ -36,12 +41,12 @@ export function Organizacao() {
   const [cargos, setCargos] = useState<Cargo[]>([]);
   const [novo, setNovo] = useState<{ nome: string; login: string; senha: string; cargo_id: string } | null>(null);
   const [aberta, setAberta] = useState<string | null>(null);
-  const [cargo, setCargo] = useState<{ id: string | null; nome: string; niveis: string[] } | null>(null);
+  const [cargo, setCargo] = useState<{ id: string | null; nome: string; permissoes: Record<string, number> } | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   const carregar = useCallback(async () => {
-    const [p, c] = await Promise.all([supabase.rpc("organizacao_gestao"), supabase.from("gestao_cargos").select("id, nome, niveis").order("nome")]);
+    const [p, c] = await Promise.all([supabase.rpc("organizacao_gestao"), supabase.from("gestao_cargos").select("id, nome, niveis, permissoes").order("nome")]);
     if (p.error) setAviso({ tipo: "erro", texto: /function|schema cache/i.test(p.error.message) ? "Aplique a atualização 048 do banco." : mensagemDeErro(p.error) });
     setPessoas((p.data ?? []) as Pessoa[]);
     setCargos((c.data ?? []) as Cargo[]);
@@ -81,7 +86,7 @@ export function Organizacao() {
     e.preventDefault();
     if (!cargo) return;
     void executar(async () => {
-      await rpc("salvar_cargo_gestao", { p_id: cargo.id, p_nome: cargo.nome, p_niveis: cargo.niveis });
+      await rpc("salvar_cargo_gestao", { p_id: cargo.id, p_nome: cargo.nome, p_permissoes: cargo.permissoes });
       setCargo(null);
     }, "Cargo salvo.");
   };
@@ -94,7 +99,7 @@ export function Organizacao() {
             <UserPlus className="h-4 w-4" />
             Novo usuário
           </button>
-          <button className="botao" onClick={() => (setAba("cargos"), setCargo({ id: null, nome: "", niveis: [] }))}>
+          <button className="botao" onClick={() => (setAba("cargos"), setCargo({ id: null, nome: "", permissoes: {} }))}>
             <Plus className="h-4 w-4" />
             Novo cargo
           </button>
@@ -182,7 +187,6 @@ export function Organizacao() {
                       <span className="block text-[12px] text-suave">
                         {p.ceo ? "CEO" : p.cargo ?? "Sem cargo"}
                         {!p.ativo && " · desativado"}
-                        {!p.ceo && p.niveis.length > 0 && ` · ${p.niveis.map(nomeNivel).join(", ")}`}
                       </span>
                     </span>
                   </button>
@@ -222,24 +226,40 @@ export function Organizacao() {
                 <Campo rotulo="Nome do cargo">
                   <input required minLength={2} maxLength={40} autoFocus className="entrada max-w-sm" value={cargo.nome} onChange={(e) => setCargo({ ...cargo, nome: e.target.value })} />
                 </Campo>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
-                  {NIVEIS_ROVIBES.map((n) => {
-                    const marcado = cargo.niveis.includes(n.id);
-                    return (
-                      <label key={n.id} className={clsx("flex cursor-pointer gap-2.5 rounded-lg border p-3 text-sm", marcado ? "border-marca bg-destaque-suave" : "border-borda")}>
-                        <input
-                          type="checkbox"
-                          className="mt-0.5 h-4 w-4 accent-[rgb(var(--marca))]"
-                          checked={marcado}
-                          onChange={() => setCargo({ ...cargo, niveis: marcado ? cargo.niveis.filter((x) => x !== n.id) : [...cargo.niveis, n.id] })}
-                        />
-                        <span>
-                          <span className="block font-medium">{n.nome}</span>
-                          <span className="block text-[12px] text-suave">{n.explica}</span>
-                        </span>
-                      </label>
-                    );
-                  })}
+                <div className="overflow-x-auto rounded-lg border border-borda">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-borda text-left text-[12px] text-suave">
+                        <th className="px-3 py-2 font-semibold">Área</th>
+                        {NIVEIS_ACAO.map((n) => (
+                          <th key={n} className="px-1 py-2 text-center font-semibold">
+                            {n}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {AREAS_OPERACAO.map((a) => {
+                        const atual = cargo.permissoes[a.id] ?? 0;
+                        return (
+                          <tr key={a.id} className="border-b border-borda last:border-0">
+                            <td className="px-3 py-1.5">{a.nome}</td>
+                            {NIVEIS_ACAO.map((n, i) => (
+                              <td key={n} className="px-1 py-1.5 text-center">
+                                <button
+                                  type="button"
+                                  onClick={() => setCargo({ ...cargo, permissoes: { ...cargo.permissoes, [a.id]: i } })}
+                                  aria-label={`${a.nome}: ${n}`}
+                                  aria-pressed={atual === i}
+                                  className={clsx("h-6 w-6 rounded-md border", atual === i ? "border-marca bg-marca" : i > 0 && i < atual ? "border-marca/40 bg-marca/30" : "border-borda")}
+                                />
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
                 <div className="flex gap-2">
                   <button type="submit" className="botao-principal h-10 px-6" disabled={ocupado}>
@@ -270,10 +290,10 @@ export function Organizacao() {
             <ul className="divide-y divide-borda">
               {cargos.map((c) => (
                 <li key={c.id}>
-                  <button className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-elevado" onClick={() => setCargo({ id: c.id, nome: c.nome, niveis: c.niveis })}>
+                  <button className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-elevado" onClick={() => setCargo({ id: c.id, nome: c.nome, permissoes: c.permissoes ?? {} })}>
                     <span className="min-w-0 flex-1">
                       <span className="block font-medium">{c.nome}</span>
-                      <span className="block text-[12px] text-suave">{c.niveis.length ? c.niveis.map(nomeNivel).join(", ") : "Sem níveis"}</span>
+                      <span className="block text-[12px] text-suave">{resumoPermissoes(c.permissoes)}</span>
                     </span>
                     <span className="text-[12px] text-suave">{pessoas.filter((p) => p.cargo_id === c.id).length} pessoas</span>
                   </button>

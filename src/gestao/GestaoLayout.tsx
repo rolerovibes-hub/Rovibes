@@ -1,14 +1,16 @@
 import { ReactNode, useCallback, useEffect, useState } from "react";
-import { Link, Outlet, useMatch, useNavigate } from "react-router-dom";
-import { ArrowLeft, LogOut } from "lucide-react";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import clsx from "clsx";
+import { TelaArea } from "@/business/TelaArea";
+import { LayoutDashboard, LogOut, Sparkles } from "lucide-react";
 import { Simbolo } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { AcessoGestao } from "@/components/AcessoGestao";
 import { BusinessProvider, useBusiness } from "@/lib/acessos";
 import { useSessao } from "@/lib/sessao";
 import { supabase } from "@/lib/supabase";
-import { AcessoGestao as Acesso, meuAcessoGestao } from "@/lib/gestao";
-import { AREAS_GESTAO, areaPorId, ondeFica, partesLiberadas } from "@/lib/areasNegocio";
+import { AcessoGestao as Acesso, GestaoContexto, meuAcessoGestao, useGestao } from "@/lib/gestao";
+import { AREAS_GESTAO } from "@/lib/areasNegocio";
 import { porCodigo } from "@/lib/catalogo";
 
 /** Gestão RoVibes (/gestao): sistema da equipe da plataforma, com identidade escura própria. */
@@ -82,83 +84,100 @@ export function GestaoLayout() {
 
 function Estrutura({ acesso }: { acesso: Acesso }) {
   const negocio = useBusiness();
-  const navegar = useNavigate();
-  const rota = useMatch("/gestao/area/:area/*");
-  const area = rota ? areaPorId(rota.params.area ?? "", AREAS_GESTAO) : undefined;
-  const codigo = rota?.params["*"]?.split("/")[0];
-  const parte = codigo ? ondeFica(codigo, AREAS_GESTAO)?.nome ?? porCodigo(codigo)?.nome : undefined;
+  const local = useLocation();
+  const [porArea, setPorArea] = useState<Record<string, number>>({});
+  const permissoes = acesso.permissoes ?? {};
+  const nivel = useCallback((area: string) => (acesso.ceo ? 5 : permissoes[area] ?? 0), [acesso.ceo, permissoes]);
+
+  useEffect(() => {
+    const carregar = () => supabase.rpc("resumo_central").then(({ data }) => setPorArea(((data ?? {}) as { por_area?: Record<string, number> }).por_area ?? {}));
+    void carregar();
+    const t = window.setInterval(carregar, 60000);
+    return () => window.clearInterval(t);
+  }, [local.pathname]);
+
   if (negocio.carregando) return <Carregando />;
+  const areas = AREAS_GESTAO.filter((a) => nivel(a.id) >= 1);
+  const ativa = (id: string) => local.pathname.startsWith(`/gestao/area/${id}`);
 
   return (
-    <div className="min-h-screen bg-fundo text-texto">
-      <header className="sticky top-0 z-30 border-b border-borda bg-superficie/95 backdrop-blur">
-        <div className="flex h-16 items-center gap-3 px-4 sm:px-6 lg:px-8">
-          {area ? (
-            <>
-              <button onClick={() => navegar("/gestao")} className="botao h-9 w-9 shrink-0 px-0" aria-label="Voltar">
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: area.cor }}>
-                <area.icone className="h-[18px] w-[18px]" />
-              </span>
-              <div className="min-w-0 leading-tight">
-                <h1 className="truncate text-[15px] font-semibold">{area.nome}</h1>
-                {parte && <p className="truncate text-[13px] text-suave">{parte}</p>}
-              </div>
-            </>
-          ) : (
-            <Link to="/gestao" className="flex items-center gap-3">
-              <Simbolo className="h-8" />
-              <span className="leading-tight">
-                <span className="block text-[17px] font-semibold">Gestão RoVibes</span>
-                <span className="block text-[13px] text-suave">Plataforma</span>
-              </span>
+    <GestaoContexto.Provider value={{ acesso, nivel }}>
+      <div className="min-h-screen bg-fundo text-texto">
+        <header className="sticky top-0 z-30 border-b border-borda bg-superficie/95 backdrop-blur">
+          <div className="flex h-14 items-center gap-3 px-4 sm:px-6">
+            <Link to="/gestao" className="flex items-center gap-2.5">
+              <Simbolo className="h-7" />
+              <span className="text-[16px] font-semibold">Gestão RoVibes</span>
             </Link>
-          )}
-          <div className="ml-auto flex items-center gap-2">
-            <span className="hidden text-right leading-tight sm:block">
-              <span className="block text-sm font-semibold">{acesso.nome}</span>
-              <span className="block text-[12px] text-suave">
-                {acesso.ceo ? "CEO" : acesso.cargo ?? ""} · <span className="codigo">{acesso.login}</span>
+            <div className="ml-auto flex items-center gap-2">
+              <span className="hidden text-right leading-tight sm:block">
+                <span className="block text-sm font-semibold">{acesso.nome}</span>
+                <span className="block text-[12px] text-suave">
+                  {acesso.ceo ? "CEO" : acesso.cargo ?? ""} · <span className="codigo">{acesso.login}</span>
+                </span>
               </span>
-            </span>
-            <button onClick={() => void supabase.auth.signOut()} className="botao h-10 w-10 px-0" aria-label="Sair" title="Sair">
-              <LogOut className="h-4 w-4" />
-            </button>
+              <button onClick={() => void supabase.auth.signOut()} className="botao h-9 w-9 px-0" aria-label="Sair" title="Sair">
+                <LogOut className="h-4 w-4" />
+              </button>
+            </div>
           </div>
+          {/* Celular: áreas em faixa */}
+          <nav className="flex gap-1 overflow-x-auto px-3 pb-2 lg:hidden [scrollbar-width:none]" aria-label="Áreas">
+            <NavLink to="/gestao" end className={({ isActive }) => clsx("shrink-0 rounded-full px-3 py-1 text-[13px]", isActive ? "bg-marca text-marca-texto" : "bg-elevado")}>
+              Central
+            </NavLink>
+            {areas.map((a) => (
+              <NavLink key={a.id} to={`/gestao/area/${a.id}`} className={() => clsx("shrink-0 rounded-full px-3 py-1 text-[13px]", ativa(a.id) ? "bg-marca text-marca-texto" : "bg-elevado")}>
+                {a.nome}
+              </NavLink>
+            ))}
+          </nav>
+        </header>
+        <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)]">
+          <nav className="sticky top-14 hidden h-[calc(100vh-56px)] overflow-y-auto border-r border-borda px-2 py-3 lg:block" aria-label="Áreas">
+            <ItemMenu para="/gestao" ativo={local.pathname === "/gestao"} nome="Central" total={Object.values(porArea).reduce((a, b) => a + b, 0)} />
+            {areas.map((a) => (
+              <ItemMenu key={a.id} para={`/gestao/area/${a.id}`} ativo={ativa(a.id)} nome={a.nome} total={porArea[a.id] ?? 0} icone={<a.icone className="h-4 w-4" />} />
+            ))}
+            <span className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-suave/70">
+              <Sparkles className="h-4 w-4" />
+              Inteligência
+              <span className="ml-auto rounded-full bg-elevado px-1.5 text-[10px] font-bold uppercase">em breve</span>
+            </span>
+          </nav>
+          <main className="min-w-0 px-4 py-5 sm:px-6">
+            <Outlet />
+          </main>
         </div>
-      </header>
-      <main className="px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        <Outlet />
-      </main>
-    </div>
+      </div>
+    </GestaoContexto.Provider>
   );
 }
 
-/** Tela inicial da Gestão: as áreas que o cargo permite. */
-export function InicioGestao() {
-  const { temAcesso } = useBusiness();
-  const [resumo, setResumo] = useState<{ aprovacoes?: number; denuncias?: number }>({});
-  useEffect(() => {
-    supabase.rpc("resumo_area_trabalho", { p_estab: null }).then(({ data }) => setResumo((data ?? {}) as typeof resumo));
-  }, []);
-  const areas = AREAS_GESTAO.filter((a) => partesLiberadas(a, temAcesso).length > 0);
-  const selo = (id: string) => (id === "estabelecimentos" ? resumo.aprovacoes : id === "moderacao" ? resumo.denuncias : 0);
+function ItemMenu({ para, ativo, nome, total, icone }: { para: string; ativo: boolean; nome: string; total: number; icone?: ReactNode }) {
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 2xl:grid-cols-5">
-      {areas.map((a) => (
-        <Link
-          key={a.id}
-          to={`/gestao/area/${a.id}`}
-          className="relative flex min-h-[112px] flex-col justify-between rounded-cartao border border-borda bg-superficie p-4 transition-colors hover:bg-elevado"
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg text-white" style={{ backgroundColor: a.cor }}>
-            <a.icone className="h-5 w-5" />
-          </span>
-          <span className="text-[16px] font-semibold leading-snug">{a.nome}</span>
-          {!!selo(a.id) && <span className="absolute right-3 top-3 rounded-full bg-perigo/15 px-2 py-0.5 text-[11px] font-bold text-perigo">{selo(a.id)}</span>}
-        </Link>
-      ))}
-    </div>
+    <Link to={para} className={clsx("flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm", ativo ? "bg-marca/20 font-semibold text-destaque" : "hover:bg-elevado")}>
+      {icone ?? <LayoutDashboard className="h-4 w-4" />}
+      <span className="min-w-0 flex-1 truncate">{nome}</span>
+      {total > 0 && <span className="rounded-full bg-perigo/15 px-1.5 text-[11px] font-bold text-perigo">{total}</span>}
+    </Link>
+  );
+}
+
+/** Área da Gestão: as partes que o nível do cargo naquela área permite. */
+export function AreaGestao() {
+  const { nivel } = useGestao();
+  const { temAcesso } = useBusiness();
+  return (
+    <TelaArea
+      areas={AREAS_GESTAO}
+      base="/gestao"
+      podeVer={(codigo, area) => {
+        if (nivel(area.id) < 1) return false;
+        const app = porCodigo(codigo);
+        // As telas antigas de administração seguem os níveis que o banco calcula do cargo.
+        return codigo.startsWith("A") ? !!app && temAcesso(app) : true;
+      }}
+    />
   );
 }

@@ -11,6 +11,20 @@ import { Cardapio } from "./Cardapio";
 import { Eventos } from "./Eventos";
 import { VibesCategorias } from "./VibesCategorias";
 import { Organizacao } from "@/gestao/Organizacao";
+import { ListaSituacoes } from "@/gestao/Situacoes";
+import { SaudePlataforma } from "@/gestao/Central";
+import { BaseConhecimento, ContasEstabelecimentos, FichasEstabelecimentos, InteligenciaConfig, ModoSuporteAtivo } from "@/gestao/Partes";
+import { AjudaRoVibes } from "./AjudaRoVibes";
+import { AREA_DAS_SITUACOES } from "@/lib/areasNegocio";
+
+function SaudeComSituacoes() {
+  return (
+    <div className="space-y-4">
+      <SaudePlataforma />
+      <ListaSituacoes area="operacao" titulo="Situações" />
+    </div>
+  );
+}
 import { StatusAoVivo } from "./StatusAoVivo";
 import { Publicacoes } from "./Publicacoes";
 import { Stories } from "./Stories";
@@ -68,9 +82,9 @@ export function TelaAplicativo() {
 }
 
 /** Conteúdo de uma parte (antigo app) dentro da área de negócio. */
-export function ConteudoApp({ app }: { app: Aplicativo }) {
+export function ConteudoApp({ app, liberado: forcado }: { app: Aplicativo; liberado?: boolean }) {
   const acessos = useBusiness();
-  const liberado = acessos.temAcesso(app);
+  const liberado = forcado ?? acessos.temAcesso(app);
 
   useEffect(() => {
     if (liberado) acessos.registrarUso(app.codigo);
@@ -106,6 +120,14 @@ export function ConteudoApp({ app }: { app: Aplicativo }) {
   if (app.codigo === "A1006") return <MusicasAdmin />;
   if (app.codigo === "A1007") return <EventosPessoasAdmin />;
   if (app.codigo === "A1008") return <Organizacao />;
+  if (AREA_DAS_SITUACOES[app.codigo]) return <ListaSituacoes key={app.codigo} area={AREA_DAS_SITUACOES[app.codigo]} />;
+  if (app.codigo === "S2201") return <SaudeComSituacoes />;
+  if (app.codigo === "S2202") return <ModoSuporteAtivo />;
+  if (app.codigo === "S2203") return <FichasEstabelecimentos />;
+  if (app.codigo === "S2204") return <ContasEstabelecimentos />;
+  if (app.codigo === "S2205") return <BaseConhecimento />;
+  if (app.codigo === "S2206") return <InteligenciaConfig />;
+  if (app.codigo === "G1004") return <AjudaRoVibes />;
   if (app.codigo === "G1003") return <Pagamentos />;
   if (app.codigo === "G4003") return <Produtos />;
   if (app.codigo === "T4004") {

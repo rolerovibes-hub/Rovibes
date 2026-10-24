@@ -3,8 +3,10 @@ import { BusinessLayout } from "./business/BusinessLayout";
 import { AreaDeTrabalho } from "./business/AreaDeTrabalho";
 import { TelaAplicativo } from "./business/TelaAplicativo";
 import { TelaArea } from "./business/TelaArea";
-import { GestaoLayout, InicioGestao } from "./gestao/GestaoLayout";
-import { AREAS_GESTAO } from "./lib/areasNegocio";
+import { AreaGestao, GestaoLayout } from "./gestao/GestaoLayout";
+import { Central } from "./gestao/Central";
+import { SituacaoPagina } from "./gestao/SituacaoPagina";
+import { FichaEstabelecimento } from "./gestao/Partes";
 import { AppLayout } from "./app/AppLayout";
 import { Descobrir } from "./app/Descobrir";
 import { Mapa } from "./app/Mapa";
@@ -56,9 +58,11 @@ export default function App() {
       </Route>
       <Route path="/entrar" element={<Entrar />} />
       <Route path="/gestao" element={<GestaoLayout />}>
-        <Route index element={<InicioGestao />} />
-        <Route path="area/:area" element={<TelaArea areas={AREAS_GESTAO} base="/gestao" />} />
-        <Route path="area/:area/:codigo" element={<TelaArea areas={AREAS_GESTAO} base="/gestao" />} />
+        <Route index element={<Central />} />
+        <Route path="situacao/:numero" element={<SituacaoPagina />} />
+        <Route path="estabelecimento/:id" element={<FichaEstabelecimento />} />
+        <Route path="area/:area" element={<AreaGestao />} />
+        <Route path="area/:area/:codigo" element={<AreaGestao />} />
       </Route>
       <Route path="/job" element={<JobLayout />} />
       <Route path="/job/:modulo" element={<JobLayout />} />
