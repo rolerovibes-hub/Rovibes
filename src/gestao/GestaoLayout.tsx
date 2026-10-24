@@ -2,7 +2,7 @@ import { ReactNode, useCallback, useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import clsx from "clsx";
 import { TelaArea } from "@/business/TelaArea";
-import { LayoutDashboard, LogOut, Sparkles } from "lucide-react";
+import { LayoutDashboard, LogOut } from "lucide-react";
 import { Simbolo } from "@/components/Marca";
 import { Carregando } from "@/components/Carregando";
 import { AcessoGestao } from "@/components/AcessoGestao";
@@ -139,11 +139,6 @@ function Estrutura({ acesso }: { acesso: Acesso }) {
             {areas.map((a) => (
               <ItemMenu key={a.id} para={`/gestao/area/${a.id}`} ativo={ativa(a.id)} nome={a.nome} total={porArea[a.id] ?? 0} icone={<a.icone className="h-4 w-4" />} />
             ))}
-            <span className="mt-1 flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-suave/70">
-              <Sparkles className="h-4 w-4" />
-              Inteligência
-              <span className="ml-auto rounded-full bg-elevado px-1.5 text-[10px] font-bold uppercase">em breve</span>
-            </span>
           </nav>
           <main className="min-w-0 px-4 py-5 sm:px-6">
             <Outlet />

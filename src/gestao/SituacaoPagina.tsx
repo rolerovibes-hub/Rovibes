@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import clsx from "clsx";
-import { ArrowLeft, Link2, Lightbulb, Send } from "lucide-react";
+import { ArrowLeft, Check, Link2, Lightbulb, Send } from "lucide-react";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
 import { codCon, codSit, ESTADOS, nomeArea, PRIORIDADES, tempoCurto, TIPOS, useGestao } from "@/lib/gestao";
@@ -21,7 +21,9 @@ interface Situacao {
   criado_em: string;
   conhecimento_id: string | null;
   conhecimento: { id: string; numero: number; titulo: string; causa: string | null; tratamento: string | null } | null;
-  estabelecimento: { id: string; nome: string; codigo: string | null } | null;
+  chave: string | null;
+  usuario_alvo: string | null;
+  estabelecimento: { id: string; nome: string; codigo: string | null; situacao: string } | null;
 }
 interface Evento {
   id: number;
@@ -69,7 +71,7 @@ export function SituacaoPagina() {
   const carregar = useCallback(async () => {
     const { data } = await supabase
       .from("situacoes")
-      .select("id, numero, titulo, descricao, area, tipo, prioridade, estado, origem, responsavel_id, resultado, criado_em, conhecimento_id, conhecimento:conhecimentos(id, numero, titulo, causa, tratamento), estabelecimento:estabelecimentos(id, nome, codigo)")
+      .select("id, numero, titulo, descricao, area, tipo, prioridade, estado, origem, responsavel_id, resultado, criado_em, conhecimento_id, chave, usuario_alvo, conhecimento:conhecimentos(id, numero, titulo, causa, tratamento), estabelecimento:estabelecimentos(id, nome, codigo, situacao)")
       .eq("numero", Number(numero))
       .maybeSingle();
     const sit = (data as unknown as Situacao | null) ?? null;
@@ -284,6 +286,11 @@ export function SituacaoPagina() {
             </form>
           )}
 
+          {!fechada && s.chave?.startsWith("aprovacao:") && s.estabelecimento?.situacao === "pendente" && (
+            <AcoesAprovacao estab={s.estabelecimento.id} pode={nivel("estabelecimentos") >= 3} feito={() => void carregar()} />
+          )}
+          {s.chave?.startsWith("denuncia:") && <AcoesDenuncia situacao={s.id} nivel={nivel("seguranca")} feito={() => void carregar()} />}
+
           {/* Conhecimento */}
           {s.conhecimento ? (
             <div className="space-y-1.5 p-4 text-sm">
@@ -359,13 +366,143 @@ export function SituacaoPagina() {
               </Link>
             ))}
           </div>
-
-          <div className="p-4">
-            <p className="text-[11px] font-bold uppercase tracking-wider text-suave">Inteligência</p>
-            <p className="mt-1 rounded-lg border border-dashed border-borda px-3 py-2 text-[13px] text-suave">Desligada</p>
-          </div>
         </aside>
       </div>
+    </div>
+  );
+}
+
+/** Ações do caso: cadastro aguardando aprovação. */
+function AcoesAprovacao({ estab, pode, feito }: { estab: string; pode: boolean; feito: () => void }) {
+  const [recusar, setRecusar] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  if (!pode) return null;
+  const decidir = async (situacao: string) => {
+    setOcupado(true);
+    setErro("");
+    const { error } = await supabase.rpc("decidir_estabelecimento", { p_estab: estab, p_situacao: situacao, p_motivo: motivo.trim() || null });
+    setOcupado(false);
+    if (error) return setErro(mensagemDeErro(error));
+    feito();
+  };
+  return (
+    <div className="space-y-2 p-3">
+      <Link to={`/gestao/estabelecimento/${estab}`} className="block text-[13px] text-destaque">
+        Ver cadastro
+      </Link>
+      {recusar ? (
+        <form className="space-y-2" onSubmit={(e) => (e.preventDefault(), void decidir("recusado"))}>
+          <input required autoFocus className="entrada" placeholder="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+          <div className="flex gap-2">
+            <button type="submit" className="botao flex-1 text-perigo" disabled={ocupado || !motivo.trim()}>
+              Recusar
+            </button>
+            <button type="button" className="botao" onClick={() => setRecusar(false)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="grid grid-cols-2 gap-2">
+          <button className="botao-principal" disabled={ocupado} onClick={() => void decidir("aprovado")}>
+            <Check className="h-4 w-4" />
+            Aprovar
+          </button>
+          <button className="botao" disabled={ocupado} onClick={() => setRecusar(true)}>
+            Recusar
+          </button>
+        </div>
+      )}
+      {erro && <p className="text-sm text-perigo">{erro}</p>}
+    </div>
+  );
+}
+
+interface Denuncia {
+  id: string;
+  tipo_alvo: string;
+  motivo: string;
+  detalhe: string | null;
+  criada_em: string;
+  situacao: string;
+  acao: string | null;
+  denunciante: string | null;
+  alvo_nome: string | null;
+  alvo_usuario_nome: string | null;
+  alvo_texto: string | null;
+  alvo_imagem: string | null;
+}
+const TIPO_ALVO: Record<string, string> = { story: "Story", publicacao: "Publicação", post: "Post", mensagem: "Mensagem", comentario: "Comentário", perfil: "Perfil" };
+const ACAO_FEITA: Record<string, string> = { ocultado: "Ocultado", advertido: "Advertido", suspenso: "Conta suspensa", arquivado: "Arquivada" };
+
+/** Ações do caso: denúncias sobre a mesma pessoa ou conteúdo. */
+function AcoesDenuncia({ situacao, nivel, feito }: { situacao: string; nivel: number; feito: () => void }) {
+  const [lista, setLista] = useState<Denuncia[] | null>(null);
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const carregar = useCallback(async () => {
+    const { data, error } = await supabase.rpc("denuncias_da_situacao", { p_situacao: situacao });
+    if (error) setErro(mensagemDeErro(error));
+    setLista((data ?? []) as Denuncia[]);
+  }, [situacao]);
+  useEffect(() => {
+    void carregar();
+  }, [carregar]);
+  if (nivel < 1 || !lista?.length) return erro ? <p className="p-3 text-sm text-perigo">{erro}</p> : null;
+
+  const resolver = async (d: Denuncia, acao: string) => {
+    setOcupado(true);
+    setErro("");
+    const { error } = await supabase.rpc("resolver_denuncia", { p_denuncia: d.id, p_acao: acao, p_nota: null });
+    setOcupado(false);
+    if (error) return setErro(mensagemDeErro(error));
+    await carregar();
+    feito();
+  };
+  return (
+    <div className="space-y-2 p-3">
+      {lista.map((d) => {
+        const aberta = d.situacao === "aberta";
+        return (
+          <div key={d.id} className={clsx("space-y-1.5 rounded-lg border border-borda p-2.5 text-[13px]", !aberta && "opacity-60")}>
+            <p className="flex items-center justify-between gap-2">
+              <span className="font-semibold">{d.motivo}</span>
+              <span className="text-[11px] text-suave">{TIPO_ALVO[d.tipo_alvo] ?? d.tipo_alvo}</span>
+            </p>
+            {(d.alvo_usuario_nome || d.alvo_nome) && <p className="text-suave">{d.alvo_usuario_nome || d.alvo_nome}</p>}
+            {d.alvo_imagem && <img src={d.alvo_imagem} alt="" className="max-h-32 rounded-md object-cover" />}
+            {d.alvo_texto && <p className="line-clamp-3 rounded-md bg-elevado/70 px-2 py-1.5">{d.alvo_texto}</p>}
+            {d.detalhe && <p className="italic text-suave">“{d.detalhe}”</p>}
+            {aberta ? (
+              nivel >= 3 && (
+                <div className="flex flex-wrap gap-1.5 pt-0.5">
+                  {d.tipo_alvo !== "perfil" && (
+                    <button className="botao h-8 px-2.5 text-[12px]" disabled={ocupado} onClick={() => void resolver(d, "ocultado")}>
+                      Ocultar
+                    </button>
+                  )}
+                  <button className="botao h-8 px-2.5 text-[12px]" disabled={ocupado} onClick={() => void resolver(d, "advertido")}>
+                    Advertir
+                  </button>
+                  {nivel >= 4 && (
+                    <button className="botao h-8 px-2.5 text-[12px] text-perigo" disabled={ocupado} onClick={() => void resolver(d, "suspenso")}>
+                      Suspender conta
+                    </button>
+                  )}
+                  <button className="botao h-8 px-2.5 text-[12px]" disabled={ocupado} onClick={() => void resolver(d, "arquivado")}>
+                    Arquivar
+                  </button>
+                </div>
+              )
+            ) : (
+              <p className="text-[12px] font-semibold text-ok">{ACAO_FEITA[d.acao ?? ""] ?? "Resolvida"}</p>
+            )}
+          </div>
+        );
+      })}
+      {erro && <p className="text-sm text-perigo">{erro}</p>}
     </div>
   );
 }

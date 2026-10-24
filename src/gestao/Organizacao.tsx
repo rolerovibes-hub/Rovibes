@@ -239,7 +239,7 @@ export function Organizacao() {
                       </tr>
                     </thead>
                     <tbody>
-                      {AREAS_OPERACAO.map((a) => {
+                      {AREAS_OPERACAO.filter((a) => a.id !== "inteligencia").map((a) => {
                         const atual = cargo.permissoes[a.id] ?? 0;
                         return (
                           <tr key={a.id} className="border-b border-borda last:border-0">

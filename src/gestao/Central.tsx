@@ -13,7 +13,7 @@ interface Resumo {
   novas?: number;
   comigo?: number;
   resolvidas_semana?: number;
-  saude?: { pedidos_hora: number; pagamentos_aprovados: number | null; notificacoes_atrasadas: number; estabelecimentos_ativos: number } | null;
+  saude?: { pedidos_hora: number; pedidos_hora_normal?: number | null; pagamentos_aprovados: number | null; notificacoes_atrasadas: number; cadastros_em_analise?: number } | null;
 }
 interface Mudanca {
   situacao_id: string;
@@ -67,7 +67,6 @@ export function Central() {
     { valor: resumo.criticas, nome: "críticas abertas", cor: "text-perigo", f: "atencao" },
     { valor: resumo.sem_responsavel, nome: "sem responsável", cor: "text-alerta", f: "atencao" },
     { valor: resumo.novas, nome: "situações novas", cor: "text-destaque", f: "novas" },
-    { valor: resumo.comigo, nome: "comigo", f: "comigo" },
     { valor: resumo.resolvidas_semana, nome: "resolvidas na semana", f: "resolvidas" },
   ];
   const podeAbrir = AREAS_OPERACAO.some((a) => nivel(a.id) >= 2);
@@ -75,7 +74,7 @@ export function Central() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 xl:grid-cols-5">
+      <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
         {kpis.map((k) => (
           <button key={k.nome} onClick={() => setFiltro(k.f)} className="cartao px-3.5 py-3 text-left hover:bg-elevado">
             <span className={clsx("block text-2xl font-semibold leading-tight", k.cor)}>{k.valor ?? "—"}</span>
@@ -126,12 +125,7 @@ export function Central() {
           {s && (
             <section className="cartao">
               <h2 className="border-b border-borda px-4 py-2.5 font-semibold">Saúde da plataforma</h2>
-              <div className="grid grid-cols-2 gap-2 p-3">
-                <Saude nome="Pedidos na última hora" valor={s.pedidos_hora} />
-                <Saude nome="Pagamentos aprovados (24 h)" valor={s.pagamentos_aprovados == null ? "—" : `${s.pagamentos_aprovados}%`} alerta={s.pagamentos_aprovados != null && s.pagamentos_aprovados < 90} />
-                <Saude nome="Notificações atrasadas" valor={s.notificacoes_atrasadas} alerta={s.notificacoes_atrasadas > 0} />
-                <Saude nome="Lugares com pedidos (3 h)" valor={s.estabelecimentos_ativos} />
-              </div>
+              <IndicadoresSaude s={s} />
             </section>
           )}
           <section className="cartao overflow-hidden">
@@ -165,11 +159,28 @@ export function Central() {
   );
 }
 
-function Saude({ nome, valor, alerta }: { nome: string; valor: string | number; alerta?: boolean }) {
+function IndicadoresSaude({ s, largo }: { s: NonNullable<Resumo["saude"]>; largo?: boolean }) {
+  const normal = s.pedidos_hora_normal ?? null;
+  // Abaixo da metade do normal do horário (com movimento esperado) = atenção.
+  const baixo = normal != null && normal >= 4 && s.pedidos_hora < normal / 2;
+  return (
+    <div className={clsx("grid grid-cols-2 gap-2 p-3", largo && "lg:grid-cols-4")}>
+      <Saude nome="Pedidos na última hora" valor={s.pedidos_hora} detalhe={normal != null ? `normal ${normal}` : undefined} alerta={baixo} />
+      <Saude nome="Pagamentos aprovados (24 h)" valor={s.pagamentos_aprovados == null ? "—" : `${s.pagamentos_aprovados}%`} alerta={s.pagamentos_aprovados != null && s.pagamentos_aprovados < 90} />
+      <Saude nome="Notificações atrasadas" valor={s.notificacoes_atrasadas} alerta={s.notificacoes_atrasadas > 0} />
+      <Saude nome="Cadastros em análise" valor={s.cadastros_em_analise ?? "—"} alerta={(s.cadastros_em_analise ?? 0) > 0} />
+    </div>
+  );
+}
+
+function Saude({ nome, valor, alerta, detalhe }: { nome: string; valor: string | number; alerta?: boolean; detalhe?: string }) {
   return (
     <span className="rounded-lg bg-elevado/70 px-3 py-2">
       <span className="block text-[11.5px] text-suave">{nome}</span>
-      <span className={clsx("block text-lg font-semibold", alerta ? "text-alerta" : "text-ok")}>{valor}</span>
+      <span className={clsx("block text-lg font-semibold", alerta ? "text-alerta" : "text-ok")}>
+        {valor}
+        {detalhe && <span className="ml-1.5 text-[11px] font-normal text-suave">{detalhe}</span>}
+      </span>
     </span>
   );
 }
@@ -182,11 +193,8 @@ export function SaudePlataforma() {
   }, []);
   if (!s) return <p className="cartao p-6 text-sm text-suave">Carregando...</p>;
   return (
-    <section className="cartao grid grid-cols-2 gap-2 p-3 lg:grid-cols-4">
-      <Saude nome="Pedidos na última hora" valor={s.pedidos_hora} />
-      <Saude nome="Pagamentos aprovados (24 h)" valor={s.pagamentos_aprovados == null ? "—" : `${s.pagamentos_aprovados}%`} alerta={s.pagamentos_aprovados != null && s.pagamentos_aprovados < 90} />
-      <Saude nome="Notificações atrasadas" valor={s.notificacoes_atrasadas} alerta={s.notificacoes_atrasadas > 0} />
-      <Saude nome="Lugares com pedidos (3 h)" valor={s.estabelecimentos_ativos} />
+    <section className="cartao">
+      <IndicadoresSaude s={s} largo />
     </section>
   );
 }

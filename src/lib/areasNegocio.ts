@@ -119,7 +119,7 @@ export const AREAS_GESTAO: AreaNegocio[] = [
     icone: Store,
     cor: "#1D4ED8",
     plataforma: true,
-    grupos: [{ nome: "Estabelecimentos", itens: [{ codigo: "S2203", nome: "Fichas" }, { codigo: "A1001", nome: "Aprovação" }, { codigo: "A1002", nome: "Todos" }, sit("S2104")] }],
+    grupos: [{ nome: "Estabelecimentos", itens: [{ codigo: "S2203", nome: "Estabelecimentos" }, sit("S2104")] }],
   },
   {
     id: "usuarios",
@@ -138,7 +138,7 @@ export const AREAS_GESTAO: AreaNegocio[] = [
     grupos: [{ nome: "Produto", itens: [{ codigo: "A1005", nome: "Biblioteca de produtos" }, { codigo: "A1004", nome: "Vibes e categorias" }, { codigo: "A1006", nome: "Músicas" }, sit("S2106")] }],
   },
   { id: "financeiro", nome: "Financeiro", icone: Wallet, cor: "#B45309", plataforma: true, grupos: [{ nome: "Financeiro", itens: [sit("S2107"), { codigo: "A1007", nome: "Eventos de pessoas" }] }] },
-  { id: "seguranca", nome: "Segurança", icone: ShieldCheck, cor: "#B4234A", plataforma: true, grupos: [{ nome: "Segurança", itens: [{ codigo: "A1003", nome: "Denúncias" }, sit("S2108")] }] },
+  { id: "seguranca", nome: "Segurança", icone: ShieldCheck, cor: "#B4234A", plataforma: true, grupos: [{ nome: "Segurança", itens: [sit("S2108")] }] },
   { id: "conhecimento", nome: "Conhecimento", icone: BookOpen, cor: "#9333EA", plataforma: true, grupos: [{ nome: "Conhecimento", itens: [{ codigo: "S2205", nome: "Base de conhecimento" }] }] },
   {
     id: "configuracoes",
@@ -146,7 +146,7 @@ export const AREAS_GESTAO: AreaNegocio[] = [
     icone: Settings,
     cor: "#334155",
     plataforma: true,
-    grupos: [{ nome: "Configurações", itens: [{ codigo: "A1008", nome: "Organização" }, { codigo: "S2206", nome: "Inteligência" }] }],
+    grupos: [{ nome: "Configurações", itens: [{ codigo: "A1008", nome: "Organização" }] }],
   },
 ];
 

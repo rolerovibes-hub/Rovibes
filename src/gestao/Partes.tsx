@@ -83,6 +83,7 @@ export function FichaEstabelecimento() {
             {f.telefone && <L nome="Telefone" valor={f.telefone} />}
             {f.motivo_situacao && <L nome="Motivo" valor={f.motivo_situacao} />}
           </div>
+          <DecisaoEstabelecimento id={f.id} situacao={f.situacao} nivel={nivel("estabelecimentos")} feito={() => void carregar()} />
           {podeAbrir && (
             <button className="botao w-full" onClick={() => setNova(true)}>
               <Plus className="h-4 w-4" />
@@ -122,6 +123,67 @@ export function FichaEstabelecimento() {
   );
 }
 
+/** Aprovar/recusar (Decidir) e suspender/reativar (Autorizar). */
+function DecisaoEstabelecimento({ id, situacao, nivel, feito }: { id: string; situacao: string; nivel: number; feito: () => void }) {
+  const [pedindo, setPedindo] = useState<null | "recusado" | "suspenso">(null);
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const decidir = async (nova: string) => {
+    setOcupado(true);
+    setErro("");
+    const { error } = await supabase.rpc("decidir_estabelecimento", { p_estab: id, p_situacao: nova, p_motivo: motivo.trim() || null });
+    setOcupado(false);
+    if (error) return setErro(mensagemDeErro(error));
+    setPedindo(null);
+    setMotivo("");
+    feito();
+  };
+  const botoes: { nome: string; acao: () => void; principal?: boolean; perigo?: boolean }[] = [];
+  if (situacao === "pendente" && nivel >= 3) {
+    botoes.push({ nome: "Aprovar", acao: () => void decidir("aprovado"), principal: true }, { nome: "Recusar", acao: () => setPedindo("recusado") });
+  }
+  if (situacao === "recusado" && nivel >= 3) botoes.push({ nome: "Aprovar", acao: () => void decidir("aprovado") });
+  if (situacao === "aprovado" && nivel >= 4) botoes.push({ nome: "Suspender", acao: () => setPedindo("suspenso"), perigo: true });
+  if (situacao === "suspenso" && nivel >= 4) botoes.push({ nome: "Reativar", acao: () => void decidir("aprovado"), principal: true });
+  if (!botoes.length) return null;
+  return (
+    <div className="space-y-2">
+      {pedindo ? (
+        <form className="space-y-2" onSubmit={(e) => (e.preventDefault(), void decidir(pedindo))}>
+          <input required autoFocus className="entrada" placeholder="Motivo" value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+          <div className="flex gap-2">
+            <button type="submit" className="botao flex-1 text-perigo" disabled={ocupado || !motivo.trim()}>
+              {pedindo === "recusado" ? "Recusar" : "Suspender"}
+            </button>
+            <button type="button" className="botao" onClick={() => setPedindo(null)}>
+              Cancelar
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="flex gap-2">
+          {botoes.map((b) => (
+            <button key={b.nome} className={clsx("flex-1", b.principal ? "botao-principal" : "botao", b.perigo && "text-perigo")} disabled={ocupado} onClick={b.acao}>
+              {b.nome}
+            </button>
+          ))}
+        </div>
+      )}
+      {erro && <p className="text-sm text-perigo">{erro}</p>}
+    </div>
+  );
+}
+
+const FILTROS_ESTAB: [string, string][] = [
+  ["todos", "Todos"],
+  ["pendente", "Em análise"],
+  ["com_situacao", "Com situação"],
+  ["aprovado", "Aprovados"],
+  ["suspenso", "Suspensos"],
+  ["recusado", "Recusados"],
+];
+
 function L({ nome, valor }: { nome: string; valor: string }) {
   return (
     <p className="flex justify-between gap-3">
@@ -141,21 +203,37 @@ function K({ valor, nome }: { valor: string; nome: string }) {
 
 export function FichasEstabelecimentos() {
   const [termo, setTermo] = useState("");
+  const [filtro, setFiltro] = useState("todos");
   const [lista, setLista] = useState<{ id: string; nome: string; codigo: string | null; bairro: string | null; situacao: string; abertas: number }[] | null>(null);
   useEffect(() => {
     const t = window.setTimeout(() => {
-      supabase.rpc("buscar_estabelecimentos_gestao", { p_termo: termo }).then(({ data }) => setLista((data ?? []) as typeof lista));
+      supabase.rpc("buscar_estabelecimentos_gestao", { p_termo: termo, p_filtro: filtro }).then(({ data }) => setLista((data ?? []) as typeof lista));
     }, 250);
     return () => window.clearTimeout(t);
-  }, [termo]);
+  }, [termo, filtro]);
   return (
     <section className="cartao overflow-hidden">
-      <label className="relative block border-b border-borda p-3">
-        <Search className="pointer-events-none absolute left-6 top-1/2 h-4 w-4 -translate-y-1/2 text-suave" />
-        <input className="entrada pl-9" placeholder="Buscar..." value={termo} onChange={(e) => setTermo(e.target.value)} aria-label="Buscar estabelecimento" />
-      </label>
+      <div className="space-y-2.5 border-b border-borda p-3">
+        <label className="relative block">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-suave" />
+          <input className="entrada pl-9" placeholder="Buscar..." value={termo} onChange={(e) => setTermo(e.target.value)} aria-label="Buscar estabelecimento" />
+        </label>
+        <div className="flex flex-wrap gap-1.5">
+          {FILTROS_ESTAB.map(([f, nome]) => (
+            <button
+              key={f}
+              onClick={() => setFiltro(f)}
+              className={clsx("rounded-full border px-2.5 py-0.5 text-[12px]", filtro === f ? "border-marca bg-marca text-marca-texto" : "border-borda text-suave")}
+            >
+              {nome}
+            </button>
+          ))}
+        </div>
+      </div>
       {lista === null ? (
         <p className="p-6 text-center text-sm text-suave">Carregando...</p>
+      ) : lista.length === 0 ? (
+        <p className="p-10 text-center text-sm text-suave">Nenhum estabelecimento.</p>
       ) : (
         <ul className="divide-y divide-borda">
           {lista.map((e) => (
@@ -270,7 +348,6 @@ const REGRAS: { valor: string; nome: string }[] = [
   { valor: "aprovacao:", nome: "Aprovação parada" },
   { valor: "pagamentos:", nome: "Pagamentos falhando" },
   { valor: "atraso:", nome: "Pedidos parados no preparo" },
-  { valor: "denuncias:", nome: "Denúncias repetidas" },
   { valor: "push:", nome: "Notificações atrasadas" },
 ];
 
