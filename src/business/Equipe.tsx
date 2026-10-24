@@ -64,6 +64,7 @@ export function Equipe() {
   const [pendentes, setPendentes] = useState<Solicitacao[]>([]);
   const [novo, setNovo] = useState<{ nome: string; login: string; senha: string; funcoes: string[] } | null>(null);
   const [logins, setLogins] = useState<Map<string, string>>(new Map());
+  const [codigoEstab, setCodigoEstab] = useState("");
   const [edicao, setEdicao] = useState<EdicaoMembro | null>(null);
   const [funcaoAberta, setFuncaoAberta] = useState<EdicaoFuncao | null>(null);
   const [aviso, setAviso] = useState<{ tipo: "erro" | "ok"; texto: string } | null>(null);
@@ -71,6 +72,12 @@ export function Equipe() {
 
   const carregar = useCallback(async () => {
     if (!id) return;
+    void supabase
+      .from("estabelecimentos")
+      .select("codigo")
+      .eq("id", id)
+      .maybeSingle()
+      .then(({ data }) => setCodigoEstab(((data as { codigo?: string } | null)?.codigo ?? "") as string));
     void supabase
       .from("contas_sistema")
       .select("usuario_id, login")
@@ -166,7 +173,7 @@ export function Equipe() {
       }
       setNovo(null);
       await carregar();
-    }, "Usuário criado.");
+    }, `Usuário criado. Para entrar: estabelecimento ${codigoEstab || "—"} · usuário ${novo.login}`);
   };
 
   const decidir = (s: Solicitacao, aprovar: boolean) =>
@@ -257,6 +264,12 @@ export function Equipe() {
 
       {aba === "pessoas" && (
         <>
+          {codigoEstab && (
+            <p className="cartao flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <span className="text-suave">Código do estabelecimento</span>
+              <strong className="codigo text-base">{codigoEstab}</strong>
+            </p>
+          )}
           {pendentes.length > 0 && (
             <Secao titulo={`Pedidos de acesso (${pendentes.length})`}>
               <ul className="divide-y divide-borda">

@@ -3,7 +3,7 @@ import clsx from "clsx";
 import { ArrowLeft, Check, Eye, EyeOff, Store } from "lucide-react";
 import { Simbolo } from "./Marca";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
-import { confirmarContaPessoal, contasSistema, EstabResponsavel, entrarNoSistema, ultimoCodigo } from "@/lib/sistema";
+import { confirmarContaPessoal, contasSistema, EstabResponsavel, entrarNoSistema, normalizarCodigo, ultimoCodigo } from "@/lib/sistema";
 
 type Modo = "entrar" | "cadastro" | "primeiro" | "esqueci" | "equipe";
 
@@ -119,7 +119,7 @@ function Entrar({ mudar }: { mudar: (m: Modo) => void }) {
       <Cabecalho titulo="Entrar" />
       <form onSubmit={enviar} className="space-y-3.5">
         <Rotulo nome="Estabelecimento">
-          <input required autoCapitalize="none" autoCorrect="off" spellCheck={false} className={campo} placeholder="código" value={codigo} onChange={(e) => setCodigo(e.target.value.toLowerCase().trim())} />
+          <input required autoCapitalize="none" autoCorrect="off" spellCheck={false} className={campo} placeholder="código" value={codigo} onChange={(e) => setCodigo(e.target.value)} onBlur={() => setCodigo(normalizarCodigo(codigo))} />
         </Rotulo>
         <Rotulo nome="Usuário">
           <input required autoFocus={!!codigo} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoComplete="username" className={campo} value={login} onChange={(e) => setLogin(paraLogin(e.target.value))} />

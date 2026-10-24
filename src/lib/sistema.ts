@@ -1,13 +1,22 @@
 import { clienteTemporario, supabase } from "./supabase";
 
+/** "Bar da Bia" → "bardabia" (o código nasce do nome assim; aceita também o nome digitado). */
+export const normalizarCodigo = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9-]/g, "");
+export const normalizarLogin = (s: string) => s.trim().toLowerCase().replace(/[^a-z0-9._]/g, "");
+
 /** Login do sistema do estabelecimento vira um e-mail interno (nunca recebe mensagens). */
-export const emailSistema = (login: string, codigo: string) => `${login.trim().toLowerCase()}.${codigo.trim().toLowerCase()}@sistema.rovibes.app`;
+export const emailSistema = (login: string, codigo: string) => `${normalizarLogin(login)}.${normalizarCodigo(codigo)}@sistema.rovibes.app`;
 
 export async function entrarNoSistema(codigo: string, login: string, senha: string) {
   const { error } = await supabase.auth.signInWithPassword({ email: emailSistema(login, codigo), password: senha });
   if (error) throw error;
   try {
-    localStorage.setItem("rovibes:ultimo-codigo", codigo.trim().toLowerCase());
+    localStorage.setItem("rovibes:ultimo-codigo", normalizarCodigo(codigo));
   } catch {
     /* sem armazenamento */
   }
