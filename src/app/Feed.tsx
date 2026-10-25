@@ -367,7 +367,7 @@ export function Feed() {
                     </>
                   );
                   const rodape = (
-                  <div className={clsx("space-y-2.5 px-3.5 py-3", claro && "text-white")}>
+                  <div className={clsx("px-3.5", claro ? "space-y-1.5 py-2 text-white" : "space-y-2.5 py-3")}>
                     {p.musica && !p.video_url && <ChipMusica musica={p.musica} claro={claro} />}
                     {p.texto && <p className={clsx("whitespace-pre-line text-[15px] leading-relaxed", claro && "line-clamp-3 drop-shadow")}>{p.texto}</p>}
                     {!!p.tags?.length && <p className={clsx("text-[13px] font-medium", claro ? "text-white drop-shadow" : "text-destaque")}>{p.tags.map((t) => `#${t}`).join(" ")}</p>}
@@ -440,7 +440,7 @@ export function Feed() {
                       <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent pb-8 text-white [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{cabecalho}</div>
                       {/* Barra preta das ações embaixo da publicação, entrando em degradê só na borda da foto */}
                       <div className="relative bg-black text-white">
-                        <div className="pointer-events-none absolute inset-x-0 -top-14 h-14 bg-gradient-to-b from-transparent to-black" />
+                        <div className="pointer-events-none absolute inset-x-0 -top-9 h-9 bg-gradient-to-b from-transparent to-black" />
                         <div className="relative">{rodape}</div>
                       </div>
                     </>
