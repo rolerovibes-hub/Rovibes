@@ -500,7 +500,8 @@ export function Feed() {
                       <div className="relative z-10 bg-black text-white">
                         {cabecalho}
                       </div>
-                      {midia}
+                      {/* Foto ou vídeo com cantos levemente arredondados, encaixado entre as barras */}
+                      <div className="overflow-hidden rounded-[10px]">{midia}</div>
                       {/* Barra preta das ações embaixo da publicação (linha reta, sem cobrir a foto) */}
                       <div className="relative bg-black text-white">
                         <div className="relative">{rodape}</div>
