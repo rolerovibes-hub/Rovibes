@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { IconeConvite, IconePapo } from "@/components/IconesRoVibes";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { ArrowLeft, ChevronRight, Clapperboard, MapPin, Music2, Navigation, Pause, Plus, Radio, Volume2, VolumeX, X } from "lucide-react";
@@ -449,8 +450,8 @@ export function FolhaTrilha({ c, fechar, verDoLugar }: { c: Corte; fechar: () =>
     });
   }, [c]);
 
-  return (
-    <div className="fixed inset-0 z-[75] flex items-end justify-center bg-black/50" role="dialog" aria-modal="true" aria-label="Trilha sonora" onClick={fechar}>
+  return createPortal(
+    <div className="fixed inset-0 z-[85] flex items-end justify-center bg-black/50" role="dialog" aria-modal="true" aria-label="Trilha sonora" onClick={fechar}>
       <div className="folha max-h-[75vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-superficie p-4 text-texto pb-[max(16px,env(safe-area-inset-bottom))]" onClick={(e) => e.stopPropagation()}>
         <div className="mb-3 flex items-center gap-2">
           <Music2 className="h-5 w-5 text-magenta" />
@@ -504,6 +505,7 @@ export function FolhaTrilha({ c, fechar, verDoLugar }: { c: Corte; fechar: () =>
           </>
         )}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

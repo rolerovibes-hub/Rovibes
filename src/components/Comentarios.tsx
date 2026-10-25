@@ -1,5 +1,6 @@
 import { FormEvent, Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { IconePapo } from "@/components/IconesRoVibes";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
 import { Flag, MoreHorizontal, Send, Store, Trash2, X } from "lucide-react";
@@ -237,9 +238,10 @@ export function FolhaComentarios({
     </li>
   );
 
-  return (
-    <div className="fixed inset-0 z-[75] flex items-end justify-center bg-black/50 sm:items-center" role="dialog" aria-modal="true" aria-label={titulo} onClick={fechar}>
-      <div className="folha flex h-[80vh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-superficie sm:h-[70vh] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
+  // Fora da tela de origem (VibeCut, visor): fica por cima da barra de navegação e o campo aparece.
+  return createPortal(
+    <div data-visor-folhas className="fixed inset-0 z-[85] flex items-end justify-center bg-black/50 text-texto sm:items-center" role="dialog" aria-modal="true" aria-label={titulo} onClick={fechar}>
+      <div className="folha flex h-[80dvh] w-full max-w-md flex-col overflow-hidden rounded-t-2xl bg-superficie sm:h-[70vh] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-borda px-5 py-3">
           <h2 className="font-semibold">{titulo}</h2>
           <button onClick={fechar} className="-mr-2 rounded-full p-2 hover:bg-elevado" aria-label="Fechar">
@@ -320,6 +322,7 @@ export function FolhaComentarios({
         )}
       </div>
       {denunciando && <JanelaDenuncia tipo="comentario" alvo={denunciando} titulo="Denunciar comentário" fechar={() => setDenunciando(null)} />}
-    </div>
+    </div>,
+    document.body,
   );
 }
