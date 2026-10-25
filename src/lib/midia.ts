@@ -69,7 +69,36 @@ export function lerVideo(arquivo: Blob): Promise<{ duracao: number; largura: num
   });
 }
 
-const esperar = (el: HTMLMediaElement, evento: string) => new Promise<void>((ok) => el.addEventListener(evento, () => ok(), { once: true }));
+/** Espera um evento do vídeo; sem resposta no prazo, desiste (alguns celulares nunca avisam). */
+const esperar = (el: HTMLMediaElement, evento: string, ms = 15000) =>
+  new Promise<void>((ok, falha) => {
+    const t = window.setTimeout(() => falha(new Error("O vídeo demorou demais para abrir neste aparelho.")), ms);
+    el.addEventListener(
+      evento,
+      () => {
+        window.clearTimeout(t);
+        ok();
+      },
+      { once: true },
+    );
+  });
+
+/** Promessa com prazo: não deixa o envio preso para sempre. */
+export function comPrazo<T>(p: Promise<T>, ms: number, mensagem: string): Promise<T> {
+  return new Promise<T>((ok, falha) => {
+    const t = window.setTimeout(() => falha(new Error(mensagem)), ms);
+    p.then(
+      (v) => {
+        window.clearTimeout(t);
+        ok(v);
+      },
+      (e) => {
+        window.clearTimeout(t);
+        falha(e);
+      },
+    );
+  });
+}
 
 /** Capa (JPEG) de um vídeo no segundo indicado. */
 export async function capaDoVideo(arquivo: Blob, segundo = 0.1): Promise<Blob> {
@@ -80,9 +109,11 @@ export async function capaDoVideo(arquivo: Blob, segundo = 0.1): Promise<Blob> {
   v.preload = "auto";
   v.src = url;
   try {
-    await esperar(v, "loadeddata");
-    v.currentTime = Math.min(segundo, Math.max(0, (v.duration || 1) - 0.1));
-    await esperar(v, "seeked");
+    v.load();
+    await esperar(v, "loadeddata", 8000);
+    const d = Number.isFinite(v.duration) ? v.duration : 1;
+    v.currentTime = Math.min(segundo, Math.max(0, d - 0.1));
+    await esperar(v, "seeked", 5000).catch(() => undefined); // sem "seeked": usa o primeiro quadro
     const escala = Math.min(1, 1080 / Math.max(v.videoWidth, v.videoHeight));
     const c = document.createElement("canvas");
     c.width = Math.max(1, Math.round(v.videoWidth * escala));
@@ -217,7 +248,7 @@ export async function regravarVideo(arquivo: Blob, op: OpcoesVideo, aoProgresso?
     };
     gravador.start(250);
     fonteMusica?.start(0, Math.max(0, op.musicaInicio ?? 0));
-    await v.play();
+    await comPrazo(v.play(), 10000, "O aparelho não deixou preparar o vídeo. Toque em ↻ para tentar de novo.");
     desenhar();
     const limite = window.setTimeout(() => parar?.(), (duracao + 1.5) * 1000);
     await terminou;
@@ -236,20 +267,45 @@ export async function subirComProgresso(balde: string, caminho: string, arquivo:
   const assinado = await supabase.storage.from(balde).createSignedUploadUrl(caminho);
   let foi = false;
   if (!assinado.error && assinado.data?.signedUrl) {
+    let parado = false;
     foi = await new Promise<boolean>((ok) => {
       const x = new XMLHttpRequest();
+      // Sem nenhum avanço por 45 s: a conexão travou.
+      let vigia = 0;
+      const vigiar = () => {
+        window.clearTimeout(vigia);
+        vigia = window.setTimeout(() => {
+          parado = true;
+          x.abort();
+        }, 45000);
+      };
       x.open("PUT", assinado.data!.signedUrl);
       x.setRequestHeader("content-type", tipo);
       x.setRequestHeader("x-upsert", "false");
-      x.upload.onprogress = (e) => e.lengthComputable && aoProgresso?.(e.loaded / e.total);
-      x.onload = () => ok(x.status >= 200 && x.status < 300);
-      x.onerror = () => ok(false);
+      x.upload.onprogress = (e) => {
+        vigiar();
+        if (e.lengthComputable) aoProgresso?.(e.loaded / e.total);
+      };
+      x.onload = () => {
+        window.clearTimeout(vigia);
+        ok(x.status >= 200 && x.status < 300);
+      };
+      x.onerror = x.onabort = () => {
+        window.clearTimeout(vigia);
+        ok(false);
+      };
+      vigiar();
       x.send(arquivo);
     });
+    if (parado) throw new Error("A internet travou no envio. Toque em ↻ para continuar.");
   }
   // Sem link assinado (ou se ele falhar): envio comum, sem barra de progresso detalhada.
   if (!foi) {
-    const { error } = await supabase.storage.from(balde).upload(caminho, arquivo, { contentType: tipo, upsert: true });
+    const { error } = await comPrazo(
+      supabase.storage.from(balde).upload(caminho, arquivo, { contentType: tipo, upsert: true }),
+      Math.max(90000, (arquivo.size / (100 * 1024)) * 1000),
+      "A internet travou no envio. Toque em ↻ para continuar.",
+    );
     if (error) throw /network|fetch/i.test(error.message) ? new Error("Sem conexão. Verifique a internet e tente de novo.") : error;
     aoProgresso?.(1);
   }

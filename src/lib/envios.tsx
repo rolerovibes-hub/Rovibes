@@ -1,7 +1,7 @@
 import { createContext, ReactNode, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
-import { capaDoVideo, extensao, liberarMidia, MAX_VIDEO_BYTES, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
+import { capaDoVideo, comPrazo, extensao, liberarMidia, MAX_VIDEO_BYTES, OpcoesVideo, regravarVideo, subirComProgresso } from "./midia";
 import { apagarEnvio, EnvioGuardado, guardarEnvio, listarEnvios } from "./rascunhosEnvio";
 
 export type Destino = "feed" | "story";
@@ -111,7 +111,7 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
             mudar(e.id, { pedido: pronto });
             void guardarEnvio(paraGuardar({ ...e, pedido: pronto, base, postId, usuario: eu }, "pendente"));
           }
-          const capa = await capaDoVideo(video, 0.2).catch(() => null);
+          const capa = await comPrazo(capaDoVideo(video, 0.2), 15000, "sem capa").catch(() => null);
           mudar(e.id, { estado: "enviando", progresso: midia.regravar ? 0.55 : 0.1 });
           const ini = midia.regravar ? 0.55 : 0.1;
           if (capa) {
@@ -134,7 +134,11 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
         if (tags?.length) extras.tags = tags;
         const linha: Record<string, unknown> =
           destino === "feed" ? { id: postId, foto_url, texto: legenda, estabelecimento_id: localId, ...extras } : { id: postId, foto_url, legenda, estabelecimento_id: localId, ...extras };
-        const { error } = await supabase.from(destino === "feed" ? "publicacoes_pessoas" : "stories_pessoas").insert(linha);
+        const { error } = await comPrazo(
+          Promise.resolve(supabase.from(destino === "feed" ? "publicacoes_pessoas" : "stories_pessoas").insert(linha)),
+          30000,
+          "Sem resposta do servidor. Toque em ↻ para tentar de novo.",
+        );
         // Já tinha publicado antes de o app fechar: não duplica.
         if (error && (error.code === "23505" || /duplicate key/i.test(error.message))) return;
         if (error) {
