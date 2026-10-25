@@ -31,17 +31,18 @@ const NOTURNO: Cores = {
   halo: "#151923",
 };
 
+// Modo claro: fundo claro e ruas, avenidas e nomes em cinza para dar contraste.
 const DIURNO: Cores = {
   fundo: "#EEF0F4",
-  agua: "#D3DCE8",
-  verde: "#E0E7E2",
-  predio: "#E4E7EC",
-  ruaLocal: "#FFFFFF",
-  viaPrincipal: "#FFFFFF",
-  contornoVia: "#D6DBE3",
-  trilho: "#D9DDE4",
-  rotulo: "#7B8394",
-  rotuloForte: "#4F5768",
+  agua: "#BCCDE3",
+  verde: "#D3E2D6",
+  predio: "#DADEE5",
+  ruaLocal: "#C4CAD4",
+  viaPrincipal: "#A8B0BD",
+  contornoVia: "#8F98A7",
+  trilho: "#AEB4BF",
+  rotulo: "#525A6B",
+  rotuloForte: "#2F3645",
   halo: "#EEF0F4",
 };
 
