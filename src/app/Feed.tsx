@@ -2,7 +2,7 @@ import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { IconeConvite, IconePapo } from "@/components/IconesRoVibes";
 import { Link, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
-import { CalendarDays, ChevronRight, LocateFixed, MapPin, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
+import { CalendarDays, ChevronRight, LocateFixed, MapPin, Music2, Newspaper, PartyPopper, Plus, Store, Volume2, VolumeX } from "lucide-react";
 import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
@@ -31,7 +31,7 @@ async function compartilharPub(tipo: "pessoa" | "lugar", id: string, lugar?: str
 const CARD_CHEIO = true;
 import { VisorPublicacao } from "@/components/VisorPublicacao";
 import { Carrossel as CarrosselFotos } from "@/components/Carrossel";
-import { ChipMusica } from "@/components/Musicas";
+import { ChipMusica, pararPrevia, tocarPrevia } from "@/components/Musicas";
 import { VideosEmSequencia } from "./VideosEmSequencia";
 import type { Corte } from "./VibeCut";
 import { BotaoBrindar } from "@/components/Brindar";
@@ -66,6 +66,15 @@ export function Feed() {
   const [totais, setTotais] = useState<Map<string, number>>(new Map());
   const [comentando, setComentando] = useState<{ tipo: "lugar" | "pessoa"; id: string } | null>(null);
   const [abertaId, setAbertaId] = useState<string | null>(null);
+  // Som do Feed: uma publicação por vez (vídeo ou fotos com música), pelo botão ao lado da taça.
+  const [somDe, setSomDe] = useState<string | null>(null);
+  const alternarSom = (p: PublicacaoApp) => {
+    const ligar = somDe !== p.id;
+    pararPrevia();
+    if (ligar && !p.video_url && p.musica) tocarPrevia(p.musica.arquivo_url);
+    setSomDe(ligar ? p.id : null);
+  };
+  useEffect(() => () => pararPrevia(), []);
   const [videoAberto, setVideoAberto] = useState<string | null>(null);
   const [quemBrindou, setQuemBrindou] = useState<{ tipo: "pessoa" | "lugar"; id: string } | null>(null);
   // Link de notificação: /?comentarios=pessoa:ID abre os comentários direto.
@@ -352,10 +361,17 @@ export function Feed() {
                   const midia = (
                     <>
                     {p.video_url ? (
-                      <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setVideoAberto(p.id)} className={claro ? "aspect-[4/5] w-full object-cover" : undefined} somNoTopo={claro} />
+                      <VideoPost
+                        src={p.video_url}
+                        capa={p.foto_url}
+                        aoAbrir={() => setVideoAberto(p.id)}
+                        className={claro ? "aspect-[4/5] w-full object-cover" : undefined}
+                        mudo={claro ? somDe !== p.id : undefined}
+                        semBotaoSom={claro}
+                      />
                     ) : (
                       (p.fotos?.length ?? 0) > 1 ? (
-                        <CarrosselFotos fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} pontosNoTopo={claro} />
+                        <CarrosselFotos fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} />
                       ) : (
                         p.foto_url && (
                           <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
@@ -368,7 +384,15 @@ export function Feed() {
                   );
                   const rodape = (
                   <div className={clsx("px-3.5", claro ? "space-y-1.5 py-2 text-white" : "space-y-2.5 py-3")}>
-                    {p.musica && !p.video_url && <ChipMusica musica={p.musica} claro={claro} />}
+                    {p.musica && !p.video_url && (claro ? (
+                      <p className="flex items-center gap-1.5 truncate text-[12px] text-white/85">
+                        <Music2 className="h-3.5 w-3.5 shrink-0" />
+                        {p.musica.titulo}
+                        {p.musica.artista ? ` · ${p.musica.artista}` : ""}
+                      </p>
+                    ) : (
+                      <ChipMusica musica={p.musica} />
+                    ))}
                     {p.texto && <p className={clsx("whitespace-pre-line text-[15px] leading-relaxed", claro && "line-clamp-3 drop-shadow")}>{p.texto}</p>}
                     {!!p.tags?.length && <p className={clsx("text-[13px] font-medium", claro ? "text-white drop-shadow" : "text-destaque")}>{p.tags.map((t) => `#${t}`).join(" ")}</p>}
                     {p.evento && (
@@ -382,6 +406,11 @@ export function Feed() {
                     )}
                     <div className="flex flex-row-reverse items-center justify-between gap-2">
                       <span className="-mr-1 inline-flex shrink-0 items-center gap-2.5">
+                        {claro && (p.video_url || p.musica) && (
+                          <button onClick={() => alternarSom(p)} className="inline-flex items-center rounded-lg px-1 py-1 text-white" aria-label={somDe === p.id ? "Tirar o som" : "Ligar o som"}>
+                            {somDe === p.id ? <Volume2 className="h-6 w-6" /> : <VolumeX className="h-6 w-6" />}
+                          </button>
+                        )}
                         <BotaoBrindar
                           ativo={p.curti}
                           total={p.curtidas}
@@ -437,8 +466,12 @@ export function Feed() {
                     );
                   return (
                     <>
+                      {/* Barra preta do perfil em cima da publicação, entrando em degradê só na borda da foto */}
+                      <div className="relative z-10 bg-black text-white">
+                        {cabecalho}
+                        <div className="pointer-events-none absolute inset-x-0 -bottom-9 h-9 bg-gradient-to-b from-black to-transparent" />
+                      </div>
                       {midia}
-                      <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent pb-8 text-white [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{cabecalho}</div>
                       {/* Barra preta das ações embaixo da publicação, entrando em degradê só na borda da foto */}
                       <div className="relative bg-black text-white">
                         <div className="pointer-events-none absolute inset-x-0 -top-9 h-9 bg-gradient-to-b from-transparent to-black" />

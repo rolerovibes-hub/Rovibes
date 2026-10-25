@@ -3,9 +3,27 @@ import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
 
 /** Vídeo de publicação: toca sozinho (mudo) quando aparece na tela e pausa quando sai; toque liga o som (ou abre em tela cheia, com `aoAbrir`). */
-export function VideoPost({ src, capa, className, aoAbrir, somNoTopo }: { src: string; capa?: string | null; className?: string; aoAbrir?: () => void; somNoTopo?: boolean }) {
+export function VideoPost({
+  src,
+  capa,
+  className,
+  aoAbrir,
+  somNoTopo,
+  mudo: mudoFora,
+  semBotaoSom,
+}: {
+  src: string;
+  capa?: string | null;
+  className?: string;
+  aoAbrir?: () => void;
+  somNoTopo?: boolean;
+  /** Som controlado por fora (botão de som na barra de ações do Feed). */
+  mudo?: boolean;
+  semBotaoSom?: boolean;
+}) {
   const v = useRef<HTMLVideoElement>(null);
-  const [mudo, setMudo] = useState(true);
+  const [mudoProprio, setMudo] = useState(true);
+  const mudo = mudoFora ?? mudoProprio;
 
   useEffect(() => {
     const el = v.current;
@@ -34,9 +52,11 @@ export function VideoPost({ src, capa, className, aoAbrir, somNoTopo }: { src: s
         onClick={() => (aoAbrir ? aoAbrir() : setMudo((m) => !m))}
         className={className ?? "max-h-[520px] w-full object-cover"}
       />
+      {!semBotaoSom && (
       <button onClick={() => setMudo((m) => !m)} className={clsx("absolute right-3 z-10 rounded-full bg-black/55 p-2 text-white", somNoTopo ? "top-16" : "bottom-3")} aria-label={mudo ? "Ligar o som" : "Tirar o som"}>
         {mudo ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
+      )}
     </div>
   );
 }
