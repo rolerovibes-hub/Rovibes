@@ -86,7 +86,9 @@ export function VisorStories({
     const v = telaVideo.current;
     if (!v) return;
     if (parado) v.pause();
-    else void v.play().catch(() => {
+    else void v.play().catch((e: DOMException) => {
+      // Troca rápida de story interrompe o play (AbortError): não desliga o som por isso.
+      if (e?.name !== "NotAllowedError") return;
       // Sem permissão para tocar com som: toca mudo.
       v.muted = true;
       setMudo(true);

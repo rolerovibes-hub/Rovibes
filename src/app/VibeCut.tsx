@@ -313,14 +313,18 @@ export function Video({
   useEffect(() => {
     const el = v.current;
     if (!el) return;
-    if (ativo && !pausado)
-      void el.play().catch(() => {
-        // O aparelho não deixou tocar com som: toca mudo (o botão de som liga depois).
+    if (ativo && !pausado) {
+      // O som segue a escolha da pessoa (o React não reaplica "muted" sozinho).
+      el.muted = mudo;
+      void el.play().catch((e: DOMException) => {
+        // Rolar rápido interrompe o play (AbortError): não é falta de permissão, então mantém o som.
+        if (e?.name !== "NotAllowedError" || el.muted) return;
+        // O aparelho não deixou tocar com som: toca mudo só este vídeo.
         el.muted = true;
         void el.play().catch(() => undefined);
       });
-    else el.pause();
-  }, [ativo, pausado]);
+    } else el.pause();
+  }, [ativo, pausado, mudo]);
 
   const trilha = c.musica ? `${c.musica.titulo}${c.musica.artista ? ` · ${c.musica.artista}` : ""}` : c.tocando_agora ? `Tocando agora: ${c.tocando_agora}` : "Som original";
   const temRota = c.ao_vivo && c.local?.latitude != null && c.local?.longitude != null;
