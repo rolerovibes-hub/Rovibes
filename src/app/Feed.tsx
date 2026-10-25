@@ -292,9 +292,10 @@ export function Feed() {
             <p className="mt-3 text-sm text-suave">Nenhuma publicação ainda. Publique pelo + no topo ou siga lugares e pessoas.</p>
           </div>
         ) : (
-          <ul className="space-y-4 px-4 pt-3">
+          <ul className={clsx("space-y-4 pt-3", !CARD_CHEIO && "px-4")}>
             {pubs.map((p) => (
-              <li key={p.id} className="cartao relative overflow-hidden">
+              // Card cheio: foto e vídeo de ponta a ponta na largura da tela; só texto continua em cartão.
+              <li key={p.id} className={CARD_CHEIO && (p.video_url || p.foto_url) ? "relative overflow-hidden bg-black" : clsx("cartao relative overflow-hidden", CARD_CHEIO && "mx-4")}>
                 {(() => {
                   // Teste: a foto ou o vídeo ocupa o card todo e as informações ficam por cima.
                   const claro = CARD_CHEIO && !!(p.video_url || p.foto_url);
