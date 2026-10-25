@@ -1,5 +1,5 @@
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { IconePapo } from "@/components/IconesRoVibes";
+import { IconeConvite, IconePapo } from "@/components/IconesRoVibes";
 import { Link, useSearchParams } from "react-router-dom";
 import clsx from "clsx";
 import { CalendarDays, ChevronRight, LocateFixed, MapPin, Newspaper, PartyPopper, Plus, Store } from "lucide-react";
@@ -15,6 +15,17 @@ import { AnelStory, VisorStories } from "./VisorStories";
 import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
+
+/** Compartilhar uma publicação (link que abre direto nela). */
+async function compartilharPub(tipo: "pessoa" | "lugar", id: string, lugar?: string | null) {
+  const url = `${window.location.origin}/publicacao/${tipo}/${id}`;
+  try {
+    if (navigator.share) await navigator.share({ title: "RoVibes", text: lugar ? `Olha o rolê no ${lugar}` : "Olha isso no RoVibes", url });
+    else await navigator.clipboard.writeText(url);
+  } catch {
+    /* cancelou */
+  }
+}
 
 /** Teste de layout: mídia ocupando o card todo, com as informações por cima. Para desfazer, troque para false. */
 const CARD_CHEIO = true;
@@ -386,6 +397,13 @@ export function Feed() {
                           <IconePapo className="h-5 w-5" />
                           <span>{totais.get(chaveComentario(p)) ?? 0}</span>
                         </button>
+                        <button
+                          onClick={() => void compartilharPub(p.tipo === "pessoa" ? "pessoa" : "lugar", p.id, p.tipo === "pessoa" ? p.local?.nome : p.estabelecimento.nome)}
+                          className={clsx("inline-flex items-center rounded-lg px-1 py-1", claro ? "text-white" : "text-suave")}
+                          aria-label="Compartilhar"
+                        >
+                          <IconeConvite className="h-5 w-5" />
+                        </button>
                       </span>
                       {p.tipo !== "pessoa" ? (
                         // Publicação de lugar (ou de evento do lugar): marcar rolê direto.
@@ -420,7 +438,11 @@ export function Feed() {
                     <>
                       {midia}
                       <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent pb-8 text-white [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{cabecalho}</div>
-                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent pt-16 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{rodape}</div>
+                      {/* Barra preta das ações embaixo da publicação, entrando em degradê só na borda da foto */}
+                      <div className="relative bg-black text-white">
+                        <div className="pointer-events-none absolute inset-x-0 -top-14 h-14 bg-gradient-to-b from-transparent to-black" />
+                        <div className="relative">{rodape}</div>
+                      </div>
                     </>
                   );
                 })()}
