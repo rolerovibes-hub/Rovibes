@@ -7,6 +7,8 @@ import { contarComentarios, FolhaComentarios } from "@/components/Comentarios";
 import { Carregando } from "@/components/Carregando";
 import { Avatar } from "@/components/Avatar";
 import { useSessao } from "@/lib/sessao";
+import { supabase } from "@/lib/supabase";
+import { seguirPessoa } from "@/lib/pessoas";
 import { distanciaKm, km, Lugar, pedirLocalizacao, quando, useVitrine } from "./dados";
 import { useResumos } from "./presenca";
 import { alternarCurtida, buscarFeed, buscarStories, seguirLugar, buscarStoriesPessoas, GrupoStories, PublicacaoApp, tempoAtras } from "./conteudo";
@@ -151,6 +153,29 @@ export function Feed() {
       return (lb ? emAlta.peso(lb) : 0) - (la ? emAlta.peso(la) : 0);
     });
   }, [gruposLugares, lugares, emAlta]);
+
+  // Pessoas que eu já sigo (ou pedi para seguir): sem o botão Seguir.
+  const [sigoPessoas, setSigoPessoas] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    if (!usuario) return;
+    void supabase
+      .from("seguidores_pessoas")
+      .select("seguido_id")
+      .eq("seguidor_id", usuario)
+      .then(({ data }) => setSigoPessoas(new Set((data ?? []).map((x) => x.seguido_id as string))));
+  }, [usuario]);
+  const seguirAutor = async (pessoa: string) => {
+    setSigoPessoas((s) => new Set(s).add(pessoa));
+    try {
+      await seguirPessoa(pessoa);
+    } catch {
+      setSigoPessoas((s) => {
+        const n = new Set(s);
+        n.delete(pessoa);
+        return n;
+      });
+    }
+  };
 
   const seguir = async (estab: string) => {
     setPubs((l) => l?.map((x) => (x.estabelecimento.id === estab ? { ...x, sigo: true, motivo: null } : x)) ?? null);
@@ -322,24 +347,29 @@ export function Feed() {
                   const cabecalho = (
                     <>
                     {p.tipo === "pessoa" && p.pessoa ? (
-                      <div className="flex items-center gap-2.5 px-3.5 py-3">
+                      <div className={clsx("flex items-center gap-2.5 px-3.5", claro ? "py-1.5" : "py-3")}>
                         <Link to={p.pessoa.id === usuario ? "/perfil" : `/p/${p.pessoa.usuario}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                          <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} ampliar />
+                          <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} ampliar tamanho={claro ? "sm" : "md"} />
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-semibold">{p.pessoa.nome}</span>
                             <span className={clsx("block truncate text-[12px]", claro ? "text-white/80" : "text-suave")}>{tempoAtras(p.criado_em)}</span>
                           </span>
                         </Link>
+                        {p.pessoa.id !== usuario && !sigoPessoas.has(p.pessoa.id) && (
+                          <button onClick={() => void seguirAutor(p.pessoa!.id)} className="shrink-0 rounded-full bg-marca px-3.5 py-1 text-[13px] font-semibold text-marca-texto">
+                            Seguir
+                          </button>
+                        )}
                       </div>
                     ) : (
-                    <div className="flex items-center gap-2.5 px-3.5 py-3">
+                    <div className={clsx("flex items-center gap-2.5 px-3.5", claro ? "py-1.5" : "py-3")}>
                         <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
                           {p.estabelecimento.logo_url ? (
                             <Ampliavel src={p.estabelecimento.logo_url} nome={p.estabelecimento.nome}>
-                              <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                              <img src={p.estabelecimento.logo_url} alt="" className={clsx("rounded-full object-cover", claro ? "h-8 w-8" : "h-9 w-9")} />
                             </Ampliavel>
                           ) : (
-                            <Avatar nome={p.estabelecimento.nome} />
+                            <Avatar nome={p.estabelecimento.nome} tamanho={claro ? "sm" : "md"} />
                           )}
                           <span className="min-w-0">
                             <span className="block truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
@@ -383,7 +413,7 @@ export function Feed() {
                     </>
                   );
                   const rodape = (
-                  <div className={clsx("px-3.5", claro ? "space-y-1.5 py-2 text-white" : "space-y-2.5 py-3")}>
+                  <div className={clsx("px-3.5", claro ? "space-y-1 pb-1.5 pt-1.5 text-white" : "space-y-2.5 py-3")}>
                     {p.musica && !p.video_url && (claro ? (
                       <p className="flex items-center gap-1.5 truncate text-[12px] text-white/85">
                         <Music2 className="h-3.5 w-3.5 shrink-0" />
@@ -466,15 +496,13 @@ export function Feed() {
                     );
                   return (
                     <>
-                      {/* Barra preta do perfil em cima da publicação, entrando em degradê só na borda da foto */}
+                      {/* Barra preta do perfil em cima da publicação (linha reta, sem cobrir a foto) */}
                       <div className="relative z-10 bg-black text-white">
                         {cabecalho}
-                        <div className="pointer-events-none absolute inset-x-0 -bottom-9 h-9 bg-gradient-to-b from-black to-transparent" />
                       </div>
                       {midia}
-                      {/* Barra preta das ações embaixo da publicação, entrando em degradê só na borda da foto */}
+                      {/* Barra preta das ações embaixo da publicação (linha reta, sem cobrir a foto) */}
                       <div className="relative bg-black text-white">
-                        <div className="pointer-events-none absolute inset-x-0 -top-9 h-9 bg-gradient-to-b from-transparent to-black" />
                         <div className="relative">{rodape}</div>
                       </div>
                     </>
