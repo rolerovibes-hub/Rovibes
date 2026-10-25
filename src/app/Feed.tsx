@@ -15,6 +15,9 @@ import { AnelStory, VisorStories } from "./VisorStories";
 import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
+
+/** Teste de layout: mídia ocupando o card todo, com as informações por cima. Para desfazer, troque para false. */
+const CARD_CHEIO = true;
 import { VisorPublicacao } from "@/components/VisorPublicacao";
 import { Carrossel as CarrosselFotos } from "@/components/Carrossel";
 import { ChipMusica } from "@/components/Musicas";
@@ -291,105 +294,135 @@ export function Feed() {
         ) : (
           <ul className="space-y-4 px-4 pt-3">
             {pubs.map((p) => (
-              <li key={p.id} className="cartao overflow-hidden">
-                {p.tipo === "pessoa" && p.pessoa ? (
-                  <div className="flex items-center gap-2.5 px-3.5 py-3">
-                    <Link to={p.pessoa.id === usuario ? "/perfil" : `/p/${p.pessoa.usuario}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                      <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} ampliar />
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">{p.pessoa.nome}</span>
-                        <span className="block truncate text-[12px] text-suave">{tempoAtras(p.criado_em)}</span>
-                      </span>
-                    </Link>
-                  </div>
-                ) : (
-                <div className="flex items-center gap-2.5 px-3.5 py-3">
-                    <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
-                      {p.estabelecimento.logo_url ? (
-                        <Ampliavel src={p.estabelecimento.logo_url} nome={p.estabelecimento.nome}>
-                          <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
-                        </Ampliavel>
-                      ) : (
-                        <Avatar nome={p.estabelecimento.nome} />
-                      )}
-                      <span className="min-w-0">
-                        <span className="block truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
-                        <span className="block truncate text-[12px] text-suave">
-                          {p.motivo && !p.sigo ? `${p.motivo} · ` : ""}
-                          {tempoAtras(p.criado_em)}
-                        </span>
-                      </span>
-                    </Link>
-                    {p.sigo === false && (
-                      <button onClick={() => void seguir(p.estabelecimento.id)} className="shrink-0 rounded-full bg-marca px-3.5 py-1.5 text-[13px] font-semibold text-marca-texto">
-                        Seguir
-                      </button>
-                    )}
-                  </div>
-                )}
-                {p.video_url ? (
-                  <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setVideoAberto(p.id)} />
-                ) : (
-                  (p.fotos?.length ?? 0) > 1 ? (
-                    <CarrosselFotos fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} />
-                  ) : (
-                    p.foto_url && (
-                      <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
-                        <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />
-                      </button>
-                    )
-                  )
-                )}
-                <div className="space-y-2.5 px-3.5 py-3">
-                  {p.musica && !p.video_url && <ChipMusica musica={p.musica} />}
-                  {p.texto && <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.texto}</p>}
-                  {!!p.tags?.length && <p className="text-[13px] font-medium text-destaque">{p.tags.map((t) => `#${t}`).join(" ")}</p>}
-                  {p.evento && (
-                    <Link to={`/evento/${p.evento.id}`} className="flex items-center gap-2.5 rounded-lg border border-borda px-3 py-2 hover:bg-elevado">
-                      <CalendarDays className="h-4 w-4 shrink-0 text-destaque" />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-medium">{p.evento.nome}</span>
-                        <span className="block text-[12px] text-suave">{quando(p.evento.inicio)}</span>
-                      </span>
-                    </Link>
-                  )}
-                  <div className="flex items-center justify-between">
-                    <span className="-ml-1 inline-flex items-center gap-2">
-                      <BotaoBrindar
-                        ativo={p.curti}
-                        total={p.curtidas}
-                        aoBrindar={() => void curtir(p)}
-                        aoVerQuem={() => setQuemBrindou({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
-                      />
-                      <button
-                        onClick={() => setComentando({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
-                        className="inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm text-suave"
-                        aria-label="Comentários"
-                      >
-                        <IconePapo className="h-5 w-5" />
-                        <span>{totais.get(chaveComentario(p)) ?? 0}</span>
-                      </button>
-                    </span>
-                    {p.tipo !== "pessoa" ? (
-                      // Publicação de lugar (ou de evento do lugar): marcar rolê direto.
-                      <Link
-                        to={`/lugar/${p.estabelecimento.id}/role`}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-borda px-3 py-1.5 text-[13px] font-medium hover:bg-elevado"
-                      >
-                        <PartyPopper className="h-4 w-4 text-magenta" />
-                        Marcar rolê
-                      </Link>
-                    ) : (
-                      // Publicação de pessoa: só o lugar marcado, discreto, levando ao perfil do lugar.
-                      p.local && (
-                        <Link to={`/lugar/${p.local.id}`} className="inline-flex min-w-0 max-w-[55%] items-center gap-1 rounded-full px-2 py-1 text-[12px] text-suave hover:bg-elevado hover:text-texto">
-                          <MapPin className="h-3.5 w-3.5 shrink-0" />
-                          <span className="truncate">{p.local.nome}</span>
+              <li key={p.id} className="cartao relative overflow-hidden">
+                {(() => {
+                  // Teste: a foto ou o vídeo ocupa o card todo e as informações ficam por cima.
+                  const claro = CARD_CHEIO && !!(p.video_url || p.foto_url);
+                  const cabecalho = (
+                    <>
+                    {p.tipo === "pessoa" && p.pessoa ? (
+                      <div className="flex items-center gap-2.5 px-3.5 py-3">
+                        <Link to={p.pessoa.id === usuario ? "/perfil" : `/p/${p.pessoa.usuario}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+                          <Avatar nome={p.pessoa.nome} foto={p.pessoa.foto_url} ampliar />
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">{p.pessoa.nome}</span>
+                            <span className={clsx("block truncate text-[12px]", claro ? "text-white/80" : "text-suave")}>{tempoAtras(p.criado_em)}</span>
+                          </span>
                         </Link>
+                      </div>
+                    ) : (
+                    <div className="flex items-center gap-2.5 px-3.5 py-3">
+                        <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
+                          {p.estabelecimento.logo_url ? (
+                            <Ampliavel src={p.estabelecimento.logo_url} nome={p.estabelecimento.nome}>
+                              <img src={p.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                            </Ampliavel>
+                          ) : (
+                            <Avatar nome={p.estabelecimento.nome} />
+                          )}
+                          <span className="min-w-0">
+                            <span className="block truncate text-sm font-semibold">{p.estabelecimento.nome}</span>
+                            <span className={clsx("block truncate text-[12px]", claro ? "text-white/80" : "text-suave")}>
+                              {p.motivo && !p.sigo ? `${p.motivo} · ` : ""}
+                              {tempoAtras(p.criado_em)}
+                            </span>
+                          </span>
+                        </Link>
+                        {p.sigo === false && (
+                          <button onClick={() => void seguir(p.estabelecimento.id)} className="shrink-0 rounded-full bg-marca px-3.5 py-1.5 text-[13px] font-semibold text-marca-texto">
+                            Seguir
+                          </button>
+                        )}
+                      </div>
+                    )}
+                    </>
+                  );
+                  const midia = (
+                    <>
+                    {p.video_url ? (
+                      <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setVideoAberto(p.id)} className={claro ? "aspect-[4/5] w-full object-cover" : undefined} somNoTopo={claro} />
+                    ) : (
+                      (p.fotos?.length ?? 0) > 1 ? (
+                        <CarrosselFotos fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} pontosNoTopo={claro} />
+                      ) : (
+                        p.foto_url && (
+                          <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
+                            <img src={p.foto_url} alt="" className={claro ? "aspect-[4/5] w-full object-cover" : "max-h-[520px] w-full object-cover"} loading="lazy" />
+                          </button>
+                        )
                       )
                     )}
+                    </>
+                  );
+                  const rodape = (
+                  <div className={clsx("space-y-2.5 px-3.5 py-3", claro && "text-white")}>
+                    {p.musica && !p.video_url && <ChipMusica musica={p.musica} claro={claro} />}
+                    {p.texto && <p className={clsx("whitespace-pre-line text-[15px] leading-relaxed", claro && "line-clamp-3 drop-shadow")}>{p.texto}</p>}
+                    {!!p.tags?.length && <p className={clsx("text-[13px] font-medium", claro ? "text-white drop-shadow" : "text-destaque")}>{p.tags.map((t) => `#${t}`).join(" ")}</p>}
+                    {p.evento && (
+                      <Link to={`/evento/${p.evento.id}`} className={clsx("flex items-center gap-2.5 rounded-lg border px-3 py-2", claro ? "border-white/25 bg-black/30 backdrop-blur" : "border-borda hover:bg-elevado")}>
+                        <CalendarDays className={clsx("h-4 w-4 shrink-0", claro ? "text-white" : "text-destaque")} />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate text-sm font-medium">{p.evento.nome}</span>
+                          <span className={clsx("block text-[12px]", claro ? "text-white/80" : "text-suave")}>{quando(p.evento.inicio)}</span>
+                        </span>
+                      </Link>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className="-ml-1 inline-flex items-center gap-2">
+                        <BotaoBrindar
+                          ativo={p.curti}
+                          total={p.curtidas}
+                          aoBrindar={() => void curtir(p)}
+                          aoVerQuem={() => setQuemBrindou({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
+                          sobreFoto={claro}
+                        />
+                        <button
+                          onClick={() => setComentando({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
+                          className={clsx("inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm", claro ? "text-white" : "text-suave")}
+                          aria-label="Comentários"
+                        >
+                          <IconePapo className="h-5 w-5" />
+                          <span>{totais.get(chaveComentario(p)) ?? 0}</span>
+                        </button>
+                      </span>
+                      {p.tipo !== "pessoa" ? (
+                        // Publicação de lugar (ou de evento do lugar): marcar rolê direto.
+                        <Link
+                          to={`/lugar/${p.estabelecimento.id}/role`}
+                          className={clsx("inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-medium", claro ? "border-white/30 bg-black/30 text-white backdrop-blur" : "border-borda hover:bg-elevado")}
+                        >
+                          <PartyPopper className={clsx("h-4 w-4", claro ? "text-white" : "text-magenta")} />
+                          Marcar rolê
+                        </Link>
+                      ) : (
+                        // Publicação de pessoa: só o lugar marcado, discreto, levando ao perfil do lugar.
+                        p.local && (
+                          <Link to={`/lugar/${p.local.id}`} className={clsx("inline-flex min-w-0 max-w-[55%] items-center gap-1 rounded-full px-2 py-1 text-[12px]", claro ? "text-white/90" : "text-suave hover:bg-elevado hover:text-texto")}>
+                            <MapPin className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{p.local.nome}</span>
+                          </Link>
+                        )
+                      )}
+                    </div>
                   </div>
-                </div>
+                  );
+                  if (!claro)
+                    return (
+                      <>
+                        {cabecalho}
+                        {midia}
+                        {rodape}
+                      </>
+                    );
+                  return (
+                    <>
+                      {midia}
+                      <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-black/65 to-transparent pb-8 text-white [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{cabecalho}</div>
+                      <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 via-black/45 to-transparent pt-16 [&_a]:pointer-events-auto [&_button]:pointer-events-auto">{rodape}</div>
+                    </>
+                  );
+                })()}
               </li>
             ))}
           </ul>

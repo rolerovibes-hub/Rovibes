@@ -7,12 +7,15 @@ export function Carrossel({
   aoTocar,
   cheio,
   className,
+  pontosNoTopo,
 }: {
   fotos: string[];
   aoTocar?: (i: number) => void;
   /** Tela cheia (visor): foto inteira, sem cortar. */
   cheio?: boolean;
   className?: string;
+  /** Informações por cima da foto (card cheio): só os pontinhos, no alto. */
+  pontosNoTopo?: boolean;
 }) {
   const caixa = useRef<HTMLDivElement>(null);
   const [atual, setAtual] = useState(0);
@@ -47,10 +50,12 @@ export function Carrossel({
       </div>
       {fotos.length > 1 && (
         <>
-          <span className="pointer-events-none absolute right-2.5 top-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[12px] font-semibold text-white">
-            {atual + 1}/{fotos.length}
-          </span>
-          <span className="pointer-events-none absolute inset-x-0 bottom-2.5 flex justify-center gap-1">
+          {!pontosNoTopo && (
+            <span className="pointer-events-none absolute right-2.5 top-2.5 rounded-full bg-black/55 px-2 py-0.5 text-[12px] font-semibold text-white">
+              {atual + 1}/{fotos.length}
+            </span>
+          )}
+          <span className={clsx("pointer-events-none absolute inset-x-0 z-10 flex justify-center gap-1", pontosNoTopo ? "top-[62px]" : "bottom-2.5")}>
             {fotos.map((_, i) => (
               <span key={i} className={clsx("h-1.5 rounded-full transition-all", i === atual ? "w-4 bg-white" : "w-1.5 bg-white/55")} />
             ))}
