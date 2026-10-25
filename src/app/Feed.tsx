@@ -381,20 +381,21 @@ export function Feed() {
                       </Link>
                     )}
                     <div className="flex flex-row-reverse items-center justify-between gap-2">
-                      <span className="-mr-1 inline-flex shrink-0 items-center gap-2">
+                      <span className="-mr-1 inline-flex shrink-0 items-center gap-2.5">
                         <BotaoBrindar
                           ativo={p.curti}
                           total={p.curtidas}
                           aoBrindar={() => void curtir(p)}
                           aoVerQuem={() => setQuemBrindou({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
                           sobreFoto={claro}
+                          tamanho="feed"
                         />
                         <button
                           onClick={() => setComentando({ tipo: p.tipo === "pessoa" ? "pessoa" : "lugar", id: p.id })}
-                          className={clsx("inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm", claro ? "text-white" : "text-suave")}
+                          className={clsx("inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-[17px]", claro ? "text-white" : "text-suave")}
                           aria-label="Comentários"
                         >
-                          <IconePapo className="h-5 w-5" />
+                          <IconePapo className="h-6 w-6" />
                           <span>{totais.get(chaveComentario(p)) ?? 0}</span>
                         </button>
                         <button
@@ -402,7 +403,7 @@ export function Feed() {
                           className={clsx("inline-flex items-center rounded-lg px-1 py-1", claro ? "text-white" : "text-suave")}
                           aria-label="Compartilhar"
                         >
-                          <IconeConvite className="h-5 w-5" />
+                          <IconeConvite className="h-6 w-6" />
                         </button>
                       </span>
                       {p.tipo !== "pessoa" ? (

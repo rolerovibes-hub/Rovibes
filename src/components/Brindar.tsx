@@ -97,7 +97,8 @@ export function BotaoBrindar({
   ativo: boolean;
   total?: number;
   aoBrindar: () => void;
-  tamanho?: "sm" | "md" | "lg" | "xl";
+  /** feed: 20% maior que md, para os cards do Feed. */
+  tamanho?: "sm" | "md" | "feed" | "lg" | "xl";
   sobreFoto?: boolean;
   rotulo?: string;
   className?: string;
@@ -106,7 +107,8 @@ export function BotaoBrindar({
 }) {
   const [animacao, setAnimacao] = useState(0);
   useEffect(prepararSom, []);
-  const medida = tamanho === "sm" ? "h-4 w-4" : tamanho === "lg" ? "h-6 w-6" : tamanho === "xl" ? "h-8 w-8" : "h-[22px] w-[22px]";
+  const medida = tamanho === "sm" ? "h-4 w-4" : tamanho === "lg" ? "h-6 w-6" : tamanho === "xl" ? "h-8 w-8" : tamanho === "feed" ? "h-[26px] w-[26px]" : "h-[22px] w-[22px]";
+  const texto = tamanho === "feed" ? "text-[17px]" : "text-sm";
 
   const botao = (
     <button
@@ -126,7 +128,7 @@ export function BotaoBrindar({
       }}
       aria-pressed={ativo}
       aria-label={ativo ? `Tirar brinde da ${rotulo}` : `Brindar ${rotulo}`}
-      className={clsx("inline-flex items-center gap-1.5 rounded-lg px-1 py-1 text-sm", className)}
+      className={clsx("inline-flex items-center gap-1.5 rounded-lg px-1 py-1", texto, className)}
     >
       <span key={animacao} className={clsx("relative inline-flex", animacao > 0 && ativo && "brindando")}>
         <IconeTaca cheia={ativo} sobreFoto={sobreFoto} className={medida} />
@@ -147,7 +149,7 @@ export function BotaoBrindar({
           e.stopPropagation();
           aoVerQuem();
         }}
-        className={clsx("-ml-1 rounded-lg px-1 py-1 text-sm underline-offset-2 hover:underline", ativo || sobreFoto ? "font-medium" : "text-suave")}
+        className={clsx("-ml-1 rounded-lg px-1 py-1 underline-offset-2 hover:underline", texto, ativo || sobreFoto ? "font-medium" : "text-suave")}
         aria-label={`Ver quem brindou (${total})`}
       >
         {total}
