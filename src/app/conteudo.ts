@@ -19,6 +19,37 @@ export interface StoryApp {
   /** Story em vídeo (até 3 min); foto_url é a capa. */
   video_url?: string | null;
   duracao?: number | null;
+  /** Foto com música (atualização 054). */
+  musica?: MusicaPost | null;
+}
+
+/** Música de uma publicação (vídeo ou fotos). */
+export interface MusicaPost {
+  id: string;
+  titulo: string;
+  artista: string | null;
+  arquivo_url: string;
+  licenca?: string | null;
+}
+
+/** Dados extras das publicações de pessoas: vídeo, carrossel, música e hashtags. */
+export interface ExtrasPost {
+  video_url: string | null;
+  fotos: string[] | null;
+  tags: string[];
+  musica: MusicaPost | null;
+}
+
+export async function extrasDePosts(ids: string[]): Promise<Map<string, ExtrasPost>> {
+  const mapa = new Map<string, ExtrasPost>();
+  if (!ids.length) return mapa;
+  // Completo (atualização 054); sem ela, só o vídeo (036).
+  let r = await supabase.from("publicacoes_pessoas").select("id, video_url, fotos, tags, musica:musicas(id, titulo, artista, arquivo_url, licenca)").in("id", ids);
+  if (r.error) r = (await supabase.from("publicacoes_pessoas").select("id, video_url").in("id", ids)) as typeof r;
+  for (const x of (r.data ?? []) as unknown as (Partial<ExtrasPost> & { id: string })[]) {
+    mapa.set(x.id, { video_url: x.video_url ?? null, fotos: x.fotos?.length ? x.fotos : null, tags: x.tags ?? [], musica: x.musica ?? null });
+  }
+  return mapa;
 }
 
 export interface GrupoStories {
@@ -48,6 +79,10 @@ export interface PublicacaoApp {
   local?: { id: string; nome: string } | null;
   /** Publicação em vídeo (até 3 min); foto_url é a capa. */
   video_url?: string | null;
+  /** Carrossel (até 10 fotos), música e hashtags (publicações de pessoas). */
+  fotos?: string[] | null;
+  musica?: MusicaPost | null;
+  tags?: string[];
 }
 
 /** Stories no ar, agrupados por lugar; quem ainda tem story não visto vem primeiro. */
@@ -85,8 +120,9 @@ export async function buscarStoriesPessoas(usuario: string, soDe?: string): Prom
     return q;
   };
   const base = "id, usuario_id, foto_url, legenda, criado_em, local:estabelecimentos(id, nome)";
-  // Com vídeo (atualização 036); sem ela, busca só as fotos.
-  let { data, error } = await consulta(`${base}, video_url, duracao`);
+  // Com música nas fotos (054) e vídeo (036); sem elas, busca o que der.
+  let { data, error } = await consulta(`${base}, video_url, duracao, musica:musicas(id, titulo, artista, arquivo_url)`);
+  if (error) ({ data, error } = await consulta(`${base}, video_url, duracao`));
   if (error) ({ data, error } = await consulta(base));
   if (error || !data?.length) return [];
   type Linha = {
@@ -98,6 +134,7 @@ export async function buscarStoriesPessoas(usuario: string, soDe?: string): Prom
     local: { id: string; nome: string } | null;
     video_url?: string | null;
     duracao?: number | null;
+    musica?: MusicaPost | null;
   };
   const linhas = data as unknown as Linha[];
   const ids = [...new Set(linhas.map((l) => l.usuario_id))];
@@ -122,6 +159,7 @@ export async function buscarStoriesPessoas(usuario: string, soDe?: string): Prom
       local: l.local,
       video_url: l.video_url ?? null,
       duracao: l.duracao == null ? null : Number(l.duracao),
+      musica: l.musica ?? null,
     });
     if (!vistos.has(l.id) && !g.meu) g.vistos = false;
     grupos.set(pe.id, g);
@@ -176,15 +214,13 @@ export async function buscarFeed(usuario: string): Promise<PublicacaoApp[]> {
   if (!misto.error) {
     type Linha = Omit<PublicacaoApp, "estabelecimento" | "pessoa"> & { tipo: "lugar" | "pessoa"; autor: Record<string, string | null> };
     const linhas = (misto.data ?? []) as Linha[];
-    // Vídeos das publicações de pessoas (atualização 036).
-    const idsPessoa = linhas.filter((x) => x.tipo === "pessoa").map((x) => x.id);
-    const videos = new Map<string, string>();
-    if (idsPessoa.length) {
-      const { data: v } = await supabase.from("publicacoes_pessoas").select("id, video_url").in("id", idsPessoa).not("video_url", "is", null);
-      for (const x of (v ?? []) as { id: string; video_url: string }[]) videos.set(x.id, x.video_url);
-    }
+    // Vídeo, carrossel, música e hashtags das publicações de pessoas.
+    const extras = await extrasDePosts(linhas.filter((x) => x.tipo === "pessoa").map((x) => x.id));
     return linhas.map((x) => ({
-      video_url: videos.get(x.id) ?? null,
+      video_url: extras.get(x.id)?.video_url ?? null,
+      fotos: extras.get(x.id)?.fotos ?? null,
+      musica: extras.get(x.id)?.musica ?? null,
+      tags: extras.get(x.id)?.tags ?? [],
       ...x,
       estabelecimento: x.tipo === "lugar" ? (x.autor as unknown as PublicacaoApp["estabelecimento"]) : { id: x.local?.id ?? "", nome: x.local?.nome ?? "", logo_url: null },
       pessoa: x.tipo === "pessoa" ? (x.autor as unknown as PublicacaoApp["pessoa"]) : null,

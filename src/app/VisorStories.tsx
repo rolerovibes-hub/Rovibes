@@ -71,7 +71,17 @@ export function VisorStories({
 
   // Vídeo: toca, pausa junto com o story e avança quando termina.
   const ehVideo = !!story?.video_url;
-  const duracaoStory = ehVideo ? Math.max(1, Number(story?.duracao ?? 15)) * 1000 : DURACAO;
+  // Foto com música fica mais tempo na tela.
+  const musicaFoto = !ehVideo ? story?.musica ?? null : null;
+  const tempoFoto = musicaFoto ? 10000 : DURACAO;
+  const duracaoStory = ehVideo ? Math.max(1, Number(story?.duracao ?? 15)) * 1000 : tempoFoto;
+  const telaMusica = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    const a = telaMusica.current;
+    if (!a) return;
+    if (parado) a.pause();
+    else void a.play().catch(() => undefined);
+  }, [parado, story?.id]);
   useEffect(() => {
     const v = telaVideo.current;
     if (!v) return;
@@ -86,7 +96,7 @@ export function VisorStories({
 
   useEffect(() => {
     if (parado || !story || ehVideo) return;
-    const t = window.setTimeout(avancar, DURACAO);
+    const t = window.setTimeout(avancar, tempoFoto);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [g, s, parado, story]);
@@ -181,7 +191,8 @@ export function VisorStories({
         ) : (
           <img src={story.foto_url} alt={story.legenda ?? ""} className="absolute inset-0 h-full w-full object-contain" />
         )}
-        {ehVideo && (
+        {musicaFoto && <audio key={story.id} ref={telaMusica} src={musicaFoto.arquivo_url} autoPlay loop muted={mudo} />}
+        {(ehVideo || musicaFoto) && (
           <button onClick={() => setMudo((m) => !m)} className="absolute right-3 top-20 z-20 rounded-full bg-black/45 p-2 text-white" aria-label={mudo ? "Ligar o som" : "Tirar o som"}>
             {mudo ? <VolumeX className="h-5 w-5" /> : <Volume2 className="h-5 w-5" />}
           </button>

@@ -16,6 +16,8 @@ import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
 import { VisorPublicacao } from "@/components/VisorPublicacao";
+import { Carrossel } from "@/components/Carrossel";
+import { ChipMusica } from "@/components/Musicas";
 import { VideosEmSequencia } from "./VideosEmSequencia";
 import type { Corte } from "./VibeCut";
 import { BotaoBrindar } from "@/components/Brindar";
@@ -163,7 +165,8 @@ export function Feed() {
           local: marcado
             ? { id: marcado.id, nome: marcado.nome, logo_url: lugar?.logo_url ?? null, latitude: lugar?.latitude ?? null, longitude: lugar?.longitude ?? null }
             : null,
-          musica: null,
+          musica: p.musica ? { id: p.musica.id, titulo: p.musica.titulo, artista: p.musica.artista } : null,
+          tags: p.tags ?? null,
           tocando_agora: null,
           curtidas: p.curtidas,
           curti: p.curti,
@@ -327,14 +330,20 @@ export function Feed() {
                 {p.video_url ? (
                   <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setVideoAberto(p.id)} />
                 ) : (
-                  p.foto_url && (
-                    <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
-                      <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />
-                    </button>
+                  (p.fotos?.length ?? 0) > 1 ? (
+                    <Carrossel fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} />
+                  ) : (
+                    p.foto_url && (
+                      <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
+                        <img src={p.foto_url} alt="" className="max-h-[520px] w-full object-cover" loading="lazy" />
+                      </button>
+                    )
                   )
                 )}
                 <div className="space-y-2.5 px-3.5 py-3">
+                  {p.musica && !p.video_url && <ChipMusica musica={p.musica} />}
                   {p.texto && <p className="whitespace-pre-line text-[15px] leading-relaxed">{p.texto}</p>}
+                  {!!p.tags?.length && <p className="text-[13px] font-medium text-destaque">{p.tags.map((t) => `#${t}`).join(" ")}</p>}
                   {p.evento && (
                     <Link to={`/evento/${p.evento.id}`} className="flex items-center gap-2.5 rounded-lg border border-borda px-3 py-2 hover:bg-elevado">
                       <CalendarDays className="h-4 w-4 shrink-0 text-destaque" />
@@ -397,6 +406,9 @@ export function Feed() {
             local: aberta.tipo === "pessoa" ? aberta.local ?? null : null,
             foto: aberta.foto_url,
             video: aberta.video_url,
+            fotos: aberta.fotos ?? null,
+            musica: aberta.video_url ? null : aberta.musica ?? null,
+            tags: aberta.tags,
             texto: aberta.texto,
             criado_em: aberta.criado_em,
             curtidas: aberta.curtidas,

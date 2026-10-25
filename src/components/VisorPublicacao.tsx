@@ -3,16 +3,22 @@ import { IconePapo } from "@/components/IconesRoVibes";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { MapPin, Volume2, VolumeX, X } from "lucide-react";
+import { MapPin, Music2, Volume2, VolumeX, X } from "lucide-react";
 import { Avatar } from "./Avatar";
 import { BotaoBrindar } from "./Brindar";
 import { QuemBrindou } from "./QuemBrindou";
+import { Carrossel } from "./Carrossel";
 
 export interface DadosVisor {
   autor: { nome: string; foto: string | null; link?: string };
   local?: { id: string; nome: string } | null;
   foto: string | null;
   video?: string | null;
+  /** Carrossel (mais de uma foto). */
+  fotos?: string[] | null;
+  /** Música das fotos. */
+  musica?: { titulo: string; artista: string | null; arquivo_url: string } | null;
+  tags?: string[];
   texto?: string | null;
   criado_em: string;
   curtidas: number;
@@ -48,7 +54,8 @@ export function VisorPublicacao({
   children?: ReactNode;
 }) {
   const [limpo, setLimpo] = useState(false);
-  const [mudo, setMudo] = useState(true);
+  // Fotos com música já abrem com som (a pessoa acabou de tocar para abrir).
+  const [mudo, setMudo] = useState(!(dados.musica && !dados.video));
   const [verBrindes, setVerBrindes] = useState(false);
 
   useEffect(() => {
@@ -150,9 +157,12 @@ export function VisorPublicacao({
       >
         {dados.video ? (
           <video src={dados.video} poster={dados.foto ?? undefined} autoPlay loop playsInline muted={mudo} className="h-full w-full object-contain" />
+        ) : (dados.fotos?.length ?? 0) > 1 ? (
+          <Carrossel fotos={dados.fotos!} cheio className="h-full w-full" />
         ) : (
           dados.foto && <img src={dados.foto} alt={dados.texto ?? ""} className="h-full w-full object-contain" draggable={false} />
         )}
+        {dados.musica && !dados.video && <audio src={dados.musica.arquivo_url} autoPlay loop muted={mudo} />}
       </div>
 
       {/* Topo: nome e local ficam sempre; o resto some no toque */}
@@ -188,7 +198,15 @@ export function VisorPublicacao({
         style={{ touchAction: "none" }}
         onClick={parar}
       >
+        {dados.musica && !dados.video && (
+          <p className="mb-1.5 flex items-center gap-1.5 truncate text-[13px] text-white/90">
+            <Music2 className="h-3.5 w-3.5 shrink-0" />
+            {dados.musica.titulo}
+            {dados.musica.artista ? ` · ${dados.musica.artista}` : ""}
+          </p>
+        )}
         {dados.texto && <p data-rolagem className="mb-2 max-h-[28vh] overflow-y-auto whitespace-pre-line text-[15px] leading-relaxed">{dados.texto}</p>}
+        {!!dados.tags?.length && <p className="mb-2 text-[13px] font-medium text-white/90">{dados.tags.map((t) => `#${t}`).join(" ")}</p>}
         <div className="flex items-center gap-3">
           <BotaoBrindar
             ativo={dados.curti}
@@ -203,7 +221,7 @@ export function VisorPublicacao({
             <IconePapo className="h-6 w-6" />
             <span className="font-medium">{dados.comentarios}</span>
           </button>
-          {dados.video && (
+          {(dados.video || dados.musica) && (
             <button onClick={() => setMudo((m) => !m)} className="ml-auto rounded-full bg-white/15 p-2" aria-label={mudo ? "Ligar o som" : "Tirar o som"}>
               {mudo ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
             </button>

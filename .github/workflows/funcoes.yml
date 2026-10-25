@@ -43,6 +43,8 @@ jobs:
         run: supabase functions deploy contas-sistema --project-ref "$PROJETO" --use-api
       - name: Publicar contas-gestao (equipe da Gestão RoVibes)
         run: supabase functions deploy contas-gestao --project-ref "$PROJETO" --use-api
+      - name: Publicar musicas-livres (biblioteca de músicas livres)
+        run: supabase functions deploy musicas-livres --project-ref "$PROJETO" --use-api
       - name: Chaves das notificações (cria uma vez, sem mostrar no log)
         run: |
           if supabase secrets list --project-ref "$PROJETO" | grep -q VAPID_PRIVADA; then

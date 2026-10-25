@@ -6,7 +6,7 @@ import { FolhaComentarios } from "@/components/Comentarios";
 import { Carregando } from "@/components/Carregando";
 import { supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
-import { alternarCurtida } from "./conteudo";
+import { alternarCurtida, extrasDePosts } from "./conteudo";
 
 interface Pub {
   id: string;
@@ -20,6 +20,9 @@ interface Pub {
   curtidas: number;
   curti: boolean;
   comentarios: number;
+  fotos?: string[] | null;
+  musica?: { titulo: string; artista: string | null; arquivo_url: string } | null;
+  tags?: string[];
 }
 
 /**
@@ -37,7 +40,15 @@ export function PublicacaoPagina() {
   const [comentando, setComentando] = useState(!!destaque || params.get("comentarios") === "1");
 
   useEffect(() => {
-    supabase.rpc("publicacao_para_abrir", { p_tipo: tipo, p_id: id }).then(({ data, error }) => setPub(error ? null : ((data as Pub | null) ?? null)));
+    supabase.rpc("publicacao_para_abrir", { p_tipo: tipo, p_id: id }).then(async ({ data, error }) => {
+      const p = error ? null : ((data as Pub | null) ?? null);
+      // Carrossel, música e hashtags das publicações de pessoas.
+      if (p && p.tipo === "pessoa") {
+        const x = (await extrasDePosts([p.id])).get(p.id);
+        if (x) Object.assign(p, { fotos: x.fotos, musica: x.musica, tags: x.tags });
+      }
+      setPub(p);
+    });
   }, [tipo, id]);
 
   const sair = useCallback(() => {
@@ -76,6 +87,9 @@ export function PublicacaoPagina() {
         local: pub.local,
         foto: pub.foto_url,
         video: pub.video_url,
+        fotos: pub.fotos ?? null,
+        musica: pub.video_url ? null : pub.musica ?? null,
+        tags: pub.tags,
         texto: pub.texto,
         criado_em: pub.criado_em,
         curtidas: pub.curtidas,

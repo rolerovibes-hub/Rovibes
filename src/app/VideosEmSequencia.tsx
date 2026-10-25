@@ -7,7 +7,7 @@ import { FolhaComentarios } from "@/components/Comentarios";
 import { QuemBrindou } from "@/components/QuemBrindou";
 import { alternarCurtida } from "./conteudo";
 import { Navegacao } from "./Navegacao";
-import { Corte, FolhaTrilha, Video } from "./VibeCut";
+import { Corte, FolhaTrilha, irParaProximo, Video } from "./VibeCut";
 
 /**
  * Vídeos do Feed em tela cheia, no jeito do VibeCut: rolar para cima vai para o próximo,
@@ -149,6 +149,7 @@ export function VideosEmSequencia({
               compartilhar={() => void compartilhar(c)}
               abrirTrilha={() => setTrilha(c)}
               irParaLa={() => setRota(c)}
+              aoTerminar={() => irParaProximo(caixa.current, i, lista.length)}
               eu={eu}
             />
           ))}

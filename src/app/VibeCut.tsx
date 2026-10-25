@@ -33,6 +33,14 @@ export interface Corte {
   comentarios: number;
   ao_vivo: boolean;
   distancia_km: number | null;
+  tags?: string[] | null;
+}
+
+/** Fim do vídeo: rola para o próximo. Devolve false quando não há próximo (aí o vídeo repete). */
+export function irParaProximo(caixa: HTMLDivElement | null, i: number, total: number) {
+  if (!caixa || i + 1 >= total) return false;
+  caixa.scrollTo({ top: (i + 1) * caixa.clientHeight, behavior: "smooth" });
+  return true;
 }
 
 const POR_VEZ = 8;
@@ -235,6 +243,7 @@ export function VibeCut() {
               compartilhar={() => void compartilhar(c)}
               abrirTrilha={() => setTrilha(c)}
               irParaLa={() => setRota(c)}
+              aoTerminar={() => irParaProximo(caixa.current, i, lista.length)}
               eu={eu}
             />
           ))}
@@ -278,6 +287,7 @@ export function Video({
   compartilhar,
   abrirTrilha,
   irParaLa,
+  aoTerminar,
   eu,
 }: {
   c: Corte;
@@ -293,6 +303,8 @@ export function Video({
   compartilhar: () => void;
   abrirTrilha: () => void;
   irParaLa: () => void;
+  /** Fim do vídeo: vai para o próximo (devolve false para repetir). */
+  aoTerminar?: () => boolean;
   eu: string;
 }) {
   const v = useRef<HTMLVideoElement>(null);
@@ -321,7 +333,12 @@ export function Video({
           ref={v}
           src={c.video_url}
           poster={c.foto_url ?? undefined}
-          loop
+          loop={!aoTerminar}
+          onEnded={(e) => {
+            if (aoTerminar?.()) return;
+            e.currentTarget.currentTime = 0;
+            void e.currentTarget.play().catch(() => undefined);
+          }}
           playsInline
           muted={mudo}
           preload={ativo ? "auto" : "metadata"}
@@ -382,6 +399,7 @@ export function Video({
             {!c.ao_vivo && <span className="ml-2 text-[12px] font-normal text-white/75">{tempoAtras(c.criado_em)}</span>}
           </Link>
           {c.texto && <p className="line-clamp-2 text-[14px] leading-snug">{c.texto}</p>}
+          {!!c.tags?.length && <p className="truncate text-[13px] font-medium text-white/90">{c.tags.slice(0, 5).map((t) => `#${t}`).join(" ")}</p>}
           {c.local && (
             <Link to={`/lugar/${c.local.id}`} className="inline-flex max-w-full items-center gap-1 text-[13px] font-medium text-white/90">
               <MapPin className="h-3.5 w-3.5 shrink-0" />

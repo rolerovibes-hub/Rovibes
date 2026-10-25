@@ -8,13 +8,20 @@ export type Destino = "feed" | "story";
 
 export type MidiaEnvio =
   | { tipo: "foto"; arquivo: File | Blob }
+  /** Uma ou mais fotos (carrossel no feed), com música opcional. */
+  | { tipo: "fotos"; arquivos: (File | Blob)[]; musicaId: string | null }
   | { tipo: "video"; arquivo: File | Blob; regravar: boolean; opcoes: OpcoesVideo; musicaId: string | null };
+
+/** Arquivo principal (capa) de um envio. */
+export const arquivoDaMidia = (m: MidiaEnvio) => (m.tipo === "fotos" ? m.arquivos[0] : m.arquivo);
 
 export interface PedidoPublicacao {
   destino: Destino;
   midia: MidiaEnvio;
   legenda: string | null;
   localId: string | null;
+  /** Hashtags escolhidas (sem #). */
+  tags?: string[];
 }
 
 export interface Envio {
@@ -60,15 +67,28 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
       const { data: s } = await supabase.auth.getSession();
       const eu = s.session?.user.id;
       if (!eu) throw new Error("Entre na sua conta para publicar.");
-      const { destino, midia, legenda, localId } = e.pedido;
+      const { destino, midia, legenda, localId, tags } = e.pedido;
       const base = e.base ?? `${eu}/${destino === "feed" ? "post" : "story"}-${crypto.randomUUID()}`;
       const postId = e.postId ?? crypto.randomUUID();
       const caminhos: string[] = [];
       let foto_url: string;
       let video_url: string | null = null;
       let duracao: number | null = null;
+      let fotos: string[] | null = null;
       try {
-        if (midia.tipo === "foto") {
+        if (midia.tipo === "fotos") {
+          mudar(e.id, { estado: "preparando", progresso: 0.03 });
+          const n = midia.arquivos.length;
+          fotos = [];
+          for (let i = 0; i < n; i++) {
+            const blob = await reduzirImagem(midia.arquivos[i] as File, 1440);
+            mudar(e.id, { estado: "enviando" });
+            const caminho = n === 1 ? `${base}.jpg` : `${base}-${i + 1}.jpg`;
+            caminhos.push(caminho);
+            fotos.push(await subirComProgresso("avatares", caminho, blob, "image/jpeg", (p) => mudar(e.id, { progresso: 0.05 + ((i + p) / n) * 0.9 })));
+          }
+          foto_url = fotos[0];
+        } else if (midia.tipo === "foto") {
           mudar(e.id, { estado: "preparando", progresso: 0.05 });
           const blob = await reduzirImagem(midia.arquivo as File, 1440);
           mudar(e.id, { estado: "enviando" });
@@ -103,7 +123,15 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
           video_url = await subirComProgresso("avatares", `${base}.${extensao(tipo)}`, video, tipo, (p) => mudar(e.id, { progresso: ini + p * (0.97 - ini) }));
           if (!foto_url) foto_url = video_url;
         }
-        const extras = midia.tipo === "video" ? { video_url, duracao: duracao ? Math.round(duracao * 100) / 100 : null, musica_id: midia.musicaId } : {};
+        const extras: Record<string, unknown> =
+          midia.tipo === "video"
+            ? { video_url, duracao: duracao ? Math.round(duracao * 100) / 100 : null, musica_id: midia.musicaId }
+            : midia.tipo === "fotos" && midia.musicaId
+              ? { musica_id: midia.musicaId }
+              : {};
+        // Carrossel só no feed; hashtags quando houver (atualização 054).
+        if (destino === "feed" && fotos && fotos.length > 1) extras.fotos = fotos;
+        if (tags?.length) extras.tags = tags;
         const linha: Record<string, unknown> =
           destino === "feed" ? { id: postId, foto_url, texto: legenda, estabelecimento_id: localId, ...extras } : { id: postId, foto_url, legenda, estabelecimento_id: localId, ...extras };
         const { error } = await supabase.from(destino === "feed" ? "publicacoes_pessoas" : "stories_pessoas").insert(linha);
@@ -111,7 +139,7 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
         if (error && (error.code === "23505" || /duplicate key/i.test(error.message))) return;
         if (error) {
           throw /column|schema cache/i.test(error.message)
-            ? new Error("Para publicar vídeos, falta aplicar a atualização 036 do banco.")
+            ? new Error(extras.fotos || extras.tags ? "Para carrossel e hashtags, falta aplicar a atualização 054 do banco." : "Para publicar vídeos, falta aplicar a atualização 036 do banco.")
             : /relation|does not exist/i.test(error.message)
               ? new Error(`Falta aplicar a atualização ${destino === "feed" ? "027" : "013"} do banco.`)
               : error;
@@ -202,7 +230,7 @@ export function EnviosProvider({ children }: { children: ReactNode }) {
         .map((g) => ({
           id: g.id,
           pedido: g.pedido,
-          previa: URL.createObjectURL(g.pedido.midia.arquivo),
+          previa: URL.createObjectURL(arquivoDaMidia(g.pedido.midia)),
           base: g.base,
           postId: g.postId,
           usuario: g.usuario,

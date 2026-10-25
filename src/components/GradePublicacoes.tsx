@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { IconePapo } from "@/components/IconesRoVibes";
-import { Camera, Flag, Lock, Play, Trash2 } from "lucide-react";
+import { Camera, Flag, Layers, Lock, Play, Trash2 } from "lucide-react";
 import { IconeTaca } from "./Brindar";
 import { VisorPublicacao } from "./VisorPublicacao";
 import { contarComentarios, FolhaComentarios } from "./Comentarios";
 import { JanelaDenuncia } from "./Denunciar";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useSessao } from "@/lib/sessao";
+import { extrasDePosts } from "@/app/conteudo";
 
 export interface Post {
   id: string;
@@ -17,6 +18,9 @@ export interface Post {
   curtidas: number;
   curti: boolean;
   video_url?: string | null;
+  fotos?: string[] | null;
+  musica?: { id: string; titulo: string; artista: string | null; arquivo_url: string } | null;
+  tags?: string[];
 }
 
 /** Grade de publicações de uma pessoa (perfil). Toque abre a publicação. */
@@ -32,11 +36,16 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
     supabase.rpc("publicacoes_da_pessoa", { p_pessoa: pessoa, p_antes: null }).then(async ({ data, error }) => {
       if (error) setErro(/function|schema cache/i.test(error.message) ? "Falta aplicar a atualização 027 do banco." : "");
       const lista = (data ?? []) as Post[];
-      // Vídeos (atualização 036).
+      // Vídeo, carrossel, música e hashtags.
       if (lista.length) {
-        const { data: v } = await supabase.from("publicacoes_pessoas").select("id, video_url").in("id", lista.map((p) => p.id)).not("video_url", "is", null);
-        const mapa = new Map(((v ?? []) as { id: string; video_url: string }[]).map((x) => [x.id, x.video_url]));
-        for (const p of lista) p.video_url = mapa.get(p.id) ?? null;
+        const mapa = await extrasDePosts(lista.map((p) => p.id));
+        for (const p of lista) {
+          const x = mapa.get(p.id);
+          p.video_url = x?.video_url ?? null;
+          p.fotos = x?.fotos ?? null;
+          p.musica = x?.musica ?? null;
+          p.tags = x?.tags ?? [];
+        }
       }
       setPosts(lista);
       if (lista.length) contarComentarios("pessoa", lista.map((p) => p.id)).then(setComentarios).catch(() => undefined);
@@ -75,6 +84,11 @@ export function GradePublicacoes({ pessoa, autor, privado = false }: { pessoa: s
               {p.video_url && (
                 <span className="absolute right-1.5 top-1.5 rounded-full bg-black/55 p-1 text-white">
                   <Play className="h-3 w-3 fill-current" />
+                </span>
+              )}
+              {!p.video_url && (p.fotos?.length ?? 0) > 1 && (
+                <span className="absolute right-1.5 top-1.5 rounded-full bg-black/55 p-1 text-white">
+                  <Layers className="h-3 w-3" />
                 </span>
               )}
               {/* Brindes e comentários na parte de baixo da miniatura */}
@@ -143,7 +157,7 @@ function VisorPost({
     if (!window.confirm("Apagar esta publicação?")) return;
     const { error } = await supabase.from("publicacoes_pessoas").delete().eq("id", post.id);
     if (error) return setErro(mensagemDeErro(error));
-    const caminhos = [post.foto_url, post.video_url].map((u) => u?.split("/avatares/")[1]).filter((c): c is string => !!c).map(decodeURIComponent);
+    const caminhos = [post.foto_url, post.video_url, ...(post.fotos ?? [])].map((u) => u?.split("/avatares/")[1]).filter((c): c is string => !!c).map(decodeURIComponent);
     if (caminhos.length) await supabase.storage.from("avatares").remove(caminhos);
     mudou(null);
   };
@@ -155,6 +169,9 @@ function VisorPost({
         local: post.local,
         foto: post.foto_url,
         video: post.video_url,
+        fotos: post.fotos ?? null,
+        musica: post.video_url ? null : post.musica ?? null,
+        tags: post.tags,
         texto: post.texto,
         criado_em: post.criado_em,
         curtidas: post.curtidas,

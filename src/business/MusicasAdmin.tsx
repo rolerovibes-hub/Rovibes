@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import clsx from "clsx";
-import { Eye, EyeOff, Music, Pause, Play, Trash2, Upload } from "lucide-react";
+import { Eye, EyeOff, Library, Music, Pause, Play, Trash2, Upload } from "lucide-react";
+import { MusicasLivres } from "./MusicasLivres";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -38,6 +39,7 @@ export function MusicasAdmin() {
   const [lista, setLista] = useState<Faixa[] | null>(null);
   const [selecionada, setSelecionada] = useState<string | null>(null);
   const [nova, setNova] = useState(false);
+  const [livres, setLivres] = useState(false);
   const [titulo, setTitulo] = useState("");
   const [artista, setArtista] = useState("");
   const [estilo, setEstilo] = useState("");
@@ -136,9 +138,13 @@ export function MusicasAdmin() {
     <TelaUniversal
       acoes={
         <>
-          <button className="botao-principal col-span-2 sm:col-span-1" onClick={() => setNova(true)}>
+          <button className="botao-principal col-span-2 sm:col-span-1" onClick={() => setLivres(!livres)}>
+            <Library className="h-4 w-4" />
+            {livres ? "Minhas músicas" : "Biblioteca livre"}
+          </button>
+          <button className="botao" onClick={() => setNova(true)}>
             <Upload className="h-4 w-4" />
-            Nova música
+            Enviar música
           </button>
           <button className="botao" disabled={!atual} onClick={() => void alternar()}>
             {atual?.ativa === false ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
@@ -154,6 +160,7 @@ export function MusicasAdmin() {
       }
     >
       <audio ref={player} onEnded={() => setTocando(null)} />
+      {livres && <MusicasLivres aoImportar={() => void carregar()} />}
       {aviso && <Aviso tipo={aviso.tipo}>{aviso.texto}</Aviso>}
 
       {nova && (
@@ -186,7 +193,7 @@ export function MusicasAdmin() {
         </Secao>
       )}
 
-      {lista === null ? (
+      {livres ? null : lista === null ? (
         <p className="text-sm text-suave">Carregando...</p>
       ) : lista.length === 0 ? (
         <section className="cartao px-6 py-14 text-center">
