@@ -380,8 +380,8 @@ export function Feed() {
                         </span>
                       </Link>
                     )}
-                    <div className="flex items-center justify-between">
-                      <span className="-ml-1 inline-flex items-center gap-2">
+                    <div className="flex flex-row-reverse items-center justify-between gap-2">
+                      <span className="-mr-1 inline-flex shrink-0 items-center gap-2">
                         <BotaoBrindar
                           ativo={p.curti}
                           total={p.curtidas}
@@ -417,7 +417,7 @@ export function Feed() {
                       ) : (
                         // Publicação de pessoa: só o lugar marcado, discreto, levando ao perfil do lugar.
                         p.local && (
-                          <Link to={`/lugar/${p.local.id}`} className={clsx("inline-flex min-w-0 max-w-[55%] items-center gap-1 rounded-full px-2 py-1 text-[12px]", claro ? "text-white/90" : "text-suave hover:bg-elevado hover:text-texto")}>
+                          <Link to={`/lugar/${p.local.id}`} className={clsx("inline-flex min-w-0 max-w-[55%] -ml-2 items-center gap-1 rounded-full px-2 py-1 text-[12px]", claro ? "text-white/90" : "text-suave hover:bg-elevado hover:text-texto")}>
                             <MapPin className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{p.local.nome}</span>
                           </Link>
