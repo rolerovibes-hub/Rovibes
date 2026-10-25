@@ -16,7 +16,7 @@ import { ParaVoceAgora } from "./ParaVoce";
 import { EventosDaGalera } from "./EventosDaGalera";
 import { VideoPost } from "@/components/VideoPost";
 import { VisorPublicacao } from "@/components/VisorPublicacao";
-import { Carrossel } from "@/components/Carrossel";
+import { Carrossel as CarrosselFotos } from "@/components/Carrossel";
 import { ChipMusica } from "@/components/Musicas";
 import { VideosEmSequencia } from "./VideosEmSequencia";
 import type { Corte } from "./VibeCut";
@@ -331,7 +331,7 @@ export function Feed() {
                   <VideoPost src={p.video_url} capa={p.foto_url} aoAbrir={() => setVideoAberto(p.id)} />
                 ) : (
                   (p.fotos?.length ?? 0) > 1 ? (
-                    <Carrossel fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} />
+                    <CarrosselFotos fotos={p.fotos!} aoTocar={() => setAbertaId(p.id)} />
                   ) : (
                     p.foto_url && (
                       <button className="block w-full" onClick={() => setAbertaId(p.id)} aria-label="Abrir publicação em tela cheia">
