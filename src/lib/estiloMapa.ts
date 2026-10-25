@@ -19,30 +19,30 @@ interface Cores {
 
 const NOTURNO: Cores = {
   fundo: "#151923",
-  agua: "#111A28",
-  verde: "#202A30",
-  predio: "#1A1F29",
-  ruaLocal: "#29303D",
-  viaPrincipal: "#41495A",
+  agua: "#16243A",
+  verde: "#26333A",
+  predio: "#222836",
+  ruaLocal: "#3A4352",
+  viaPrincipal: "#5B6579",
   contornoVia: "#151923",
-  trilho: "#232A36",
-  rotulo: "#6E7689",
-  rotuloForte: "#9AA2B4",
+  trilho: "#353D4B",
+  rotulo: "#8F97AA",
+  rotuloForte: "#C0C7D5",
   halo: "#151923",
 };
 
-// Modo claro: fundo claro e ruas, avenidas e nomes em cinza para dar contraste.
+// Modo claro: fundo claro e ruas, avenidas e nomes em cinza escuro para dar contraste.
 const DIURNO: Cores = {
   fundo: "#EEF0F4",
-  agua: "#BCCDE3",
-  verde: "#D3E2D6",
-  predio: "#DADEE5",
-  ruaLocal: "#C4CAD4",
-  viaPrincipal: "#A8B0BD",
-  contornoVia: "#8F98A7",
-  trilho: "#AEB4BF",
-  rotulo: "#525A6B",
-  rotuloForte: "#2F3645",
+  agua: "#A9BFDC",
+  verde: "#C8DBCC",
+  predio: "#D2D7DF",
+  ruaLocal: "#ACB3BF",
+  viaPrincipal: "#8A93A2",
+  contornoVia: "#6E7889",
+  trilho: "#98A0AC",
+  rotulo: "#3D4556",
+  rotuloForte: "#1F2533",
   halo: "#EEF0F4",
 };
 
