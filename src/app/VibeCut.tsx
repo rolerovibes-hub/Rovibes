@@ -13,6 +13,7 @@ import { FolhaComentarios } from "@/components/Comentarios";
 import { QuemBrindou } from "@/components/QuemBrindou";
 import { alternarCurtida, tempoAtras } from "./conteudo";
 import { Navegacao } from "./Navegacao";
+import { ProgressoVideo } from "@/components/ProgressoVideo";
 import { NovoStory } from "./NovoStory";
 
 type Modo = "ao_vivo" | "para_voce";
@@ -353,6 +354,8 @@ export function Video({
       ) : (
         c.foto_url && <img src={c.foto_url} alt="" className="h-full w-full object-cover" loading="lazy" />
       )}
+      {/* Quanto falta para o vídeo acabar (como nos stories) */}
+      {perto && ativo && <ProgressoVideo video={v} className="bottom-0" />}
       {ativo && pausado && (
         <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/40 p-4">
           <Pause className="h-8 w-8" />

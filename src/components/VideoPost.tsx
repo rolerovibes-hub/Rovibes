@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { useEffect, useRef, useState } from "react";
 import { Volume2, VolumeX } from "lucide-react";
+import { ProgressoVideo } from "./ProgressoVideo";
 
 /** Vídeo de publicação: toca sozinho (mudo) quando aparece na tela e pausa quando sai; toque liga o som (ou abre em tela cheia, com `aoAbrir`). */
 export function VideoPost({
@@ -52,6 +53,7 @@ export function VideoPost({
         onClick={() => (aoAbrir ? aoAbrir() : setMudo((m) => !m))}
         className={className ?? "max-h-[520px] w-full object-cover"}
       />
+      <ProgressoVideo video={v} className="bottom-0" />
       {!semBotaoSom && (
       <button onClick={() => setMudo((m) => !m)} className={clsx("absolute right-3 z-10 rounded-full bg-black/55 p-2 text-white", somNoTopo ? "top-16" : "bottom-3")} aria-label={mudo ? "Ligar o som" : "Tirar o som"}>
         {mudo ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
