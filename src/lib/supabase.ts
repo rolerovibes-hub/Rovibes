@@ -10,7 +10,9 @@ export const ehAreaSistema = (caminho: string) => /^\/(business|job)(\/|$)/.test
 export const ehAreaGestao = (caminho: string) => /^\/gestao(\/|$)/.test(caminho);
 /** Cada mundo tem a sua sessão: app (pessoal), sistema (Business/Job) e gestão (equipe RoVibes). */
 export const contextoDe = (caminho: string): "app" | "sistema" | "gestao" => (ehAreaGestao(caminho) ? "gestao" : ehAreaSistema(caminho) ? "sistema" : "app");
-export const contextoAtual = typeof window !== "undefined" ? contextoDe(window.location.pathname) : "app";
+/** Apps de computador (Tauri) definem o contexto antes de carregar: o caminho da janela não diz qual é. */
+const contextoForcado = typeof window !== "undefined" ? (window as unknown as { __ROVIBES_CONTEXTO__?: "app" | "sistema" | "gestao" }).__ROVIBES_CONTEXTO__ : undefined;
+export const contextoAtual = contextoForcado ?? (typeof window !== "undefined" ? contextoDe(window.location.pathname) : "app");
 export const sessaoDoSistema = contextoAtual === "sistema";
 
 // Sem as variáveis (ex.: antes de ligar o Supabase), cria um cliente que só falha ao ser usado.

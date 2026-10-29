@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "build:desktop": "vite build --config vite.desktop.config.ts"
   },
   "dependencies": {
     "@fontsource/ibm-plex-mono": "^5.1.0",

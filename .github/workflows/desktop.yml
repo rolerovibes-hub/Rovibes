@@ -1,0 +1,80 @@
+name: App Windows (Business)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, mapa-agora]
+    paths:
+      - "desktop/**"
+      - "src/**"
+      - "desktop-business.html"
+      - "vite.desktop.config.ts"
+      - "vite.config.ts"
+      - "package.json"
+      - ".github/workflows/desktop.yml"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri -> target
+
+      - name: Banco do site publicado (endereço e chave pública)
+        shell: bash
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: node desktop/configurar-banco.mjs
+
+      - name: Telas do app
+        shell: bash
+        run: |
+          npm install --no-audit --no-fund
+          npm run build:desktop
+          test -f dist-desktop/desktop-business.html
+
+      - name: Gerar o instalador
+        shell: bash
+        working-directory: desktop/src-tauri
+        run: npx --yes @tauri-apps/cli@2 build
+
+      - name: Separar o instalador
+        shell: bash
+        run: |
+          f=$(ls desktop/src-tauri/target/release/bundle/nsis/*.exe | head -1)
+          cp "$f" RoVibes-Business-Instalador.exe
+          ls -la RoVibes-Business-Instalador.exe
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: RoVibes-Business-Windows
+          path: RoVibes-Business-Instalador.exe
+
+      - name: Publicar para download
+        if: github.ref == 'refs/heads/main'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete business-windows --yes --cleanup-tag || true
+          gh release create business-windows RoVibes-Business-Instalador.exe \
+            --title "RoVibes Business para Windows 0.1.${{ github.run_number }}" \
+            --notes "Baixe RoVibes-Business-Instalador.exe no computador do estabelecimento e abra para instalar." \
+            --latest=false

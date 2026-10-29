@@ -2,7 +2,7 @@
 const cor = (nome) => `rgb(var(--${nome}) / <alpha-value>)`;
 
 export default {
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
+  content: ["./index.html", "./desktop-*.html", "./src/**/*.{ts,tsx}"],
   darkMode: ["class"],
   theme: {
     extend: {

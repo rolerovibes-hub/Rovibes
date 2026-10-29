@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RoVibes Business",
+  "version": "0.1.0",
+  "identifier": "br.com.rovibes.business",
+  "build": {
+    "frontendDist": "../../dist-desktop",
+    "devUrl": "http://localhost:5173/desktop-business.html"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "label": "principal",
+        "title": "RoVibes Business",
+        "url": "desktop-business.html",
+        "width": 1366,
+        "height": 820,
+        "minWidth": 1100,
+        "minHeight": 680,
+        "center": true,
+        "maximized": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "publisher": "RoVibes",
+    "shortDescription": "Caixa, cozinha e gestão do estabelecimento",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.ico"
+    ],
+    "windows": {
+      "nsis": {
+        "languages": [
+          "PortugueseBR"
+        ],
+        "installMode": "currentUser"
+      }
+    }
+  }
+}
