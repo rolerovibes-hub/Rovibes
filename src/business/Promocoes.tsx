@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { BadgePercent, Ban, ExternalLink, Pause, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { BadgePercent, Ban, Pause, Pencil, Play, Plus, Trash2, X } from "lucide-react";
+import { VerNoApp } from "./VerNoApp";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -236,10 +236,7 @@ export function Promocoes() {
             Encerrar
           </button>
           <hr className="col-span-full my-1 border-borda" />
-          <Link to={`/lugar/${id}`} className="botao">
-            <ExternalLink className="h-4 w-4" />
-            Ver no App
-          </Link>
+          <VerNoApp caminho={id ? `/lugar/${id}` : null} />
         </>
       }
       rodape={

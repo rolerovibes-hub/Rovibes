@@ -1,7 +1,7 @@
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Camera, ExternalLink, ImagePlus, LocateFixed, RotateCcw, Save, Star, Trash2 } from "lucide-react";
+import { Camera, ImagePlus, LocateFixed, RotateCcw, Save, Star, Trash2 } from "lucide-react";
+import { VerNoApp } from "./VerNoApp";
 import { LugarDasAcoes, TelaUniversal } from "./TelaUniversal";
 import { ChipsGostos } from "./GostosDaCasa";
 import { Aviso } from "@/components/Formulario";
@@ -418,10 +418,7 @@ export function PerfilEstabelecimento() {
             Descartar
           </button>
           <hr className="col-span-full my-1 border-borda" />
-          <Link to={`/lugar/${id}`} className="botao">
-            <ExternalLink className="h-4 w-4" />
-            Ver no App
-          </Link>
+          <VerNoApp caminho={id ? `/lugar/${id}` : null} />
         </>
       }
     >

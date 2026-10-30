@@ -1,5 +1,4 @@
 import { FormEvent, ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
 import {
   AlertTriangle,
@@ -7,7 +6,6 @@ import {
   CalendarDays,
   Check,
   Copy,
-  ExternalLink,
   ImagePlus,
   LocateFixed,
   MapPin,
@@ -23,6 +21,7 @@ import {
   X,
 } from "lucide-react";
 import { EditorIngressos } from "./EditorIngressos";
+import { VerNoApp } from "./VerNoApp";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, reais } from "@/components/Formulario";
 import { IconePapo } from "@/components/IconesRoVibes";
@@ -337,17 +336,7 @@ export function Eventos() {
             <IconePapo className="h-4 w-4" />
             Divulgar no chat
           </button>
-          {evento ? (
-            <Link to={`/evento/${evento.id}`} className="botao">
-              <ExternalLink className="h-4 w-4" />
-              Ver no App
-            </Link>
-          ) : (
-            <button className="botao" disabled>
-              <ExternalLink className="h-4 w-4" />
-              Ver no App
-            </button>
-          )}
+          <VerNoApp caminho={evento ? `/evento/${evento.id}` : null} />
           <button className="botao" disabled={!evento || evento.situacao === "cancelado" || estado === "encerrado" || ocupado} onClick={cancelar}>
             <Ban className="h-4 w-4" />
             Cancelar evento

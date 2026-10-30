@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { CheckCircle2, ExternalLink, QrCode, ScanLine, Ticket, TicketX, Users, X, XCircle } from "lucide-react";
+import { CheckCircle2, QrCode, ScanLine, Ticket, TicketX, Users, X, XCircle } from "lucide-react";
+import { VerNoApp } from "./VerNoApp";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { LeitorQr } from "@/components/Qr";
@@ -133,17 +133,7 @@ export function Ingressos() {
             Desligar ingressos
           </button>
           <hr className="col-span-full my-1 border-borda" />
-          {evento ? (
-            <Link to={`/evento/${evento.id}`} className="botao">
-              <ExternalLink className="h-4 w-4" />
-              Ver no App
-            </Link>
-          ) : (
-            <button className="botao" disabled>
-              <ExternalLink className="h-4 w-4" />
-              Ver no App
-            </button>
-          )}
+          <VerNoApp caminho={evento ? `/evento/${evento.id}` : null} />
         </>
       }
     >

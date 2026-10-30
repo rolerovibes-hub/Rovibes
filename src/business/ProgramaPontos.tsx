@@ -1,7 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import clsx from "clsx";
-import { Award, ExternalLink, Gift, Pencil, Plus, Power, Trash2, X } from "lucide-react";
+import { Award, Gift, Pencil, Plus, Power, Trash2, X } from "lucide-react";
+import { VerNoApp } from "./VerNoApp";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
@@ -192,10 +192,7 @@ export function ProgramaPontos() {
             <Power className="h-4 w-4" />
             {ligado ? "Pausar programa" : "Ligar programa"}
           </button>
-          <Link to={`/lugar/${id}`} className="botao">
-            <ExternalLink className="h-4 w-4" />
-            Ver no App
-          </Link>
+          <VerNoApp caminho={id ? `/lugar/${id}` : null} />
         </>
       }
       rodape={
