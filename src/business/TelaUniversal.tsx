@@ -1,10 +1,39 @@
-import { ReactNode } from "react";
+import { createContext, ReactNode, useContext, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useLocation } from "react-router-dom";
 
+/** App de computador: lugar (coluna da direita) onde as ações da tela aberta aparecem. */
+export const LugarDasAcoes = createContext<{ alvo: HTMLElement | null; registrar: (tem: boolean) => void } | null>(null);
+
 /** Esqueleto de toda tela do Business: área de trabalho à esquerda, ações à direita.
- *  Na Gestão, as ações viram uma barra compacta acima do conteúdo. */
+ *  Na Gestão, as ações viram uma barra compacta acima do conteúdo.
+ *  No app de computador, as ações vão para a coluna "Menu", na seção "Ações". */
 export function TelaUniversal({ acoes, rodape, children }: { acoes?: ReactNode; rodape?: ReactNode; children: ReactNode }) {
   const gestao = useLocation().pathname.startsWith("/gestao");
+  const desktop = useContext(LugarDasAcoes);
+  const tem = !!(acoes || rodape);
+  useEffect(() => {
+    if (!desktop) return;
+    desktop.registrar(tem);
+    return () => desktop.registrar(false);
+  }, [desktop, tem]);
+
+  if (desktop) {
+    return (
+      <div className="min-w-0 space-y-4">
+        {children}
+        {desktop.alvo &&
+          tem &&
+          createPortal(
+            <div className="flex flex-col gap-2 [&>*]:w-full [&_hr]:my-1">
+              {acoes}
+              {rodape && <div className="mt-2 border-t border-borda pt-3 [&>*]:w-full">{rodape}</div>}
+            </div>,
+            desktop.alvo,
+          )}
+      </div>
+    );
+  }
   if (gestao) {
     return (
       <div className="min-w-0 space-y-4">
