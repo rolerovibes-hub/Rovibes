@@ -10,11 +10,14 @@ export function TelaArea({
   areas = AREAS_NEGOCIO,
   base = "/business",
   podeVer,
+  semMenu,
 }: {
   areas?: AreaNegocio[];
   base?: string;
   /** Regra própria de acesso (Gestão: nível do cargo na área). */
   podeVer?: (codigo: string, area: AreaNegocio) => boolean;
+  /** App de computador: as partes ficam no menu lateral do app, não numa segunda coluna. */
+  semMenu?: boolean;
 }) {
   const { area: id = "", codigo } = useParams();
   const area = areaPorId(id, areas);
@@ -34,7 +37,7 @@ export function TelaArea({
     return <Navigate to={`${base}/area/${area.id}/${todas[0].codigo}`} replace />;
   }
   const app = porCodigo(atual)!;
-  const unica = todas.length === 1;
+  const unica = semMenu || todas.length === 1;
 
   return (
     <div className={clsx("grid items-start gap-5", !unica && "lg:grid-cols-[210px_minmax(0,1fr)]")}>
