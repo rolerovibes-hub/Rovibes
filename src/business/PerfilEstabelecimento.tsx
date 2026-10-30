@@ -126,7 +126,7 @@ export function PerfilEstabelecimento() {
     }
     setSemColunasNovas(antigas);
     setEnderecoOriginal((d0(e.data).endereco as string | null) ?? "");
-    const d = e.data as Record<string, unknown>;
+    const d = e.data as unknown as Record<string, unknown>;
     const txt = (k: string) => ((d[k] as string | null) ?? "").toString();
     const separado = txt("logradouro") ? { logradouro: txt("logradouro"), numero: txt("numero") } : separarEndereco(txt("endereco"));
     const novos: Dados = {
