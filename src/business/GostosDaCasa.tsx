@@ -5,7 +5,7 @@ import { Aviso, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { Gosto, NOME_TIPO_GOSTO, ORDEM_TIPOS, TipoGosto, useGostos } from "@/lib/gostos";
 
-function Chips({ gostos, marcados, alternar }: { gostos: Gosto[]; marcados: number[]; alternar: (id: number) => void }) {
+export function ChipsGostos({ gostos, marcados, alternar }: { gostos: Gosto[]; marcados: number[]; alternar: (id: number) => void }) {
   return (
     <div className="flex flex-wrap gap-1.5">
       {gostos.map((g) => {
@@ -69,7 +69,7 @@ export function GostosDaCasa({ estab }: { estab: string }) {
         {ORDEM_TIPOS.map((t: TipoGosto) => (
           <div key={t}>
             <p className="rotulo mb-1.5">{NOME_TIPO_GOSTO[t]}</p>
-            <Chips
+            <ChipsGostos
               gostos={gostos.filter((g) => g.tipo === t)}
               marcados={marcados}
               alternar={(id) => setMarcados((m) => (m.includes(id) ? m.filter((x) => x !== id) : [...m, id]))}
@@ -110,7 +110,7 @@ export function EstilosEvento({ evento }: { evento: string }) {
     <section className="cartao space-y-2 p-4">
       <h2 className="font-semibold">Estilos musicais do evento</h2>
       <p className="text-[13px] text-suave">Salva na hora. Aparece no App como a música prevista do dia.</p>
-      <Chips gostos={gostos.filter((g) => g.tipo === "musica")} marcados={marcados} alternar={(id) => void alternar(id)} />
+      <ChipsGostos gostos={gostos.filter((g) => g.tipo === "musica")} marcados={marcados} alternar={(id) => void alternar(id)} />
       {erro && <p className="text-sm text-perigo">{erro}</p>}
     </section>
   );
