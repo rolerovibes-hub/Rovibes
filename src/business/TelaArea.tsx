@@ -1,9 +1,12 @@
+import { useEffect } from "react";
 import { Navigate, NavLink, useParams } from "react-router-dom";
 import clsx from "clsx";
 import { Aplicativo, porCodigo } from "@/lib/catalogo";
 import { useBusiness } from "@/lib/acessos";
-import { AREAS_NEGOCIO, AreaNegocio, areaPorId, partesLiberadas } from "@/lib/areasNegocio";
+import { AREAS_ANTIGAS, AREAS_NEGOCIO, AreaNegocio, areaPorId, ondeFica, partesLiberadas } from "@/lib/areasNegocio";
+import { supabase } from "@/lib/supabase";
 import { ConteudoApp } from "./TelaAplicativo";
+import { PainelArea } from "./PainelAgora";
 
 /** Uma área de negócio: menu das partes à esquerda (no celular, em cima) e a parte aberta ao lado. */
 export function TelaArea({
@@ -21,9 +24,25 @@ export function TelaArea({
 }) {
   const { area: id = "", codigo } = useParams();
   const area = areaPorId(id, areas);
-  const { temAcesso: temAcessoApp } = useBusiness();
+  const { temAcesso: temAcessoApp, atual: estabAtual } = useBusiness();
   const temAcesso = (app: Aplicativo) => (podeVer && area ? podeVer(app.codigo, area) : temAcessoApp(app));
-  if (!area) return <Navigate to={base} replace />;
+  const estab = estabAtual?.estabelecimento_id ?? null;
+  const aberta = area ? (codigo ?? `painel:${area.id}`) : null;
+
+  // Registro de uso das telas (instrumento de UX).
+  useEffect(() => {
+    if (!aberta || podeVer) return;
+    void supabase.rpc("registrar_uso", { p_codigo: aberta, p_estab: estab, p_origem: "business" }).then(() => undefined);
+  }, [aberta, estab, podeVer]);
+
+  if (!area) {
+    // Endereço antigo (antes da reorganização em Operar/Acompanhar/Gerenciar/Analisar).
+    if (!podeVer && AREAS_ANTIGAS.includes(id)) {
+      const nova = codigo ? ondeFica(codigo, areas) : null;
+      return <Navigate to={nova ? `${base}/area/${nova.area.id}/${codigo}` : base} replace />;
+    }
+    return <Navigate to={base} replace />;
+  }
 
   const grupos = partesLiberadas(area, temAcesso);
   const todas = grupos.flatMap((g) => g.itens);
@@ -34,6 +53,7 @@ export function TelaArea({
     if (codigo && porCodigo(codigo) && area.grupos.some((g) => g.itens.some((i) => i.codigo === codigo))) {
       return <ConteudoApp app={porCodigo(codigo)!} liberado={false} />;
     }
+    if (area.painel && !codigo) return <PainelArea area={area} base={base} />;
     return <Navigate to={`${base}/area/${area.id}/${todas[0].codigo}`} replace />;
   }
   const app = porCodigo(atual)!;

@@ -27,11 +27,11 @@ const plural = (n: number, um: string, varios: string) => `${n} ${n === 1 ? um :
 function selo(area: AreaNegocio, r: Resumo): string | null {
   const n = (v?: number) => v ?? 0;
   switch (area.id) {
-    case "produtos-estoque":
+    case "gerenciar":
       return n(r.estoque_baixo) ? plural(n(r.estoque_baixo), "alerta", "alertas") : null;
-    case "vendas-pedidos":
+    case "operar":
       return n(r.pedidos_atrasados) ? plural(n(r.pedidos_atrasados), "atrasado", "atrasados") : null;
-    case "atendimento-operacao":
+    case "acompanhar":
       return n(r.ocorrencias) + n(r.autorizacoes) ? plural(n(r.ocorrencias) + n(r.autorizacoes), "pendente", "pendentes") : null;
     case "administracao":
       return n(r.aprovacoes) + n(r.denuncias) ? plural(n(r.aprovacoes) + n(r.denuncias), "pendente", "pendentes") : null;
@@ -91,7 +91,7 @@ export function AreaDeTrabalho() {
   const campo = useRef<HTMLInputElement>(null);
   const resultados = useMemo(() => buscar(CATALOGO, termo).filter((a) => !!ondeFica(a.codigo)), [termo]);
   const [resumo, setResumo] = useState<Resumo>({});
-  const areas = AREAS_NEGOCIO.filter((a) => partesLiberadas(a, temAcesso).length > 0);
+  const areas = AREAS_NEGOCIO.filter((a) => !a.oculta && partesLiberadas(a, temAcesso).length > 0);
   const estab = atual?.estabelecimento_id ?? null;
 
   useEffect(() => {

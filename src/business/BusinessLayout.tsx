@@ -1,11 +1,13 @@
 import { useEffect } from "react";
-import { Link, Navigate, Outlet, useLocation, useMatch, useNavigate } from "react-router-dom";
-import { ArrowLeft, ChevronDown, LogOut } from "lucide-react";
+import { Link, Outlet, useLocation, useMatch, useNavigate } from "react-router-dom";
+import { Home, LifeBuoy, LogOut } from "lucide-react";
+import clsx from "clsx";
+import { SeletorContexto } from "./SeletorContexto";
 import { Simbolo } from "@/components/Marca";
 import { Avatar } from "@/components/Avatar";
 import { Carregando } from "@/components/Carregando";
 import { porCodigo } from "@/lib/catalogo";
-import { areaPorId, ondeFica } from "@/lib/areasNegocio";
+import { areaPorId, INTENCOES, ondeFica, partesLiberadas } from "@/lib/areasNegocio";
 import { useSessao } from "@/lib/sessao";
 import { BusinessProvider, useBusiness } from "@/lib/acessos";
 import { PortaSistema } from "@/components/PortaSistema";
@@ -41,50 +43,17 @@ function Estrutura() {
     <div className="min-h-screen">
       <header className="sticky top-0 z-30 border-b border-borda bg-superficie/95 backdrop-blur">
         <div className="flex h-16 w-full items-center gap-3 px-4 sm:px-6 lg:px-8">
-          {area ? (
-            <div className="flex min-w-0 items-center gap-3">
-              <button onClick={() => navegar("/business")} className="botao h-9 w-9 shrink-0 px-0" aria-label="Voltar à Área de Trabalho">
-                <ArrowLeft className="h-4 w-4" />
-              </button>
-              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white" style={{ backgroundColor: area.cor }}>
-                <area.icone className="h-[18px] w-[18px]" />
-              </span>
-              <div className="min-w-0 leading-tight">
-                <h1 className="truncate text-[15px] font-semibold">{area.nome}</h1>
-                <p className="truncate text-[13px] text-suave">{[parte, negocio.atual?.estabelecimento.nome].filter(Boolean).join(" · ")}</p>
-              </div>
-            </div>
-          ) : (
-            <Link to="/business" className="flex min-w-0 items-center gap-3" aria-label="RoVibes Business, Área de Trabalho">
-              <Simbolo className="h-8" />
-              <span className="min-w-0 leading-tight">
-                <span className="block truncate text-[17px] font-semibold">Área de Trabalho</span>
-                <span className="block truncate text-[13px] text-suave">
-                  RoVibes Business{negocio.atual ? ` · ${negocio.atual.estabelecimento.nome}` : ""}
-                </span>
-              </span>
-            </Link>
-          )}
+          <Link to="/business" className="shrink-0" aria-label="RoVibes Business, Início">
+            <Simbolo className="h-8" />
+          </Link>
+          <SeletorContexto />
 
           <div className="ml-auto flex items-center gap-2">
-            {negocio.vinculos.length > 0 && (
-              <label className="relative hidden sm:block">
-                <span className="sr-only">Estabelecimento</span>
-                <select
-                  value={negocio.atual?.estabelecimento_id ?? ""}
-                  onChange={(e) => negocio.escolherEstabelecimento(e.target.value)}
-                  className="h-9 max-w-[220px] appearance-none truncate rounded-lg border border-borda bg-superficie pl-3 pr-8 text-sm font-medium hover:bg-elevado"
-                >
-                  {negocio.vinculos.map((v) => (
-                    <option key={v.estabelecimento_id} value={v.estabelecimento_id}>
-                      {v.estabelecimento.nome}{v.papel === "suporte" ? " (suporte)" : ""}
-                    </option>
-                  ))}
-                </select>
-                <ChevronDown className="pointer-events-none absolute right-2.5 top-2.5 h-4 w-4 text-suave" />
-              </label>
-            )}
-            <button onClick={() => navegar("/business/area/pessoas-equipe/G1002")} className="rounded-full ring-2 ring-transparent hover:ring-marca" aria-label="Meu perfil" title="Meu perfil">
+            <Link to="/business/area/conta/G1004" className="botao hidden h-9 sm:inline-flex" title="Ajuda RoVibes">
+              <LifeBuoy className="h-4 w-4" />
+              Ajuda
+            </Link>
+            <button onClick={() => navegar("/business/area/conta/G1002")} className="rounded-full ring-2 ring-transparent hover:ring-marca" aria-label="Meu perfil" title="Meu perfil">
               <Avatar nome={nome || "?"} tamanho="md" foto={perfil?.foto_url} />
             </button>
             <button
@@ -102,10 +71,46 @@ function Estrutura() {
         </div>
       </header>
 
-      <main className="w-full px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
-        {semEstabelecimento ? <p className="cartao mx-auto max-w-md p-6 text-center text-sm text-suave">Este usuário não está ativo em nenhum estabelecimento.</p> : <Outlet />}
-      </main>
+      <div className="lg:grid lg:grid-cols-[220px_minmax(0,1fr)]">
+        {!semEstabelecimento && <MenuIntencoes />}
+        <main className="w-full min-w-0 px-4 pb-24 pt-6 sm:px-6 sm:pt-8 lg:px-8 lg:pb-8">
+          {semEstabelecimento ? <p className="cartao mx-auto max-w-md p-6 text-center text-sm text-suave">Este usuário não está ativo em nenhum estabelecimento.</p> : <Outlet />}
+        </main>
+      </div>
 
     </div>
+  );
+}
+
+/** Menu principal: Início + as intenções. No computador, coluna à esquerda; no celular, abas embaixo. */
+function MenuIntencoes() {
+  const { temAcesso } = useBusiness();
+  const local = useLocation();
+  const intencoes = INTENCOES.filter((a) => partesLiberadas(a, temAcesso).length > 0);
+  const itens = [{ id: "inicio", nome: "Início", icone: Home, para: "/business" }, ...intencoes.map((a) => ({ id: a.id, nome: a.nome, icone: a.icone, para: `/business/area/${a.id}` }))];
+  const ativo = (id: string) => (id === "inicio" ? local.pathname === "/business" || local.pathname === "/business/" : local.pathname.startsWith(`/business/area/${id}`));
+  return (
+    <>
+      <nav aria-label="Menu principal" className="sticky top-16 hidden h-[calc(100vh-4rem)] flex-col gap-1 border-r border-borda bg-elevado/40 p-3 lg:flex">
+        {itens.map((i) => (
+          <Link
+            key={i.id}
+            to={i.para}
+            className={clsx("flex items-center gap-3 rounded-xl px-3 py-2.5 text-[14.5px] font-semibold", ativo(i.id) ? "bg-marca text-marca-texto" : "text-texto hover:bg-elevado")}
+          >
+            <i.icone className="h-[18px] w-[18px]" />
+            {i.nome}
+          </Link>
+        ))}
+      </nav>
+      <nav aria-label="Menu principal" className="fixed inset-x-0 bottom-0 z-30 grid border-t border-borda bg-superficie pb-[max(6px,env(safe-area-inset-bottom))] pt-1.5 lg:hidden" style={{ gridTemplateColumns: `repeat(${itens.length}, minmax(0, 1fr))` }}>
+        {itens.map((i) => (
+          <Link key={i.id} to={i.para} className={clsx("flex flex-col items-center gap-0.5 py-1 text-[11px] font-semibold", ativo(i.id) ? "text-destaque" : "text-suave")}>
+            <i.icone className="h-5 w-5" />
+            {i.nome}
+          </Link>
+        ))}
+      </nav>
+    </>
   );
 }

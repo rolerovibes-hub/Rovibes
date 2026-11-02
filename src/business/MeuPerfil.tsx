@@ -30,7 +30,7 @@ export function MeuPerfil() {
       if (d?.conta_sistema && d.login && d.codigo) setSistema({ login: d.login, codigo: d.codigo });
     });
   }, []);
-  const minhasAreas = AREAS_NEGOCIO.map((area) => ({
+  const minhasAreas = AREAS_NEGOCIO.filter((a) => !a.oculta).map((area) => ({
     area,
     partes: partesLiberadas(area, temAcesso).flatMap((g) => g.itens.map((i) => ({ codigo: i.codigo, nome: i.nome ?? i.codigo }))),
   })).filter((x) => x.partes.length > 0);

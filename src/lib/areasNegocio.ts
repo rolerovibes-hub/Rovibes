@@ -1,8 +1,8 @@
-import { Activity, BookOpen, Boxes, Building2, CalendarDays, Headset, Library, LifeBuoy, LucideIcon, Megaphone, ReceiptText, Settings, ShieldCheck, Store, Users, UtensilsCrossed, Wallet } from "lucide-react";
+import { Activity, BookOpen, Headset, Library, LifeBuoy, LineChart, LucideIcon, Settings, ShieldCheck, SlidersHorizontal, Store, Users, Wallet, Zap } from "lucide-react";
 import { Aplicativo, porCodigo } from "./catalogo";
 
 /**
- * Business organizado por áreas de negócio: cada área junta os apps (agora "partes") da mesma responsabilidade.
+ * Business organizado em áreas: cada área junta os apps (agora "partes") da mesma intenção.
  * As permissões continuam pelos códigos dos apps: a pessoa vê a área se puder usar alguma parte dela.
  */
 export interface GrupoArea {
@@ -19,86 +19,91 @@ export interface AreaNegocio {
   grupos: GrupoArea[];
   /** Só para a equipe RoVibes. */
   plataforma?: boolean;
+  /** Abre num painel do momento (Operar, Acompanhar) em vez da primeira tela. */
+  painel?: boolean;
+  /** Não aparece no menu (Meu perfil e Ajuda ficam no topo). */
+  oculta?: boolean;
 }
 
+/**
+ * Business organizado por intenção (reestruturação, parte 1): Operar, Acompanhar, Gerenciar e Analisar.
+ * "conta" guarda o que fica no topo da tela (Meu perfil e Ajuda) e não aparece no menu.
+ */
 export const AREAS_NEGOCIO: AreaNegocio[] = [
   {
-    id: "produtos-estoque",
-    nome: "Produtos e Estoque",
-    icone: Boxes,
-    cor: "#0F766E",
+    id: "operar",
+    nome: "Operar",
+    icone: Zap,
+    cor: "#6D28D9",
+    painel: true,
     grupos: [
-      { nome: "Produtos", itens: [{ codigo: "G4003", nome: "Meus produtos" }] },
-      { nome: "Estoque", itens: [{ codigo: "G4002", nome: "Estoque e locais" }, { codigo: "T4004", nome: "Movimentações" }] },
+      {
+        nome: "Operação",
+        itens: [
+          { codigo: "T7005", nome: "Caixa" },
+          { codigo: "T7001", nome: "Mesas e comandas" },
+          { codigo: "T7002", nome: "Pedidos" },
+          { codigo: "T7003", nome: "Entregas" },
+          { codigo: "T5005", nome: "Check-in e portaria" },
+          { codigo: "T4004", nome: "Movimentar estoque" },
+        ],
+      },
     ],
   },
   {
-    id: "vendas-pedidos",
-    nome: "Vendas e Pedidos",
-    icone: ReceiptText,
-    cor: "#B45309",
-    grupos: [
-      { nome: "Venda", itens: [{ codigo: "G4001", nome: "Cardápio" }] },
-      { nome: "Pedidos", itens: [{ codigo: "T7002", nome: "Fila de pedidos" }, { codigo: "T7003", nome: "Entregas" }] },
-    ],
-  },
-  {
-    id: "atendimento-operacao",
-    nome: "Atendimento e Operação",
-    icone: UtensilsCrossed,
-    cor: "#BE123C",
+    id: "acompanhar",
+    nome: "Acompanhar",
+    icone: Activity,
+    cor: "#0EA5E9",
+    painel: true,
     grupos: [
       { nome: "Agora", itens: [{ codigo: "T7004", nome: "Supervisão" }, { codigo: "T5002", nome: "Status ao vivo" }] },
-      { nome: "Salão", itens: [{ codigo: "T7001", nome: "Mesas e comandas" }, { codigo: "T7005", nome: "Caixa" }] },
+      { nome: "Conversas", itens: [{ codigo: "T2001", nome: "Mensagens" }, { codigo: "T2002", nome: "Chat ao vivo" }] },
     ],
   },
   {
-    id: "marketing-vitrine",
-    nome: "Marketing e Vitrine",
-    icone: Megaphone,
-    cor: "#7C3AED",
+    id: "gerenciar",
+    nome: "Gerenciar",
+    icone: SlidersHorizontal,
+    cor: "#16A34A",
     grupos: [
-      { nome: "Conteúdo", itens: [{ codigo: "G6001", nome: "Publicações" }, { codigo: "G6002", nome: "Stories" }] },
-      { nome: "Campanhas", itens: [{ codigo: "G5003", nome: "Promoções e cupons" }] },
-      { nome: "Fidelidade", itens: [{ codigo: "G9001", nome: "Programa de pontos" }] },
+      { nome: "Meu negócio", itens: [{ codigo: "G1001", nome: "Perfil do estabelecimento" }] },
+      { nome: "Cardápio e produtos", itens: [{ codigo: "G4001", nome: "Cardápio" }, { codigo: "G4003", nome: "Produtos" }, { codigo: "G4002", nome: "Estoque e locais" }] },
+      { nome: "Pessoas", itens: [{ codigo: "G3001", nome: "Equipe e funções" }] },
+      { nome: "Eventos", itens: [{ codigo: "G5001", nome: "Eventos" }, { codigo: "G5004", nome: "Ingressos" }] },
+      {
+        nome: "Marketing",
+        itens: [
+          { codigo: "G6001", nome: "Publicações" },
+          { codigo: "G6002", nome: "Stories" },
+          { codigo: "G5003", nome: "Promoções e cupons" },
+          { codigo: "G9001", nome: "Programa de pontos" },
+        ],
+      },
     ],
   },
   {
-    id: "eventos",
-    nome: "Eventos",
-    icone: CalendarDays,
-    cor: "#9333EA",
-    grupos: [{ nome: "Eventos", itens: [{ codigo: "G5001", nome: "Eventos" }, { codigo: "G5004", nome: "Ingressos" }, { codigo: "T5005", nome: "Listas e portaria" }] }],
+    id: "analisar",
+    nome: "Analisar",
+    icone: LineChart,
+    cor: "#B45309",
+    grupos: [{ nome: "Resultados", itens: [{ codigo: "C8001", nome: "Indicadores" }, { codigo: "G1003", nome: "Recebimentos" }] }],
   },
   {
-    id: "financeiro",
-    nome: "Financeiro",
-    icone: Wallet,
-    cor: "#15803D",
-    grupos: [{ nome: "Recebimentos", itens: [{ codigo: "G1003", nome: "Pagamentos" }] }],
-  },
-  {
-    id: "pessoas-equipe",
-    nome: "Pessoas e Equipe",
+    id: "conta",
+    nome: "Minha conta",
     icone: Users,
-    cor: "#1D4ED8",
-    grupos: [
-      { nome: "Equipe", itens: [{ codigo: "G3001", nome: "Equipe e funções" }] },
-      { nome: "Comunicação", itens: [{ codigo: "T2001", nome: "Mensagens" }, { codigo: "T2002", nome: "Chat ao vivo" }] },
-      { nome: "Minha conta", itens: [{ codigo: "G1002", nome: "Meu perfil" }] },
-    ],
-  },
-  {
-    id: "gestao",
-    nome: "Gestão do Estabelecimento",
-    icone: Building2,
     cor: "#334155",
-    grupos: [
-      { nome: "Meu negócio", itens: [{ codigo: "G1001", nome: "Perfil do estabelecimento" }, { codigo: "C8001", nome: "Indicadores" }] },
-      { nome: "RoVibes", itens: [{ codigo: "G1004", nome: "Ajuda RoVibes" }] },
-    ],
+    oculta: true,
+    grupos: [{ nome: "Conta", itens: [{ codigo: "G1002", nome: "Meu perfil" }, { codigo: "G1004", nome: "Ajuda RoVibes" }] }],
   },
 ];
+
+/** Áreas que aparecem no menu (Operar, Acompanhar, Gerenciar, Analisar). */
+export const INTENCOES = AREAS_NEGOCIO.filter((a) => !a.oculta);
+
+/** Endereços antigos (antes da parte 1) que podem estar salvos em favoritos ou no app de computador. */
+export const AREAS_ANTIGAS = ["produtos-estoque", "vendas-pedidos", "atendimento-operacao", "marketing-vitrine", "eventos", "financeiro", "pessoas-equipe", "gestao"];
 
 /** Gestão RoVibes (/gestao): áreas da operação da plataforma. O id é a área de permissão do cargo. */
 const sit = (codigo: string) => ({ codigo, nome: "Situações" });

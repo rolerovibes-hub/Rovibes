@@ -669,7 +669,7 @@ export function PerfilEstabelecimento() {
       </SecaoFormulario>
 
       {!noComputador && alteradas > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-3 border-t border-borda bg-superficie px-4 py-3 pb-[max(12px,env(safe-area-inset-bottom))] xl:hidden">
+        <div className="fixed inset-x-0 bottom-[calc(58px+env(safe-area-inset-bottom))] z-40 flex items-center gap-3 border-t border-borda bg-superficie px-4 py-3 lg:bottom-0 xl:hidden">
           <span className="flex-1 text-[12.5px] font-medium text-alerta">
             {alteradas} {alteradas === 1 ? "seção alterada" : "seções alteradas"}
           </span>
