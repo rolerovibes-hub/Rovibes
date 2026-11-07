@@ -61,7 +61,7 @@ export function FichaEstabelecimento() {
         <section className="cartao space-y-3 p-4">
           <div className="flex items-center gap-3">
             {f.logo_url ? (
-              <img src={f.logo_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
+              <img loading="lazy" src={f.logo_url} alt="" className="h-12 w-12 rounded-lg object-cover" />
             ) : (
               <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-elevado text-suave">
                 <Store className="h-5 w-5" />

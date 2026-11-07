@@ -121,7 +121,7 @@ export function PessoasApp() {
 function Foto({ url, grande }: { url: string | null; grande?: boolean }) {
   const t = grande ? "h-14 w-14" : "h-9 w-9";
   return url ? (
-    <img src={url} alt="" className={clsx(t, "shrink-0 rounded-full object-cover")} />
+    <img loading="lazy" src={url} alt="" className={clsx(t, "shrink-0 rounded-full object-cover")} />
   ) : (
     <span className={clsx(t, "flex shrink-0 items-center justify-center rounded-full bg-elevado text-suave")}>
       <UserRound className="h-4 w-4" />

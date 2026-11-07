@@ -13,6 +13,7 @@ import { AcessoGestao as Acesso, GestaoContexto, meuAcessoGestao, useGestao } fr
 import { AREAS_GESTAO } from "@/lib/areasNegocio";
 import { porCodigo } from "@/lib/catalogo";
 import { SinoAvisos } from "./Avisos";
+import { seVisivel } from "@/lib/visivel";
 
 /** Gestão RoVibes (/gestao): sistema da equipe da plataforma, com identidade escura própria. */
 export function GestaoLayout() {
@@ -94,7 +95,7 @@ function Estrutura({ acesso }: { acesso: Acesso }) {
   useEffect(() => {
     const carregar = () => supabase.rpc("resumo_central").then(({ data }) => setPorArea(((data ?? {}) as { por_area?: Record<string, number> }).por_area ?? {}));
     void carregar();
-    const t = window.setInterval(carregar, 60000);
+    const t = window.setInterval(seVisivel(carregar), 60000);
     return () => window.clearInterval(t);
   }, [local.pathname]);
 

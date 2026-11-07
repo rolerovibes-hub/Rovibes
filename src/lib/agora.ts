@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "./supabase";
 import type { Movimento } from "@/components/Marca";
+import { seVisivel } from "@/lib/visivel";
 
 export type Confianca = "alta" | "media" | "baixa";
 export type Visibilidade = "publico" | "amigos" | "privado";
@@ -64,7 +65,7 @@ export function useAgora(estab: string | null | undefined) {
   }, [estab]);
   useEffect(() => {
     void carregar();
-    const t = window.setInterval(() => void carregar(), 120000);
+    const t = window.setInterval(seVisivel(() => void carregar()), 120000);
     return () => window.clearInterval(t);
   }, [carregar]);
   return { agora, recarregar: carregar };

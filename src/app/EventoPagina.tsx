@@ -58,7 +58,7 @@ export function EventoPagina() {
     <article className="pb-6">
       <div className="relative">
         {evento.capa_url ? (
-          <img src={evento.capa_url} alt="" className="aspect-[16/10] w-full object-cover" />
+          <img loading="lazy" src={evento.capa_url} alt="" className="aspect-[16/10] w-full object-cover" />
         ) : (
           <div className="flex aspect-[16/10] w-full items-center justify-center bg-elevado text-suave">
             <CalendarDays className="h-8 w-8" />

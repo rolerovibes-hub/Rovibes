@@ -177,7 +177,7 @@ export function LinhaBiblioteca({
   return (
     <button type="button" disabled={disabled} onClick={aoEscolher} className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm hover:bg-elevado">
       {b.foto_url ? (
-        <img src={b.foto_url} alt="" className="h-11 w-11 shrink-0 rounded-lg bg-white object-cover" />
+        <img loading="lazy" src={b.foto_url} alt="" className="h-11 w-11 shrink-0 rounded-lg bg-white object-cover" />
       ) : (
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
           <Package className="h-5 w-5" />

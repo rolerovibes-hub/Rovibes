@@ -14,7 +14,7 @@ export function QrCode({ texto, tamanho = 220 }: { texto: string; tamanho?: numb
   return (
     <span className="inline-block rounded-xl bg-white p-3">
       {url ? (
-        <img src={url} alt={`QR code ${texto}`} width={tamanho} height={tamanho} />
+        <img loading="lazy" src={url} alt={`QR code ${texto}`} width={tamanho} height={tamanho} />
       ) : (
         <span className="block" style={{ width: tamanho, height: tamanho }} />
       )}

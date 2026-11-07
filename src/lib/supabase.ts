@@ -49,3 +49,6 @@ export function mensagemDeErro(erro: unknown): string {
   if (/violates check constraint/i.test(msg)) return "Confira os campos: algum valor está fora do permitido.";
   return msg;
 }
+
+/** Arquivos enviados têm nome único: podem ficar guardados no aparelho por 1 ano (evita baixar de novo). */
+export const CACHE_ANO = "31536000";

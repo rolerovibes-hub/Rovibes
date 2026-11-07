@@ -90,7 +90,7 @@ export function LinksDoApp() {
   return (
     <div className="fixed inset-x-0 bottom-0 z-[75] mx-auto max-w-xl p-3 pb-[max(12px,env(safe-area-inset-bottom))]">
       <div className="folha flex items-center gap-3 rounded-2xl border border-borda bg-superficie p-3 shadow-xl">
-        <img src="/favicon.png" alt="" className="h-10 w-10 rounded-xl" />
+        <img loading="lazy" src="/favicon.png" alt="" className="h-10 w-10 rounded-xl" />
         <span className="min-w-0 flex-1">
           <span className="block text-sm font-semibold">Abrir no app RoVibes</span>
           <span className="block text-[12px] text-suave">Vai direto para esta tela.</span>

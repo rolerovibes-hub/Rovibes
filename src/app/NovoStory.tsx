@@ -311,7 +311,7 @@ export function NovoStory({
               ) : (
                 <div className="space-y-2">
                   <div className="relative overflow-hidden rounded-xl bg-black">
-                    <img src={fotos[fotoAtual]?.url} alt="" className="mx-auto max-h-[46dvh] object-contain" />
+                    <img loading="lazy" src={fotos[fotoAtual]?.url} alt="" className="mx-auto max-h-[46dvh] object-contain" />
                     {fotos.length > 1 && (
                       <span className="absolute right-2 top-2 rounded-full bg-black/55 px-2 py-0.5 text-[12px] font-semibold text-white">
                         {fotoAtual + 1}/{fotos.length}
@@ -322,7 +322,7 @@ export function NovoStory({
                     {fotos.map((f, i) => (
                       <div key={f.url} className="relative shrink-0">
                         <button onClick={() => setFotoAtual(i)} className={clsx("block h-16 w-16 overflow-hidden rounded-lg ring-2", i === fotoAtual ? "ring-marca" : "ring-transparent")}>
-                          <img src={f.url} alt="" className="h-full w-full object-cover" />
+                          <img loading="lazy" src={f.url} alt="" className="h-full w-full object-cover" />
                         </button>
                         <button onClick={() => tirarFoto(i)} className="absolute -right-1 -top-1 rounded-full bg-black/80 p-0.5 text-white" aria-label="Tirar foto">
                           <X className="h-3 w-3" />

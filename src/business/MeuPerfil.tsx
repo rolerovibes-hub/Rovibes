@@ -11,6 +11,7 @@ import { reduzirImagem } from "@/lib/imagens";
 import { useSessao } from "@/lib/sessao";
 import { NOME_PAPEL, useBusiness } from "@/lib/acessos";
 import { AREAS_NEGOCIO, partesLiberadas } from "@/lib/areasNegocio";
+import { CACHE_ANO } from "@/lib/supabase";
 
 /** Meu perfil: dados pessoais, preferências e os acessos por área. */
 export function MeuPerfil() {
@@ -75,7 +76,7 @@ export function MeuPerfil() {
     void executar(async () => {
       const blob = await reduzirImagem(arquivo, 512);
       const caminho = `${sessao.user.id}/foto-${crypto.randomUUID()}.jpg`;
-      const { error } = await supabase.storage.from("avatares").upload(caminho, blob, { contentType: "image/jpeg" });
+      const { error } = await supabase.storage.from("avatares").upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
       if (error) throw /bucket/i.test(error.message) ? new Error("Falta aplicar a atualização 012 do banco para guardar fotos de perfil.") : error;
       const url = supabase.storage.from("avatares").getPublicUrl(caminho).data.publicUrl;
       const antiga = perfil?.foto_url?.split("/avatares/")[1];

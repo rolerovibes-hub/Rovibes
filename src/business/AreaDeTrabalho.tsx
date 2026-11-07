@@ -8,6 +8,7 @@ import { useSessao } from "@/lib/sessao";
 import { supabase } from "@/lib/supabase";
 import { reais } from "@/components/Formulario";
 import { AREAS_NEGOCIO, AreaNegocio, linkDoApp, ondeFica, partesLiberadas } from "@/lib/areasNegocio";
+import { seVisivel } from "@/lib/visivel";
 
 interface Resumo {
   vendas_hoje?: number;
@@ -101,7 +102,7 @@ export function AreaDeTrabalho() {
         if (vivo && !error) setResumo((data ?? {}) as Resumo);
       });
     void carregar();
-    const t = window.setInterval(carregar, 60000);
+    const t = window.setInterval(seVisivel(carregar), 60000);
     return () => {
       vivo = false;
       window.clearInterval(t);

@@ -191,7 +191,7 @@ export function VisorStories({
             className="absolute inset-0 h-full w-full object-contain"
           />
         ) : (
-          <img src={story.foto_url} alt={story.legenda ?? ""} className="absolute inset-0 h-full w-full object-contain" />
+          <img loading="lazy" src={story.foto_url} alt={story.legenda ?? ""} className="absolute inset-0 h-full w-full object-contain" />
         )}
         {musicaFoto && <audio key={story.id} ref={telaMusica} src={musicaFoto.arquivo_url} autoPlay loop muted={mudo} />}
         {(ehVideo || musicaFoto) && (
@@ -217,7 +217,7 @@ export function VisorStories({
           <div className="flex items-center gap-2.5 text-white">
             <Link to={linkAutor} onClick={fechar} className="flex min-w-0 flex-1 items-center gap-2.5">
               {grupo.autor.logo_url ? (
-                <img src={grupo.autor.logo_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                <img loading="lazy" src={grupo.autor.logo_url} alt="" className="h-8 w-8 rounded-full object-cover" />
               ) : pessoa ? (
                 <Avatar nome={grupo.autor.nome} tamanho="sm" />
               ) : (

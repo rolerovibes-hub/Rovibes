@@ -154,7 +154,7 @@ export function MarcarRole() {
         {/* Lugar */}
         <div className="relative overflow-hidden rounded-2xl">
           {lugar.capa_url ? (
-            <img src={lugar.capa_url} alt="" className="h-32 w-full object-cover" />
+            <img loading="lazy" src={lugar.capa_url} alt="" className="h-32 w-full object-cover" />
           ) : (
             <div className="flex h-32 w-full items-center justify-center bg-elevado text-suave">
               <Store className="h-7 w-7" />

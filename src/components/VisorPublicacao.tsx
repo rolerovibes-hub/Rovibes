@@ -160,7 +160,7 @@ export function VisorPublicacao({
         ) : (dados.fotos?.length ?? 0) > 1 ? (
           <Carrossel fotos={dados.fotos!} cheio className="h-full w-full" />
         ) : (
-          dados.foto && <img src={dados.foto} alt={dados.texto ?? ""} className="h-full w-full object-contain" draggable={false} />
+          dados.foto && <img loading="lazy" src={dados.foto} alt={dados.texto ?? ""} className="h-full w-full object-contain" draggable={false} />
         )}
         {dados.musica && !dados.video && <audio src={dados.musica.arquivo_url} autoPlay loop muted={mudo} />}
       </div>

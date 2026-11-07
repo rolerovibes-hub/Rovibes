@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
+import { CACHE_ANO } from "@/lib/supabase";
 
 export interface ConversaResumo {
   id: string;
@@ -228,7 +229,7 @@ export async function enviarMensagem(conversa: string, texto: string, arquivo?: 
   if (arquivo) {
     const blob = await reduzirImagem(arquivo, 1600);
     foto = `${conversa}/${crypto.randomUUID()}.jpg`;
-    const { error } = await supabase.storage.from("chat").upload(foto, blob, { contentType: "image/jpeg" });
+    const { error } = await supabase.storage.from("chat").upload(foto, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
     if (error) throw error;
   }
   // p_lugar só vai quando há lugar (assim texto e foto funcionam mesmo antes da atualização 015 do banco).

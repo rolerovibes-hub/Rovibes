@@ -4,6 +4,7 @@ import clsx from "clsx";
 import { AlarmClock, Bell, BellRing, MessageSquare, Siren, UserRound, Inbox } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { tempoCurto } from "@/lib/gestao";
+import { seVisivel } from "@/lib/visivel";
 
 interface Aviso {
   id: number;
@@ -53,7 +54,7 @@ export function SinoAvisos({ usuario }: { usuario: string }) {
       })
       .subscribe();
     // Reserva: se o tempo real cair, atualiza a cada minuto.
-    const t = window.setInterval(() => void carregar(), 60000);
+    const t = window.setInterval(seVisivel(() => void carregar()), 60000);
     return () => {
       window.clearInterval(t);
       void supabase.removeChannel(canal);

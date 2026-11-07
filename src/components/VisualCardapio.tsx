@@ -50,7 +50,7 @@ export function DetalheItemCardapio({ item, lugar, fechar, embutido, rodape }: {
     <div className={clsx("w-full overflow-hidden bg-superficie", embutido ? "rounded-t-2xl" : "folha max-h-[92vh] max-w-lg overflow-y-auto rounded-t-2xl pb-[max(16px,env(safe-area-inset-bottom))] sm:rounded-2xl")} onClick={(e) => e.stopPropagation()}>
       <div className="relative">
         {item.foto_url ? (
-          <img src={item.foto_url} alt={item.nome} className="aspect-square w-full bg-white object-cover" />
+          <img loading="lazy" src={item.foto_url} alt={item.nome} className="aspect-square w-full bg-white object-cover" />
         ) : (
           <div className="flex aspect-[2/1] w-full items-center justify-center bg-elevado text-suave">
             <UtensilsCrossed className="h-8 w-8" />

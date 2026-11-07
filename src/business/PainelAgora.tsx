@@ -8,6 +8,7 @@ import { useBusiness } from "@/lib/acessos";
 import { AreaNegocio, linkDoApp, partesLiberadas } from "@/lib/areasNegocio";
 import { noApp, novaJanela } from "@/desktop/nativo";
 import { reais } from "@/components/Formulario";
+import { seVisivel } from "@/lib/visivel";
 
 interface Atencao {
   nivel: "alto" | "medio";
@@ -43,7 +44,7 @@ function useAgora(estab: string | undefined) {
         if (vivo) setAgora(error ? {} : ((data ?? {}) as Agora));
       });
     void carregar();
-    const t = window.setInterval(carregar, 30000);
+    const t = window.setInterval(seVisivel(carregar), 30000);
     return () => {
       vivo = false;
       window.clearInterval(t);

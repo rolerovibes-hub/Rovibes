@@ -203,7 +203,7 @@ export function MenuFlutuante() {
             <div className="mb-3 rounded-2xl border border-borda bg-fundo/70 p-3">
               <button onClick={() => ir(`/lugar/${foco.id}`)} className="flex w-full items-center gap-2.5 text-left">
                 {foco.logo_url ? (
-                  <img src={foco.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+                  <img loading="lazy" src={foco.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
                 ) : (
                   <span className="flex h-9 w-9 items-center justify-center rounded-full bg-elevado text-suave">
                     <Store className="h-4 w-4" />

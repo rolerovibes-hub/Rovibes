@@ -261,7 +261,7 @@ export function ComandaPagina() {
         </button>
         <Link to={`/lugar/${comanda.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
           {comanda.estabelecimento.logo_url ? (
-            <img src={comanda.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+            <img loading="lazy" src={comanda.estabelecimento.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
           ) : (
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-elevado text-suave">
               <Store className="h-4 w-4" />

@@ -438,7 +438,7 @@ export function PerfilEstabelecimento() {
               aria-label="Trocar a logo"
               className="group relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border border-dashed border-borda bg-fundo text-suave hover:bg-elevado"
             >
-              {dados.logo_url ? <img src={dados.logo_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
+              {dados.logo_url ? <img loading="lazy" src={dados.logo_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
               <span className="absolute bottom-2 left-1/2 -translate-x-1/2 rounded-md bg-black/65 px-2 py-0.5 text-[11.5px] font-semibold text-white">Logo</span>
             </button>
             <button
@@ -448,7 +448,7 @@ export function PerfilEstabelecimento() {
               aria-label="Trocar a capa"
               className="relative flex h-28 min-w-0 flex-1 items-center justify-center overflow-hidden rounded-xl border border-dashed border-borda bg-fundo text-suave hover:bg-elevado"
             >
-              {dados.capa_url ? <img src={dados.capa_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
+              {dados.capa_url ? <img loading="lazy" src={dados.capa_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
               <span className="absolute bottom-2 left-2 flex items-center gap-1 rounded-md bg-black/65 px-2 py-0.5 text-[11.5px] font-semibold text-white">
                 <Camera className="h-3 w-3" />
                 {enviando ? "Enviando…" : "Capa"}

@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { CACHE_ANO, supabase } from "./supabase";
 
 /** Vídeos do RoVibes: até 3 minutos. */
 export const MAX_VIDEO = 180;
@@ -282,6 +282,7 @@ export async function subirComProgresso(balde: string, caminho: string, arquivo:
       x.open("PUT", assinado.data!.signedUrl);
       x.setRequestHeader("content-type", tipo);
       x.setRequestHeader("x-upsert", "false");
+      x.setRequestHeader("cache-control", `max-age=${CACHE_ANO}`);
       x.upload.onprogress = (e) => {
         vigiar();
         if (e.lengthComputable) aoProgresso?.(e.loaded / e.total);
@@ -302,7 +303,7 @@ export async function subirComProgresso(balde: string, caminho: string, arquivo:
   // Sem link assinado (ou se ele falhar): envio comum, sem barra de progresso detalhada.
   if (!foi) {
     const { error } = await comPrazo(
-      supabase.storage.from(balde).upload(caminho, arquivo, { contentType: tipo, upsert: true }),
+      supabase.storage.from(balde).upload(caminho, arquivo, { cacheControl: CACHE_ANO, contentType: tipo, upsert: true }),
       Math.max(90000, (arquivo.size / (100 * 1024)) * 1000),
       "A internet travou no envio. Toque em ↻ para continuar.",
     );

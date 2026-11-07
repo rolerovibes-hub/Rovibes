@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { gravar, ler } from "@/lib/armazenamento";
+import { seVisivel } from "@/lib/visivel";
 
 export interface Notificacao {
   id: string;
@@ -170,7 +171,7 @@ export function useNotificacoes(usuario: string | undefined, pedido: { comanda: 
 
   useEffect(() => {
     void carregar();
-    const t = window.setInterval(() => void carregar(), 120000);
+    const t = window.setInterval(seVisivel(() => void carregar()), 120000);
     return () => window.clearInterval(t);
   }, [carregar]);
 

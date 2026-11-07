@@ -12,6 +12,7 @@ import { NOME_RESPOSTA, Plano, quandoPlano, RespostaPlano, rpcPlano } from "@/li
 import { pedirLocalizacao, useVitrine } from "./dados";
 import { tempoAtras } from "./conteudo";
 import { Navegacao } from "./Navegacao";
+import { seVisivel } from "@/lib/visivel";
 
 export interface LocalPessoa {
   usuario_id: string;
@@ -38,7 +39,7 @@ export function useLocalizacao(conversa: string, eu: string, ativo: boolean) {
       .channel(`locais-${conversa}-${Math.random().toString(36).slice(2)}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "localizacoes_role", filter: `conversa_id=eq.${conversa}` }, () => carregar())
       .subscribe();
-    const t = window.setInterval(carregar, 30000);
+    const t = window.setInterval(seVisivel(carregar), 30000);
     return () => {
       window.clearInterval(t);
       void supabase.removeChannel(canal);
@@ -79,7 +80,7 @@ const iconePessoa = (nome: string, foto: string | null) =>
   L.divIcon({
     className: "",
     html: foto
-      ? `<img src="${esc(foto)}" alt="" style="width:36px;height:36px;border-radius:9999px;border:3px solid white;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.35)" />`
+      ? `<img loading="lazy" src="${esc(foto)}" alt="" style="width:36px;height:36px;border-radius:9999px;border:3px solid white;object-fit:cover;box-shadow:0 2px 6px rgba(0,0,0,.35)" />`
       : `<span style="display:flex;width:36px;height:36px;border-radius:9999px;border:3px solid white;background:#6D28D9;color:white;font:600 14px sans-serif;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,.35)">${esc((nome[0] ?? "?").toUpperCase())}</span>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
@@ -92,7 +93,7 @@ export function PlanoFixado({ plano, compartilhando, abrir }: { plano: Plano; co
   return (
     <button onClick={abrir} className="flex w-full items-center gap-3 bg-superficie px-3 py-2 text-left transition-colors hover:bg-elevado">
       {plano.local_foto ? (
-        <img src={plano.local_foto} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
+        <img loading="lazy" src={plano.local_foto} alt="" className="h-10 w-10 shrink-0 rounded-lg object-cover" />
       ) : (
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
           <MapPin className="h-5 w-5" />
@@ -193,7 +194,7 @@ export function FolhaPlano({
       <div className="folha max-h-[92vh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-superficie pb-[max(16px,env(safe-area-inset-bottom))] sm:rounded-2xl" onClick={(e) => e.stopPropagation()}>
         <div className="relative">
           {plano.local_foto ? (
-            <img src={plano.local_foto} alt="" className="aspect-[16/9] w-full object-cover" />
+            <img loading="lazy" src={plano.local_foto} alt="" className="aspect-[16/9] w-full object-cover" />
           ) : (
             <div className="flex aspect-[16/9] w-full items-center justify-center bg-elevado text-suave">
               <MapPin className="h-10 w-10" />

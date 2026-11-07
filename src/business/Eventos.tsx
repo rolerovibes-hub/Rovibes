@@ -469,7 +469,7 @@ export function Eventos() {
       {evento && estado && (
         <section className="cartao grid gap-5 p-4 md:grid-cols-[240px_1fr]">
           {evento.capa_url ? (
-            <img src={evento.capa_url} alt="" className="aspect-[16/10] w-full rounded-lg object-cover" />
+            <img loading="lazy" src={evento.capa_url} alt="" className="aspect-[16/10] w-full rounded-lg object-cover" />
           ) : (
             <span className="flex aspect-[16/10] w-full items-center justify-center rounded-lg bg-elevado text-suave">
               <ImagePlus className="h-6 w-6" />
@@ -721,7 +721,7 @@ function EditorEvento({
                 >
                   {r.capa_url ? (
                     <>
-                      <img src={r.capa_url} alt="" className="h-full w-full object-cover" />
+                      <img loading="lazy" src={r.capa_url} alt="" className="h-full w-full object-cover" />
                       <span className="absolute bottom-2 right-2 rounded-full bg-black/60 px-2.5 py-1 text-[12px] font-semibold text-white">Trocar capa</span>
                     </>
                   ) : (
@@ -985,7 +985,7 @@ function Previa({ r, inicio, fim, lugar }: { r: Rascunho; inicio: string | null;
       </p>
       <div className="relative">
         {r.capa_url ? (
-          <img src={r.capa_url} alt="" className="aspect-[16/10] w-full object-cover" />
+          <img loading="lazy" src={r.capa_url} alt="" className="aspect-[16/10] w-full object-cover" />
         ) : (
           <span className="flex aspect-[16/10] w-full items-center justify-center bg-elevado text-suave">
             <CalendarDays className="h-7 w-7" />

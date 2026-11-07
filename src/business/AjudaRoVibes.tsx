@@ -4,6 +4,7 @@ import { ArrowLeft, Send } from "lucide-react";
 import { Aviso } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { useBusiness } from "@/lib/acessos";
+import { seVisivel } from "@/lib/visivel";
 
 interface Pedido {
   numero: number;
@@ -127,7 +128,7 @@ function ConversaPedido({ estab, numero, voltar }: { estab: string; numero: numb
   }, [estab, numero]);
   useEffect(() => {
     void carregar();
-    const t = window.setInterval(() => void carregar(), 20000);
+    const t = window.setInterval(seVisivel(() => void carregar()), 20000);
     return () => window.clearInterval(t);
   }, [carregar]);
 

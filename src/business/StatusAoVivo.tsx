@@ -9,6 +9,7 @@ import { useSessao } from "@/lib/sessao";
 import { useBusiness } from "@/lib/acessos";
 import { Estrelas } from "@/app/Avaliacoes";
 import { NOME_MOVIMENTO } from "@/app/presenca";
+import { seVisivel } from "@/lib/visivel";
 
 const NIVEIS: Movimento[] = ["tranquilo", "moderado", "cheio"];
 
@@ -74,7 +75,7 @@ export function StatusAoVivo() {
 
   useEffect(() => {
     void carregar();
-    const t = window.setInterval(() => void carregar(), 60000);
+    const t = window.setInterval(seVisivel(() => void carregar()), 60000);
     return () => window.clearInterval(t);
   }, [carregar]);
 

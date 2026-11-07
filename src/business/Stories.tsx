@@ -153,7 +153,7 @@ export function Stories() {
               onClick={() => seletor.current?.click()}
               className="flex aspect-[9/16] w-32 items-center justify-center overflow-hidden rounded-lg border border-dashed border-borda bg-fundo text-suave hover:bg-elevado"
             >
-              {novo.foto_url ? <img src={novo.foto_url} alt="" className="h-full w-full object-cover" /> : ocupado ? "Enviando…" : <ImagePlus className="h-6 w-6" />}
+              {novo.foto_url ? <img loading="lazy" src={novo.foto_url} alt="" className="h-full w-full object-cover" /> : ocupado ? "Enviando…" : <ImagePlus className="h-6 w-6" />}
             </button>
             <div className="min-w-[220px] flex-1 space-y-3">
               <Campo rotulo="Legenda (opcional)">

@@ -27,7 +27,7 @@ export function Avatar({
     tamanho === "story" && "h-[58px] w-[58px] text-lg",
   );
   if (foto) {
-    const img = <img src={foto} alt="" className={clsx("shrink-0 rounded-full object-cover", medida)} />;
+    const img = <img loading="lazy" src={foto} alt="" className={clsx("shrink-0 rounded-full object-cover", medida)} />;
     return ampliar ? (
       <Ampliavel src={foto} nome={nome}>
         {img}

@@ -109,7 +109,7 @@ export function iconePin(tamanho: TamanhoPin) {
     const w = Math.round(h * 0.75);
     icone = L.divIcon({
       className: `pin-rovibes pin-${tamanho}`,
-      html: `<img src="/marca/rovibes-pin.webp" alt="" width="${w}" height="${h}" draggable="false" />`,
+      html: `<img loading="lazy" src="/marca/rovibes-pin.webp" alt="" width="${w}" height="${h}" draggable="false" />`,
       iconSize: [w, h],
       iconAnchor: [w / 2, h],
     });

@@ -2,7 +2,7 @@ import clsx from "clsx";
 
 /** Pin da marca (ícone). */
 export function Simbolo({ className }: { className?: string }) {
-  return <img src="/marca/rovibes-pin.webp" alt="" aria-hidden="true" className={clsx("h-7 w-auto shrink-0", className)} />;
+  return <img loading="lazy" src="/marca/rovibes-pin.webp" alt="" aria-hidden="true" className={clsx("h-7 w-auto shrink-0", className)} />;
 }
 
 /** Nome "RoVibes" da logo. Com complemento (ex.: Business), usa o pin + texto, mais discreto. */
@@ -17,7 +17,7 @@ export function Marca({ complemento, className }: { complemento?: string; classN
       </span>
     );
   }
-  return <img src="/marca/rovibes-nome.webp" alt="RoVibes" className={clsx("h-8 w-auto", className)} />;
+  return <img loading="lazy" src="/marca/rovibes-nome.webp" alt="RoVibes" className={clsx("h-8 w-auto", className)} />;
 }
 
 export type Movimento = "tranquilo" | "moderado" | "cheio";

@@ -4,7 +4,7 @@ import { Eye, EyeOff, Library, Music, Pause, Play, Trash2, Upload } from "lucide
 import { MusicasLivres } from "./MusicasLivres";
 import { TelaUniversal } from "./TelaUniversal";
 import { Aviso, Campo, Secao } from "@/components/Formulario";
-import { mensagemDeErro, supabase } from "@/lib/supabase";
+import { CACHE_ANO, mensagemDeErro, supabase } from "@/lib/supabase";
 
 interface Faixa {
   id: string;
@@ -87,7 +87,7 @@ export function MusicasAdmin() {
     try {
       const ext = (arquivo.name.split(".").pop() || "mp3").toLowerCase().replace(/[^a-z0-9]/g, "");
       const caminho = `${crypto.randomUUID()}.${ext}`;
-      const { error: e1 } = await supabase.storage.from("musicas").upload(caminho, arquivo, { contentType: arquivo.type || "audio/mpeg" });
+      const { error: e1 } = await supabase.storage.from("musicas").upload(caminho, arquivo, { cacheControl: CACHE_ANO, contentType: arquivo.type || "audio/mpeg" });
       if (e1) throw e1;
       const url = supabase.storage.from("musicas").getPublicUrl(caminho).data.publicUrl;
       const { error: e2 } = await supabase.from("musicas").insert({

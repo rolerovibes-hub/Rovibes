@@ -49,7 +49,7 @@ function criarIcone(l: Lugar, h: number, amigos: Amigos | undefined, opts: { foc
   const extra = (amigos ? amigos.identificados - Math.min(pessoas.length, 3) + amigos.anonimos : 0);
   const bolas: string[] = pessoas.slice(0, 3).map((p) =>
     p.foto_url
-      ? `<img src="${esc(p.foto_url)}" alt="" draggable="false" />`
+      ? `<img loading="lazy" src="${esc(p.foto_url)}" alt="" draggable="false" />`
       : `<span class="pin-inicial">${esc(iniciais(p.nome) || "?")}</span>`,
   );
   if (extra > 0) bolas.push(`<span class="pin-mais">+${extra > 99 ? 99 : extra}</span>`);
@@ -62,13 +62,13 @@ function criarIcone(l: Lugar, h: number, amigos: Amigos | undefined, opts: { foc
       return `<span class="pin-amigo" style="left:${left.toFixed(0)}px;top:${top.toFixed(0)}px;animation-delay:${(i * 0.45).toFixed(2)}s">${b}</span>`;
     })
     .join("");
-  const logo = l.logo_url ? `<img src="${esc(l.logo_url)}" alt="" draggable="false" />` : `<span class="pin-inicial">${esc(iniciais(l.nome))}</span>`;
+  const logo = l.logo_url ? `<img loading="lazy" src="${esc(l.logo_url)}" alt="" draggable="false" />` : `<span class="pin-inicial">${esc(iniciais(l.nome))}</span>`;
   const etiqueta = `<span class="pin-etiqueta" style="left:${w + 2}px;top:${Math.round(h * 0.18 - BOLA / 2)}px"><span class="pin-logo">${logo}</span>${
     opts.comNome ? `<span class="pin-nome">${esc(l.nome)}</span>` : ""
   }</span>`;
   return L.divIcon({
     className: `pin-rovibes pin-lugar${opts.foco ? " pin-foco" : ""}${opts.apagado ? " pin-apagado" : ""}`,
-    html: `<img class="pin-marca" src="/marca/rovibes-pin.webp" alt="" width="${w}" height="${h}" draggable="false" />${htmlAmigos}${etiqueta}`,
+    html: `<img loading="lazy" class="pin-marca" src="/marca/rovibes-pin.webp" alt="" width="${w}" height="${h}" draggable="false" />${htmlAmigos}${etiqueta}`,
     iconSize: [w, h],
     iconAnchor: [w / 2, h],
   });

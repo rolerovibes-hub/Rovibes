@@ -356,7 +356,7 @@ export function Cardapio() {
                 onClick={() => seletorFoto.current?.click()}
                 className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-borda bg-fundo text-suave hover:bg-elevado"
               >
-                {rascunho.foto_url ? <img src={rascunho.foto_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
+                {rascunho.foto_url ? <img loading="lazy" src={rascunho.foto_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
               </button>
               <input ref={seletorFoto} type="file" accept="image/*" className="hidden" onChange={(e) => trocarFoto(e.target.files)} />
             </div>

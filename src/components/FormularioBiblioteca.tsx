@@ -45,7 +45,7 @@ export function FormularioBiblioteca({ dados, mudar }: { dados: DadosBiblioteca;
         <div>
           <input ref={seletor} type="file" accept="image/*" className="hidden" onChange={(e) => escolherArquivo(e.target.files)} />
           <button type="button" onClick={() => seletor.current?.click()} className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-borda bg-fundo text-suave hover:bg-elevado" aria-label="Foto do produto">
-            {dados.foto_url ? <img src={dados.foto_url} alt="" className="h-full w-full object-cover" /> : enviandoFoto ? <span className="text-[12px]">Enviando...</span> : <Camera className="h-6 w-6" />}
+            {dados.foto_url ? <img loading="lazy" src={dados.foto_url} alt="" className="h-full w-full object-cover" /> : enviandoFoto ? <span className="text-[12px]">Enviando...</span> : <Camera className="h-6 w-6" />}
           </button>
           {dados.foto_url ? (
             <span className="mt-1 flex justify-center gap-1">

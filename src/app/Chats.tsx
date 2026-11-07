@@ -11,6 +11,7 @@ import { DadosRole, EscolherPessoas, FormularioRole } from "./NovoRole";
 import { SalaAgora, salasAgora } from "@/lib/aoVivo";
 import { pedirLocalizacao } from "./dados";
 import { Store } from "lucide-react";
+import { seVisivel } from "@/lib/visivel";
 
 export function Chats() {
   const navegar = useNavigate();
@@ -252,7 +253,7 @@ function AoVivoAgora() {
       ?.query({ name: "geolocation" as PermissionName })
       .then((st) => (st.state === "granted" ? pedirLocalizacao().then(carregar) : carregar(null)))
       .catch(() => carregar(null)) ?? carregar(null);
-    const t = window.setInterval(() => void carregar(null), 60000);
+    const t = window.setInterval(seVisivel(() => void carregar(null)), 60000);
     return () => {
       vivo = false;
       window.clearInterval(t);
@@ -271,7 +272,7 @@ function AoVivoAgora() {
             <Link to={`/ao-vivo/${s.estabelecimento_id}`} className={clsx("cartao flex h-full items-center gap-2.5 p-2.5 hover:bg-elevado", s.participo && "border-marca")}>
               <span className="relative shrink-0">
                 {s.logo_url ? (
-                  <img src={s.logo_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-perigo ring-offset-2 ring-offset-superficie" />
+                  <img loading="lazy" src={s.logo_url} alt="" className="h-11 w-11 rounded-full object-cover ring-2 ring-perigo ring-offset-2 ring-offset-superficie" />
                 ) : (
                   <span className="flex h-11 w-11 items-center justify-center rounded-full bg-elevado text-suave ring-2 ring-perigo ring-offset-2 ring-offset-superficie">
                     <Store className="h-4 w-4" />

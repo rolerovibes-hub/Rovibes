@@ -10,6 +10,7 @@ import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { reduzirImagem } from "@/lib/imagens";
 import { buscarEventoPessoa, buscarRegras, RegrasEventos, salvarEventoPessoa, TIPOS_EVENTO, TipoEventoPessoa, VisibilidadeEvento, VISIBILIDADES_EVENTO } from "@/lib/eventosPessoa";
 import { pedirLocalizacao } from "./dados";
+import { CACHE_ANO } from "@/lib/supabase";
 
 interface CotaForm {
   id?: string;
@@ -107,7 +108,7 @@ export function CriarEventoPessoa() {
     try {
       const blob = await reduzirImagem(f, 1600);
       const caminho = `${eu}/evento-${crypto.randomUUID()}.jpg`;
-      const { error } = await supabase.storage.from("avatares").upload(caminho, blob, { contentType: "image/jpeg" });
+      const { error } = await supabase.storage.from("avatares").upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
       if (error) throw error;
       setCapa(supabase.storage.from("avatares").getPublicUrl(caminho).data.publicUrl);
     } catch (e) {
@@ -212,7 +213,7 @@ export function CriarEventoPessoa() {
           <div>
             <span className="rotulo mb-1 block">Capa (opcional)</span>
             <button onClick={() => seletor.current?.click()} className="flex aspect-[16/9] w-full items-center justify-center overflow-hidden rounded-xl border-2 border-dashed border-borda bg-fundo text-suave hover:bg-elevado">
-              {capa ? <img src={capa} alt="" className="h-full w-full object-cover" /> : enviandoCapa ? "Enviando..." : <ImagePlus className="h-7 w-7" />}
+              {capa ? <img loading="lazy" src={capa} alt="" className="h-full w-full object-cover" /> : enviandoCapa ? "Enviando..." : <ImagePlus className="h-7 w-7" />}
             </button>
             <input ref={seletor} type="file" accept="image/*" className="hidden" onChange={(e) => void trocarCapa(e.target.files?.[0])} />
           </div>

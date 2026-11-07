@@ -159,7 +159,7 @@ function Codigo({ aoConfirmar }: { aoConfirmar?: () => void }) {
       {fase === "cadastrar" && fator?.qr && (
         <div className="mb-4 space-y-2 text-center">
           <p className="text-sm text-suave">Leia no app autenticador (Google Authenticator, Microsoft Authenticator...).</p>
-          <img src={fator.qr} alt="QR code do autenticador" className="mx-auto h-44 w-44 rounded-lg bg-white p-2" />
+          <img loading="lazy" src={fator.qr} alt="QR code do autenticador" className="mx-auto h-44 w-44 rounded-lg bg-white p-2" />
           {fator.segredo && <p className="codigo select-all break-all text-[12px] text-suave">{fator.segredo}</p>}
         </div>
       )}

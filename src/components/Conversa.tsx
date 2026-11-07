@@ -420,7 +420,7 @@ export function CorpoConversa({
                       className={clsx("overflow-hidden rounded-[20px] bg-marca text-left text-[15px] leading-snug text-marca-texto", p.estado === "enviando" && "opacity-70")}
                     >
                       {p.resposta && citacao(p.resposta, true)}
-                      {p.previa && <img src={p.previa} alt="Foto sendo enviada" className="max-h-80 w-full object-cover" />}
+                      {p.previa && <img loading="lazy" src={p.previa} alt="Foto sendo enviada" className="max-h-80 w-full object-cover" />}
                       {p.lugar && <PreviaLugar lugar={lugarPorId.get(p.lugar)} minha />}
                       {p.texto && <span className="block whitespace-pre-wrap break-words px-3.5 py-2">{p.texto}</span>}
                     </button>
@@ -647,7 +647,7 @@ export function CorpoConversa({
       {denunciar && <JanelaDenuncia tipo="mensagem" alvo={denunciar.id} titulo="Denunciar mensagem" fechar={() => setDenunciar(null)} />}
       {ampliada && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black" role="dialog" aria-modal="true" aria-label="Foto" onClick={() => setAmpliada(null)}>
-          <img src={ampliada} alt="Foto ampliada" className="max-h-full max-w-full object-contain" />
+          <img loading="lazy" src={ampliada} alt="Foto ampliada" className="max-h-full max-w-full object-contain" />
           <button className="absolute right-3 top-[max(12px,env(safe-area-inset-top))] rounded-full p-2 text-white hover:bg-white/10" aria-label="Fechar">
             <X className="h-6 w-6" />
           </button>
@@ -808,7 +808,7 @@ export function CartaoPlano({ plano, autor, abrir }: { plano?: Plano; autor: str
   return (
     <button onClick={abrir} className={clsx("mx-auto flex w-full max-w-[320px] overflow-hidden rounded-2xl bg-superficie text-left shadow-sm ring-1 ring-borda/60", cancelado && "opacity-60")}>
       {plano.local_foto ? (
-        <img src={plano.local_foto} alt="" className="w-24 shrink-0 object-cover" />
+        <img loading="lazy" src={plano.local_foto} alt="" className="w-24 shrink-0 object-cover" />
       ) : (
         <span className="flex w-24 shrink-0 items-center justify-center bg-elevado text-suave">
           <MapPin className="h-6 w-6" />
@@ -870,7 +870,7 @@ export function FaixaPedido({ dados, aoResponder, bloquear }: { dados: DadosConv
 
 /** Ícone redondo da conversa (pessoa, lugar ou grupo). */
 export function IconeConversa({ tipo, titulo, foto }: { tipo: string; titulo: string | null; foto: string | null }) {
-  if (foto) return <img src={foto} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />;
+  if (foto) return <img loading="lazy" src={foto} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />;
   if (tipo === "estabelecimento")
     return (
       <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-elevado text-suave">

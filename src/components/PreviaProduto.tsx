@@ -178,7 +178,7 @@ export function PreviaProduto({ dados }: { dados: DadosPrevia }) {
                   <ul className="mt-3 divide-y divide-borda rounded-lg border border-borda bg-superficie">
                     <li className="flex items-center gap-3 px-3 py-2 text-sm">
                       {dados.foto_url ? (
-                        <img src={dados.foto_url} alt="" className="h-11 w-11 shrink-0 rounded-lg bg-white object-cover" />
+                        <img loading="lazy" src={dados.foto_url} alt="" className="h-11 w-11 shrink-0 rounded-lg bg-white object-cover" />
                       ) : (
                         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
                           <Package className="h-5 w-5" />

@@ -267,7 +267,7 @@ export function Feed() {
                   {gr.tipo === "pessoa" && !gr.autor.logo_url ? (
                     <Avatar nome={gr.autor.nome} tamanho="story" />
                   ) : gr.autor.logo_url ? (
-                    <img src={gr.autor.logo_url} alt="" className="h-[58px] w-[58px] rounded-full object-cover" />
+                    <img loading="lazy" src={gr.autor.logo_url} alt="" className="h-[58px] w-[58px] rounded-full object-cover" />
                   ) : (
                     <span className="flex h-[58px] w-[58px] items-center justify-center rounded-full bg-elevado text-suave">
                       <Store className="h-5 w-5" />
@@ -366,7 +366,7 @@ export function Feed() {
                         <Link to={`/lugar/${p.estabelecimento.id}`} className="flex min-w-0 flex-1 items-center gap-2.5">
                           {p.estabelecimento.logo_url ? (
                             <Ampliavel src={p.estabelecimento.logo_url} nome={p.estabelecimento.nome}>
-                              <img src={p.estabelecimento.logo_url} alt="" className={clsx("rounded-full object-cover", claro ? "h-8 w-8" : "h-9 w-9")} />
+                              <img loading="lazy" src={p.estabelecimento.logo_url} alt="" className={clsx("rounded-full object-cover", claro ? "h-8 w-8" : "h-9 w-9")} />
                             </Ampliavel>
                           ) : (
                             <Avatar nome={p.estabelecimento.nome} tamanho={claro ? "sm" : "md"} />
@@ -694,7 +694,7 @@ function StoriesEmAlta({
                 {capa && <img src={capa} alt="" className="absolute inset-0 h-full w-full object-cover" loading="lazy" />}
                 <span className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/75" />
                 {g.autor.logo_url ? (
-                  <img src={g.autor.logo_url} alt="" className="absolute left-2 top-2 h-9 w-9 rounded-full border-2 border-white object-cover" />
+                  <img loading="lazy" src={g.autor.logo_url} alt="" className="absolute left-2 top-2 h-9 w-9 rounded-full border-2 border-white object-cover" />
                 ) : (
                   <span className="absolute left-2 top-2 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white bg-elevado text-suave">
                     <Store className="h-4 w-4" />

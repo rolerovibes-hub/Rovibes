@@ -41,9 +41,9 @@ export function CartaoLugarAgora({
       <div className="flex gap-3 p-3.5">
         <Link to={`/lugar/${lugar.id}`} className="shrink-0">
           {img ? (
-            <img src={img} alt="" className="h-[72px] w-[72px] rounded-xl object-cover" />
+            <img loading="lazy" src={img} alt="" className="h-[72px] w-[72px] rounded-xl object-cover" />
           ) : lugar.logo_url ? (
-            <img src={lugar.logo_url} alt="" className="h-[72px] w-[72px] rounded-xl object-cover" />
+            <img loading="lazy" src={lugar.logo_url} alt="" className="h-[72px] w-[72px] rounded-xl object-cover" />
           ) : (
             <span className="flex h-[72px] w-[72px] items-center justify-center rounded-xl bg-elevado text-suave">
               <Store className="h-6 w-6" />

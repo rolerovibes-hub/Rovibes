@@ -182,7 +182,7 @@ export function EventoPessoaPagina() {
     <article className="pb-28">
       <div className="relative">
         {ev.capa_url ? (
-          <img src={ev.capa_url} alt="" className="aspect-[16/9] w-full object-cover" />
+          <img loading="lazy" src={ev.capa_url} alt="" className="aspect-[16/9] w-full object-cover" />
         ) : (
           <div className="flex aspect-[16/9] w-full items-center justify-center bg-gradient-to-br from-[#6D28D9] to-[#DB2777] text-6xl">{tipo?.emoji}</div>
         )}

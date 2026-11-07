@@ -61,7 +61,7 @@ export function MeusEventosPessoa() {
             <li key={e.id}>
               <Link to={`/evento-pessoa/${e.id}`} className="cartao flex items-center gap-3 p-2.5 hover:bg-elevado">
                 {e.capa_url ? (
-                  <img src={e.capa_url} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+                  <img loading="lazy" src={e.capa_url} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <span className="flex h-16 w-20 shrink-0 items-center justify-center rounded-lg bg-elevado text-2xl">{NOME_TIPO[e.tipo]?.emoji}</span>
                 )}

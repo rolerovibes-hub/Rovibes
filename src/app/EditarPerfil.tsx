@@ -4,7 +4,7 @@ import { Avatar } from "@/components/Avatar";
 import { reduzirImagem } from "@/lib/imagens";
 import { limparUsuario } from "@/lib/pessoas";
 import { useSessao } from "@/lib/sessao";
-import { mensagemDeErro, supabase } from "@/lib/supabase";
+import { CACHE_ANO, mensagemDeErro, supabase } from "@/lib/supabase";
 
 /** Editar o próprio perfil: foto, nome, @usuário e bio. (Privacidade e bloqueados ficam em Configurações.) */
 export function EditarPerfil({ fechar }: { fechar: () => void }) {
@@ -27,7 +27,7 @@ export function EditarPerfil({ fechar }: { fechar: () => void }) {
     try {
       const blob = await reduzirImagem(arquivo, 512);
       const caminho = `${eu}/foto-${crypto.randomUUID()}.jpg`;
-      const { error } = await supabase.storage.from("avatares").upload(caminho, blob, { contentType: "image/jpeg" });
+      const { error } = await supabase.storage.from("avatares").upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
       if (error) throw error;
       const url = supabase.storage.from("avatares").getPublicUrl(caminho).data.publicUrl;
       const antiga = perfil?.foto_url?.split("/avatares/")[1];

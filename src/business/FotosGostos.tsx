@@ -4,6 +4,7 @@ import { Aviso, Secao } from "@/components/Formulario";
 import { mensagemDeErro, supabase } from "@/lib/supabase";
 import { reduzirImagem } from "@/lib/imagens";
 import { NOME_TIPO_GOSTO, ORDEM_TIPOS, TipoGosto } from "@/lib/gostos";
+import { CACHE_ANO } from "@/lib/supabase";
 
 interface LinhaGosto {
   id: number;
@@ -41,7 +42,7 @@ export function FotosGostos() {
     try {
       const blob = await reduzirImagem(arquivo, 900);
       const caminho = `${g.id}-${Date.now()}.jpg`;
-      const { error: e1 } = await supabase.storage.from("gostos").upload(caminho, blob, { contentType: "image/jpeg" });
+      const { error: e1 } = await supabase.storage.from("gostos").upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
       if (e1) throw e1;
       const url = supabase.storage.from("gostos").getPublicUrl(caminho).data.publicUrl;
       const { error: e2 } = await supabase.rpc("salvar_imagem_gosto", { p_gosto: g.id, p_url: url });
@@ -82,7 +83,7 @@ export function FotosGostos() {
                 {lista.map((g) => (
                   <li key={g.id} className="relative aspect-[3/4] overflow-hidden rounded-lg border border-borda bg-elevado">
                     {g.imagem_url ? (
-                      <img src={g.imagem_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
+                      <img loading="lazy" src={g.imagem_url} alt="" className="absolute inset-0 h-full w-full object-cover" />
                     ) : (
                       <span className="absolute inset-0 flex items-center justify-center text-3xl opacity-60">{g.emoji}</span>
                     )}

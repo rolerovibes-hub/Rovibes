@@ -164,7 +164,7 @@ export function Ingressos() {
               (resultado.ok ? (
                 <div role="status" className="flex items-start gap-3 rounded-cartao border border-ok/40 bg-ok/10 px-4 py-3">
                   {resultado.foto_url ? (
-                    <img src={resultado.foto_url} alt={`Foto de ${resultado.nome}`} className="h-16 w-16 shrink-0 rounded-full object-cover" />
+                    <img loading="lazy" src={resultado.foto_url} alt={`Foto de ${resultado.nome}`} className="h-16 w-16 shrink-0 rounded-full object-cover" />
                   ) : (
                     <CheckCircle2 className="mt-0.5 h-6 w-6 shrink-0 text-ok" />
                   )}

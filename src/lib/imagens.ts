@@ -1,4 +1,4 @@
-import { supabase } from "./supabase";
+import { CACHE_ANO, supabase } from "./supabase";
 
 const BALDE = "estabelecimentos";
 
@@ -86,7 +86,7 @@ export async function reduzirImagem(arquivo: File, ladoMaximo = 1600): Promise<B
 export async function enviarFoto(estabelecimentoId: string, arquivo: File, prefixo: string) {
   const blob = await reduzirImagem(arquivo);
   const caminho = `${estabelecimentoId}/${prefixo}-${crypto.randomUUID()}.jpg`;
-  const { error } = await supabase.storage.from(BALDE).upload(caminho, blob, { contentType: "image/jpeg" });
+  const { error } = await supabase.storage.from(BALDE).upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
   if (error) throw error;
   const { data } = supabase.storage.from(BALDE).getPublicUrl(caminho);
   return { url: data.publicUrl, caminho };

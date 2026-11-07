@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
+import { CACHE_ANO } from "@/lib/supabase";
 
 export interface ItemBiblioteca {
   id: string;
@@ -53,7 +54,7 @@ export async function incluirNoEstoque(estab: string, biblioteca: string): Promi
 export async function enviarFotoBiblioteca(usuario: string, arquivo: File | Blob, jaTratada = false): Promise<string> {
   const blob = jaTratada ? arquivo : await reduzirImagem(arquivo as File, 1000);
   const caminho = `${usuario}/${crypto.randomUUID()}.jpg`;
-  const { error } = await supabase.storage.from("biblioteca").upload(caminho, blob, { contentType: "image/jpeg" });
+  const { error } = await supabase.storage.from("biblioteca").upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
   if (error) throw error;
   return supabase.storage.from("biblioteca").getPublicUrl(caminho).data.publicUrl;
 }

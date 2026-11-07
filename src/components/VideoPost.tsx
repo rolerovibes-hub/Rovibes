@@ -24,6 +24,8 @@ export function VideoPost({
 }) {
   const v = useRef<HTMLVideoElement>(null);
   const [mudoProprio, setMudo] = useState(true);
+  // Só baixa algo do vídeo quando ele está perto da tela.
+  const [perto, setPerto] = useState(false);
   const mudo = mudoFora ?? mudoProprio;
 
   useEffect(() => {
@@ -37,7 +39,12 @@ export function VideoPost({
       { threshold: [0, 0.6, 1] },
     );
     obs.observe(el);
-    return () => obs.disconnect();
+    const aproximar = new IntersectionObserver(([e]) => e.isIntersecting && setPerto(true), { rootMargin: "100% 0px" });
+    aproximar.observe(el);
+    return () => {
+      obs.disconnect();
+      aproximar.disconnect();
+    };
   }, []);
 
   return (
@@ -49,7 +56,7 @@ export function VideoPost({
         muted={mudo}
         loop
         playsInline
-        preload="metadata"
+        preload={perto ? "metadata" : "none"}
         onClick={() => (aoAbrir ? aoAbrir() : setMudo((m) => !m))}
         className={className ?? "max-h-[520px] w-full object-cover"}
       />

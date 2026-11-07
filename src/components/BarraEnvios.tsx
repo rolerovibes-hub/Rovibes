@@ -14,7 +14,7 @@ export function BarraEnvios() {
             e.pedido.midia.tipo === "video" ? (
               <video src={e.previa} muted playsInline className="h-10 w-8 shrink-0 rounded-md bg-black object-cover" />
             ) : (
-              <img src={e.previa} alt="" className="h-10 w-8 shrink-0 rounded-md object-cover" />
+              <img loading="lazy" src={e.previa} alt="" className="h-10 w-8 shrink-0 rounded-md object-cover" />
             )
           ) : (
             <span className="h-10 w-8 shrink-0 rounded-md bg-elevado" />

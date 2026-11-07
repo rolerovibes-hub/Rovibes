@@ -524,7 +524,7 @@ function AcoesDenuncia({ situacao, nivel, feito }: { situacao: string; nivel: nu
               <span className="text-[11px] text-suave">{TIPO_ALVO[d.tipo_alvo] ?? d.tipo_alvo}</span>
             </p>
             {(d.alvo_usuario_nome || d.alvo_nome) && <p className="text-suave">{d.alvo_usuario_nome || d.alvo_nome}</p>}
-            {d.alvo_imagem && <img src={d.alvo_imagem} alt="" className="max-h-32 rounded-md object-cover" />}
+            {d.alvo_imagem && <img loading="lazy" src={d.alvo_imagem} alt="" className="max-h-32 rounded-md object-cover" />}
             {d.alvo_texto && <p className="line-clamp-3 rounded-md bg-elevado/70 px-2 py-1.5">{d.alvo_texto}</p>}
             {d.detalhe && <p className="italic text-suave">“{d.detalhe}”</p>}
             {aberta ? (

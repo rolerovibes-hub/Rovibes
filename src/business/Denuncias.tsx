@@ -199,7 +199,7 @@ export function Denuncias() {
               {d.alvo_usuario_nome && <p className="text-suave">@{d.alvo_usuario_nome}</p>}
             </div>
           </div>
-          {d.alvo_imagem && <img src={d.alvo_imagem} alt="Conteúdo denunciado" className="max-h-80 rounded-lg object-contain" />}
+          {d.alvo_imagem && <img loading="lazy" src={d.alvo_imagem} alt="Conteúdo denunciado" className="max-h-80 rounded-lg object-contain" />}
           {d.alvo_texto && (
             <p className="rounded-lg bg-elevado px-3 py-2">
               <span className="text-suave">{d.tipo_alvo === "perfil" ? "Bio: " : "Texto: "}</span>

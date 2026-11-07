@@ -282,7 +282,7 @@ export function IngressosCarteira({ lista, recarregar, compraVolta }: { lista: M
             .map((i) => (
               <button key={i.id} onClick={() => setAberto(i)} className="cartao flex w-full items-center gap-3 p-3 text-left hover:bg-elevado">
                 {i.evento.capa_url ? (
-                  <img src={i.evento.capa_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                  <img loading="lazy" src={i.evento.capa_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
                 ) : (
                   <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
                     <Ticket className="h-5 w-5" />

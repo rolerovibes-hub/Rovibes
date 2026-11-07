@@ -211,7 +211,7 @@ function Miniatura({ url, classe = "h-11 w-11" }: { url: string | null; classe?:
 
 const valorTexto = (campo: string, v: unknown): ReactNode => {
   if (v === null || v === undefined || v === "") return <em className="text-suave">vazio</em>;
-  if (campo === "foto_url") return <img src={String(v)} alt="" className="inline-block h-8 w-8 rounded border border-borda bg-white object-cover align-middle" />;
+  if (campo === "foto_url") return <img loading="lazy" src={String(v)} alt="" className="inline-block h-8 w-8 rounded border border-borda bg-white object-cover align-middle" />;
   if (campo === "situacao") return SITUACAO_BIBLIOTECA[String(v)]?.nome ?? String(v);
   if (typeof v === "boolean") return v ? "Sim" : "Não";
   return String(v);
@@ -836,7 +836,7 @@ export function BibliotecaAdmin() {
               <div className="grid gap-4 md:grid-cols-[280px_minmax(0,1fr)]">
                 <div>
                   <div className="aspect-square w-full overflow-hidden rounded-xl border border-borda bg-white">
-                    {form.foto_url ? <img src={form.foto_url} alt="" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-suave"><ImageIcon className="h-10 w-10" /></div>}
+                    {form.foto_url ? <img loading="lazy" src={form.foto_url} alt="" className="h-full w-full object-contain" /> : <div className="flex h-full items-center justify-center text-suave"><ImageIcon className="h-10 w-10" /></div>}
                   </div>
                   <input ref={arquivoFoto} type="file" accept="image/*" className="hidden" onChange={(e) => {
                       const f = e.target.files?.[0];

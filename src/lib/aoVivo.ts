@@ -1,5 +1,6 @@
 import { supabase } from "./supabase";
 import { reduzirImagem } from "./imagens";
+import { CACHE_ANO } from "@/lib/supabase";
 
 export type PapelAoVivo = "moderador" | "participante" | "previa" | "previa_encerrada" | "expulso" | "fechado" | "equipe_fechado";
 
@@ -90,7 +91,7 @@ export async function enviarAoVivo(sala: string, tipo: "texto" | "foto" | "music
   if (arquivo) {
     const blob = await reduzirImagem(arquivo, 1600);
     foto = `${sala}/${crypto.randomUUID()}.jpg`;
-    const { error } = await supabase.storage.from("ao-vivo").upload(foto, blob, { contentType: "image/jpeg" });
+    const { error } = await supabase.storage.from("ao-vivo").upload(foto, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
     if (error) throw error;
   }
   const { error } = await supabase.rpc("enviar_ao_vivo", { p_sala: sala, p_tipo: tipo, p_texto: texto, p_foto: foto, p_dados: dados });

@@ -110,7 +110,7 @@ export function AreaPromoter() {
 
 function Logo({ url }: { url: string | null }) {
   return url ? (
-    <img src={url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
+    <img loading="lazy" src={url} alt="" className="h-11 w-11 shrink-0 rounded-full object-cover" />
   ) : (
     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-elevado text-suave">
       <Store className="h-5 w-5" />

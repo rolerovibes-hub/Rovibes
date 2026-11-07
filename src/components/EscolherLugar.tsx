@@ -53,7 +53,7 @@ export function EscolherLugar({
               <li key={l.id}>
                 <button onClick={() => escolher(l)} className="flex w-full items-center gap-3 px-5 py-2.5 text-left hover:bg-elevado">
                   {img ? (
-                    <img src={img} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
+                    <img loading="lazy" src={img} alt="" className="h-11 w-11 shrink-0 rounded-lg object-cover" />
                   ) : (
                     <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
                       <Store className="h-5 w-5" />

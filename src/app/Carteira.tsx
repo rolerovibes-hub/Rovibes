@@ -174,7 +174,7 @@ function Vazio({ icone: Icone, titulo, texto }: { icone: typeof Ticket; titulo: 
 
 function Logo({ url }: { url: string | null | undefined }) {
   return url ? (
-    <img src={url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
+    <img loading="lazy" src={url} alt="" className="h-10 w-10 shrink-0 rounded-full object-cover" />
   ) : (
     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-elevado text-suave">
       <Store className="h-4 w-4" />
@@ -214,7 +214,7 @@ function CartaoIngresso({ ingresso: i, abrir, passado }: { ingresso: Ingresso; a
   const conteudo = (
     <>
       {i.evento.capa_url ? (
-        <img src={i.evento.capa_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+        <img loading="lazy" src={i.evento.capa_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
       ) : (
         <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
           <Ticket className="h-5 w-5" />

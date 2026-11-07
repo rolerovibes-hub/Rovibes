@@ -52,6 +52,7 @@ import {
 import { EscolherPessoas } from "./NovoRole";
 import { CartaoDivulgacao } from "@/components/CartaoDivulgacao";
 import { ListaGerir, rpc } from "@/lib/promoters";
+import { seVisivel } from "@/lib/visivel";
 
 function FotoAoVivo({ caminho, abrir }: { caminho: string; abrir: (url: string) => void }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -190,7 +191,7 @@ export function AoVivoPagina() {
   // Resumo a cada minuto.
   useEffect(() => {
     if (!sala) return;
-    const t = window.setInterval(() => void resumoAoVivo(sala).then(setResumo), 60000);
+    const t = window.setInterval(seVisivel(() => void resumoAoVivo(sala).then(setResumo)), 60000);
     return () => window.clearInterval(t);
   }, [sala]);
 
@@ -289,7 +290,7 @@ export function AoVivoPagina() {
           </button>
           <Link to={`/lugar/${estab}`} className="flex min-w-0 flex-1 items-center gap-2.5">
             {entrada?.estab.logo_url ? (
-              <img src={entrada.estab.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
+              <img loading="lazy" src={entrada.estab.logo_url} alt="" className="h-9 w-9 rounded-full object-cover" />
             ) : (
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-elevado text-suave">
                 <Store className="h-4 w-4" />
@@ -663,7 +664,7 @@ export function AoVivoPagina() {
 
       {ampliada && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black" role="dialog" aria-modal="true" aria-label="Foto" onClick={() => setAmpliada(null)}>
-          <img src={ampliada} alt="Foto ampliada" className="max-h-full max-w-full object-contain" />
+          <img loading="lazy" src={ampliada} alt="Foto ampliada" className="max-h-full max-w-full object-contain" />
         </div>
       )}
     </div>

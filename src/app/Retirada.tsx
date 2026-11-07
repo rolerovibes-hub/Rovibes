@@ -155,7 +155,7 @@ export function Retirada() {
 
         <Link to={`/comanda/${mesa.id}`} className="cartao flex items-center gap-3 p-3 hover:bg-elevado">
           {info?.estabelecimento?.logo_url ? (
-            <img src={info.estabelecimento.logo_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+            <img loading="lazy" src={info.estabelecimento.logo_url} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
           ) : (
             <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
               <Store className="h-5 w-5" />

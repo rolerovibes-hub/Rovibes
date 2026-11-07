@@ -171,7 +171,7 @@ export function FolhaComentarios({
       ) : c.autor.lugar ? (
         <Link to={`/lugar/${c.autor.id}`} onClick={fechar} className="shrink-0">
           {c.autor.foto_url ? (
-            <img src={c.autor.foto_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+            <img loading="lazy" src={c.autor.foto_url} alt="" className="h-8 w-8 rounded-full object-cover" />
           ) : (
             <span className="flex h-8 w-8 items-center justify-center rounded-full bg-elevado text-suave">
               <Store className="h-4 w-4" />
@@ -297,7 +297,7 @@ export function FolhaComentarios({
             <div className="flex items-center gap-2">
               {comoEstab && dados?.estab ? (
                 dados.estab.logo_url ? (
-                  <img src={dados.estab.logo_url} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                  <img loading="lazy" src={dados.estab.logo_url} alt="" className="h-8 w-8 shrink-0 rounded-full object-cover" />
                 ) : (
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-elevado text-suave">
                     <Store className="h-4 w-4" />

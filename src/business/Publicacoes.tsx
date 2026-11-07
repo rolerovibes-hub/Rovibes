@@ -187,7 +187,7 @@ export function Publicacoes() {
                 onClick={() => seletor.current?.click()}
                 className="flex aspect-square w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-borda bg-fundo text-suave hover:bg-elevado"
               >
-                {nova.foto_url ? <img src={nova.foto_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
+                {nova.foto_url ? <img loading="lazy" src={nova.foto_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6" />}
               </button>
               <input ref={seletor} type="file" accept="image/*" className="hidden" onChange={(e) => trocarFoto(e.target.files)} />
             </div>

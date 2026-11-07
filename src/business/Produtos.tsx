@@ -72,7 +72,7 @@ function Bloco({ icone: Icone, titulo, children }: { icone: typeof Package; titu
 
 function Foto({ url, tamanho = "h-11 w-11" }: { url?: string | null; tamanho?: string }) {
   return url ? (
-    <img src={url} alt="" className={clsx(tamanho, "shrink-0 rounded-lg object-cover")} />
+    <img loading="lazy" src={url} alt="" className={clsx(tamanho, "shrink-0 rounded-lg object-cover")} />
   ) : (
     <span className={clsx(tamanho, "flex shrink-0 items-center justify-center rounded-lg bg-elevado text-suave")}>
       <Package className="h-5 w-5" />

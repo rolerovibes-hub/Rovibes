@@ -1,3 +1,4 @@
+import { pararPrevia } from "@/components/Musicas";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
@@ -22,3 +23,10 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     </TemaProvider>
   </React.StrictMode>,
 );
+
+// App em segundo plano: pausa vídeos e músicas (evita baixar e repetir mídia sem ninguém vendo).
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden") return;
+  document.querySelectorAll("video, audio").forEach((m) => (m as HTMLMediaElement).pause());
+  pararPrevia();
+});

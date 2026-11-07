@@ -251,7 +251,7 @@ export function FolhaComoEsta({
                     <li key={e.id}>
                       <Link to={`/evento/${e.id}`} onClick={fechar} className="cartao flex items-center gap-3 p-2.5 hover:bg-elevado">
                         {e.capa_url ? (
-                          <img src={e.capa_url} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+                          <img loading="lazy" src={e.capa_url} alt="" className="h-16 w-20 shrink-0 rounded-lg object-cover" />
                         ) : (
                           <span className="flex h-16 w-20 shrink-0 items-center justify-center rounded-lg bg-elevado text-suave">
                             <CalendarDays className="h-5 w-5" />

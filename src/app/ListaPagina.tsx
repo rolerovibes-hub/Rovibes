@@ -83,7 +83,7 @@ export function ListaPagina() {
     <article className="pb-6">
       <div className="relative">
         {lista.evento?.capa_url ? (
-          <img src={lista.evento.capa_url} alt="" className="aspect-[16/9] w-full object-cover" />
+          <img loading="lazy" src={lista.evento.capa_url} alt="" className="aspect-[16/9] w-full object-cover" />
         ) : (
           <div className="flex aspect-[16/7] w-full items-center justify-center bg-destaque-suave text-destaque">
             <ClipboardList className="h-10 w-10" />

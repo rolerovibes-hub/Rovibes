@@ -185,7 +185,7 @@ export function LugarPagina() {
       {/* Capa */}
       <div className="relative">
         {capa ? (
-          <img src={capa} alt={`Foto de ${lugar.nome}`} className="aspect-[4/3] max-h-[360px] w-full object-cover sm:aspect-[16/9]" />
+          <img loading="lazy" src={capa} alt={`Foto de ${lugar.nome}`} className="aspect-[4/3] max-h-[360px] w-full object-cover sm:aspect-[16/9]" />
         ) : (
           <div className="flex aspect-[16/9] w-full items-center justify-center bg-elevado text-suave">
             <Store className="h-8 w-8" />
@@ -240,7 +240,7 @@ export function LugarPagina() {
           className={clsx("rounded-full p-[3px]", stories.length ? (stories[0].vistos ? "bg-borda" : "bg-magenta") : "bg-fundo")}
         >
           <span className="flex h-[76px] w-[76px] items-center justify-center overflow-hidden rounded-full border-[3px] border-fundo bg-superficie">
-            {lugar.logo_url ? <img src={lugar.logo_url} alt={`Logo de ${lugar.nome}`} className="h-full w-full object-cover" /> : <Store className="h-7 w-7 text-suave" />}
+            {lugar.logo_url ? <img loading="lazy" src={lugar.logo_url} alt={`Logo de ${lugar.nome}`} className="h-full w-full object-cover" /> : <Store className="h-7 w-7 text-suave" />}
           </span>
         </button>
 
@@ -882,7 +882,7 @@ function AbaFotos({
       )}
       {ampliada && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="Foto" onClick={() => setAmpliada(null)}>
-          <img src={ampliada.url} alt="" className="max-h-full max-w-full rounded-lg object-contain" />
+          <img loading="lazy" src={ampliada.url} alt="" className="max-h-full max-w-full rounded-lg object-contain" />
           <button className="absolute right-4 top-4 rounded-full bg-white/15 p-2 text-white" aria-label="Fechar">
             <X className="h-5 w-5" />
           </button>
