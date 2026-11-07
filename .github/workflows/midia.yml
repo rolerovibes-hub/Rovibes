@@ -1,0 +1,78 @@
+name: Serviço de mídia (Cloudflare)
+
+# Publica o Worker "rovibes-midia" (envio e entrega de fotos/áudios pelo R2).
+# Precisa de dois segredos no GitHub: CLOUDFLARE_API_TOKEN e CLOUDFLARE_ACCOUNT_ID.
+# Sem eles, este passo só avisa e não falha.
+
+on:
+  push:
+    branches: [main]
+    paths: ["infra/midia-worker/**", ".github/workflows/midia.yml"]
+  workflow_dispatch:
+
+concurrency:
+  group: midia-worker
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Conferir segredos
+        id: segredos
+        env:
+          TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$TOKEN" ] || [ -z "$CONTA" ]; then
+            echo "::notice::Faltam os segredos CLOUDFLARE_API_TOKEN e/ou CLOUDFLARE_ACCOUNT_ID. Nada foi publicado."
+            echo "pronto=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Endereço público do banco
+        if: steps.segredos.outputs.pronto == 'sim'
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+        run: node desktop/configurar-banco.mjs
+
+      - name: Armazenamento (R2)
+        if: steps.segredos.outputs.pronto == 'sim'
+        working-directory: infra/midia-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          LISTA=$(npx --yes wrangler@3 r2 bucket list 2>/dev/null || true)
+          for B in rovibes-midia rovibes-backup; do
+            if echo "$LISTA" | grep -q "$B"; then echo "Balde $B já existe."; else npx --yes wrangler@3 r2 bucket create "$B"; fi
+          done
+
+      - name: Publicar
+        if: steps.segredos.outputs.pronto == 'sim'
+        id: publicar
+        working-directory: infra/midia-worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          npx --yes wrangler@3 deploy --var "SUPABASE_URL:$VITE_SUPABASE_URL" --var "SUPABASE_ANON_KEY:$VITE_SUPABASE_ANON_KEY" | tee saida.txt
+          URL=$(grep -oE 'https://[a-z0-9.-]+\.workers\.dev' saida.txt | head -1)
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+
+      - name: Teste
+        if: steps.segredos.outputs.pronto == 'sim'
+        run: |
+          URL="${{ steps.publicar.outputs.url }}"
+          [ -n "$URL" ] || { echo "Publicado (sem endereço workers.dev na saída)."; exit 0; }
+          sleep 5
+          curl -fsS "$URL/saude"
+          echo
+          echo "::notice::Serviço de mídia no ar: $URL"

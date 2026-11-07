@@ -1,0 +1,69 @@
+name: Backup do banco
+
+# Cópia diária do banco, criptografada, guardada fora do Supabase (balde privado rovibes-backup no Cloudflare R2).
+# Mantém os últimos 30 dias. Segredos necessários no GitHub:
+#   SUPABASE_DB_URL       conexão do banco (Supabase › Connect › Session pooler)
+#   BACKUP_SENHA          senha para criptografar as cópias (guarde-a em local seguro: sem ela não há como restaurar)
+#   R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY   chave de API do R2 (só leitura e escrita de objetos)
+#   CLOUDFLARE_ACCOUNT_ID
+# Repositório público: a cópia NUNCA vai como artefato do GitHub, só para o R2 já criptografada.
+
+on:
+  schedule:
+    - cron: "17 7 * * *" # todo dia, 04:17 em Brasília
+  workflow_dispatch:
+
+concurrency:
+  group: backup-banco
+  cancel-in-progress: false
+
+jobs:
+  copiar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conferir segredos
+        id: segredos
+        env:
+          DB: ${{ secrets.SUPABASE_DB_URL }}
+          SENHA: ${{ secrets.BACKUP_SENHA }}
+          CHAVE: ${{ secrets.R2_ACCESS_KEY_ID }}
+          SEGREDO: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          if [ -z "$DB" ] || [ -z "$SENHA" ] || [ -z "$CHAVE" ] || [ -z "$SEGREDO" ] || [ -z "$CONTA" ]; then
+            echo "::notice::Backup ainda não configurado (faltam segredos). Nada foi feito."
+            echo "pronto=nao" >> "$GITHUB_OUTPUT"
+          else
+            echo "pronto=sim" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Copiar, criptografar e guardar
+        if: steps.segredos.outputs.pronto == 'sim'
+        env:
+          SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+          BACKUP_SENHA: ${{ secrets.BACKUP_SENHA }}
+          AWS_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: auto
+          CONTA: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          ENDPOINT="https://${CONTA}.r2.cloudflarestorage.com"
+          DATA=$(date -u +%Y-%m-%d_%H%M)
+          ARQ="rovibes-${DATA}.dump.enc"
+          # Cliente do Postgres na mesma versão do banco (17), em contêiner.
+          docker run --rm -e PGCONNECT_TIMEOUT=30 postgres:17 \
+            pg_dump "$SUPABASE_DB_URL" --format=custom --no-owner --no-privileges \
+              --schema=public --schema=auth --schema=storage > banco.dump
+          TAM=$(stat -c %s banco.dump)
+          [ "$TAM" -gt 10000 ] || { echo "Cópia vazia ou incompleta ($TAM bytes)."; exit 1; }
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -in banco.dump -out "$ARQ" -pass env:BACKUP_SENHA
+          rm -f banco.dump
+          aws s3 cp "$ARQ" "s3://rovibes-backup/banco/$ARQ" --endpoint-url "$ENDPOINT" --only-show-errors
+          echo "::notice::Backup guardado: banco/$ARQ ($(numfmt --to=iec "$TAM") antes da criptografia)"
+          # Mantém 30 dias.
+          LIMITE=$(date -u -d '30 days ago' +%Y-%m-%d)
+          aws s3 ls "s3://rovibes-backup/banco/" --endpoint-url "$ENDPOINT" | awk '{print $4}' | while read -r F; do
+            D=$(echo "$F" | sed -E 's/^rovibes-([0-9-]{10}).*/\1/')
+            if [[ "$D" < "$LIMITE" ]]; then aws s3 rm "s3://rovibes-backup/banco/$F" --endpoint-url "$ENDPOINT" --only-show-errors; fi
+          done

@@ -1,4 +1,5 @@
 import { CACHE_ANO, supabase } from "./supabase";
+import { enviarParaR2, usaR2 } from "./midias";
 
 /** Vídeos do RoVibes: até 3 minutos. */
 export const MAX_VIDEO = 180;
@@ -264,6 +265,8 @@ export async function regravarVideo(arquivo: Blob, op: OpcoesVideo, aoProgresso?
 
 /** Envia para o armazenamento com progresso (0 a 1). Sem link assinado, envia do jeito comum. */
 export async function subirComProgresso(balde: string, caminho: string, arquivo: Blob, tipo: string, aoProgresso?: (p: number) => void): Promise<string> {
+  // Serviço de mídia próprio (R2) ligado: fotos com versões, vídeo e áudio sem custo de entrega.
+  if (usaR2()) return enviarParaR2(balde, caminho, arquivo, tipo, aoProgresso);
   const assinado = await supabase.storage.from(balde).createSignedUploadUrl(caminho);
   let foi = false;
   if (!assinado.error && assinado.data?.signedUrl) {

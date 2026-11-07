@@ -1,0 +1,13 @@
+# Serviço de mídia do RoVibes (Cloudflare Worker + R2).
+# Recebe envios autorizados (login do Supabase) e entrega fotos, áudios e arquivos com cache longo.
+name = "rovibes-midia"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+[[r2_buckets]]
+binding = "MIDIA"
+bucket_name = "rovibes-midia"
+
+[vars]
+# Endereços públicos (não são segredo). SUPABASE_URL e SUPABASE_ANON_KEY são passados na publicação.
+ORIGENS = "https://rovibes.vercel.app,http://localhost:5173,http://localhost:4173,tauri://localhost,http://tauri.localhost,https://tauri.localhost"

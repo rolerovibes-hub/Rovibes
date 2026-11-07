@@ -1,4 +1,5 @@
 import { CACHE_ANO, supabase } from "./supabase";
+import { enviarParaR2, usaR2 } from "./midias";
 
 const BALDE = "estabelecimentos";
 
@@ -86,6 +87,10 @@ export async function reduzirImagem(arquivo: File, ladoMaximo = 1600): Promise<B
 export async function enviarFoto(estabelecimentoId: string, arquivo: File, prefixo: string) {
   const blob = await reduzirImagem(arquivo);
   const caminho = `${estabelecimentoId}/${prefixo}-${crypto.randomUUID()}.jpg`;
+  if (usaR2()) {
+    const url = await enviarParaR2(BALDE, caminho, blob, "image/jpeg", undefined, estabelecimentoId);
+    return { url, caminho: url };
+  }
   const { error } = await supabase.storage.from(BALDE).upload(caminho, blob, { cacheControl: CACHE_ANO, contentType: "image/jpeg" });
   if (error) throw error;
   const { data } = supabase.storage.from(BALDE).getPublicUrl(caminho);
@@ -93,6 +98,7 @@ export async function enviarFoto(estabelecimentoId: string, arquivo: File, prefi
 }
 
 export async function apagarFoto(caminho: string) {
+  if (/^https?:/.test(caminho)) return; // arquivo do serviço de mídia: a limpeza é feita pelo catálogo
   await supabase.storage.from(BALDE).remove([caminho]);
 }
 
